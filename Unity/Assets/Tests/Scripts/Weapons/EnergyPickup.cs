@@ -58,6 +58,7 @@ public class EnergyPickup : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         var player = other.GetComponent<PlayerController>();
+        if (player == null) player = other.GetComponentInParent<PlayerController>();
         if (player != null)
         {
             var energia = player.GetComponent<EnergySystem>();
@@ -66,7 +67,34 @@ public class EnergyPickup : MonoBehaviour
                 energia.RecolectarEnergia(cantidad);
             }
             
-            Destroy(gameObject);
+            // Si está en pool, liberar en vez de Destroy
+            var pooled = GetComponent<PooledObject>();
+            if (pooled != null && !string.IsNullOrEmpty(pooled.poolKey) && PoolManager.Instance != null)
+                PoolManager.Instance.Release(pooled.poolKey, gameObject);
+            else
+                Destroy(gameObject);
         }
+    }
+
+    void OnEnable()
+    {
+        // Reset levitación base al respawn desde pool y asegurar trigger no bloquea enemigos
+        posicionInicial = transform.position;
+        var col = GetComponent<SphereCollider>();
+        if (col != null) col.isTrigger = true;
+        // Asegurar que trigger funcione con CharacterController (necesita Rigidbody en trigger)
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        // Fallback por si CharacterController no dispara OnTriggerEnter
+        OnTriggerEnter(other);
     }
 }

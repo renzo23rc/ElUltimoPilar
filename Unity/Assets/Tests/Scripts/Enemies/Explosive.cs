@@ -21,14 +21,17 @@ public class Explosive : Enemy
     {
         base.Start();
         atacaJugador = false;
-        velocidadMovimiento = 4f;
+        velocidadMovimiento = 2f;
         vidaMaxima = 25f;
         vidaActual = vidaMaxima;
         dañoAlPilar = 30f; // Daño directo si llega
         energiaDrop = 5;
-        rangoAtaque = 2f;
+        rangoAtaque = 3.5f; // Aumentado de 2 -> 3.5 para que detone al tocar pilar (radio pilar 2 + half 0.5)
         
-        rend = modeloVisual?.GetComponent<Renderer>() ?? GetComponent<Renderer>();
+        // Fix UnassignedReference: chequeo explicito (?. no funciona con fake-null de Unity)
+        if (modeloVisual != null) rend = modeloVisual.GetComponent<Renderer>();
+        if (rend == null) rend = GetComponent<Renderer>();
+        if (rend == null) rend = GetComponentInChildren<Renderer>();
     }
 
     protected override void Comportamiento()
@@ -54,7 +57,7 @@ public class Explosive : Enemy
 
     void IniciarDetonacion()
     {
-        if (detonando) return;
+        if (detonando || estaMuerto) return;
         detonando = true;
         
         // Parpadear en rojo como advertencia
@@ -66,6 +69,7 @@ public class Explosive : Enemy
 
     void Explosion()
     {
+        if (estaMuerto) return; // Evitar doble ejecución
         // Daño en área
         Collider[] afectados = Physics.OverlapSphere(transform.position, radioExplosion);
         foreach (var col in afectados)
@@ -95,7 +99,7 @@ public class Explosive : Enemy
         
         Debug.Log("[Explosive] ¡BOOM!");
         
-        // No dropear energía si explota (se destruye sin llamar a Morir)
+        // No dropear energía si explota (se destruye sin llamar a Morir) - evita duplicar drop
         estaMuerto = true;
         EnemySpawner.Instance?.EnemigoEliminado(this);
         Destroy(gameObject);
@@ -103,21 +107,41 @@ public class Explosive : Enemy
 
     public override void RecibirDaño(float cantidad)
     {
-        base.RecibirDaño(cantidad);
-        
-        // Si muere por daño, también explota
-        if (vidaActual <= 0 && !detonando)
+        if (estaMuerto || detonando) return;
+
+        vidaActual -= cantidad;
+        NotificarDañoRecibido(cantidad);
+        StartCoroutine(FlashDaño());
+
+        if (vidaActual <= 0)
         {
-            vidaActual = 1; // Evitar que base.Morir() se ejecute
+            // Iniciar detonación sin pasar por base.Morir() (que dropearía energía)
             IniciarDetonacion();
         }
     }
 
     protected override void Morir()
     {
-        // Sobrescrito para manejar la explosión
+        // Si ya está detonando, ignorar Morir base (evita doble Destroy/Drop)
         if (detonando) return;
         base.Morir();
+    }
+
+    void OnDisable()
+    {
+        CancelInvoke();
+    }
+
+    protected override void OnCollisionEnter(Collision collision)
+    {
+        // Detonación por contacto físico con Pilar (fallback si distancia no alcanza por collider grande)
+        if (collision.collider.GetComponent<Pilar>() != null || collision.collider.GetComponentInParent<Pilar>() != null)
+        {
+            IniciarDetonacion();
+            return;
+        }
+        // Mantener daño a jugador base
+        base.OnCollisionEnter(collision);
     }
 
     void OnDrawGizmosSelected()

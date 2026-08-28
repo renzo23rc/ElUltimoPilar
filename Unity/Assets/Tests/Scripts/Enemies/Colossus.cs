@@ -13,13 +13,13 @@ public class Colossus : Enemy
     public float radioAtaque = 4f;
     public GameObject prefabOndaImpacto;
     
-    private bool enZonaPeligrosa = false;
+    [HideInInspector] public bool enZonaPeligrosa = false; // Usado por PozoKill/ZonaGravedad para debug
 
     protected override void Start()
     {
         base.Start();
         atacaJugador = true;
-        velocidadMovimiento = 1.5f;
+        velocidadMovimiento = 0.9f;
         vidaMaxima = 300f;
         vidaActual = vidaMaxima;
         dañoAlPilar = 25f;
@@ -80,17 +80,22 @@ public class Colossus : Enemy
 
     void OnTriggerEnter(Collider other)
     {
-        // Detectar si entra en pozos o zonas de gravedad por nombre
-        string nombre = other.gameObject.name;
-        if (nombre.Contains("Pozo") || nombre.Contains("Gravedad"))
+        // Detectar pozo vía componente PozoKill (robusto) + fallback por nombre (compatibilidad)
+        var pozo = other.GetComponent<PozoKill>();
+        if (pozo == null) pozo = other.GetComponentInParent<PozoKill>();
+        bool esPozo = pozo != null || other.gameObject.name.Contains("Pozo");
+        bool esGravedad = other.gameObject.name.Contains("Gravedad");
+
+        if (esPozo || esGravedad)
         {
             enZonaPeligrosa = true;
-            // Muerte instantánea al caer en pozo
-            if (nombre.Contains("Pozo"))
+            if (esPozo)
             {
                 Debug.Log("[Colossus] ¡El Coloso cayó en un pozo! Muerte instantánea.");
+                // Bypass resistencia: vida 0 y morir directo con recompensa
                 vidaActual = 0;
-                base.Morir();
+                // base.Morir() ya dropea energía y notifica spawner
+                if (!estaMuerto) base.Morir();
             }
         }
     }

@@ -59,17 +59,67 @@ public class TestSceneSetup : MonoBehaviour
         var pilar = pilarGO.AddComponent<Pilar>();
         if (matPilar != null) pilarGO.GetComponent<Renderer>().material = matPilar;
         
-        // Puntos para torretas (fase 4)
+        // Puntos para torretas (fase 4) - FUERA del pozo (radio 5) => local 1.6 => mundo 6.4, y -0.45 => mundo 1.1 visible por encima del pozo
         Transform[] torretas = new Transform[4];
         for (int i = 0; i < 4; i++)
         {
             GameObject t = new GameObject($"PuntoTorreta_{i}");
             t.transform.SetParent(pilarGO.transform);
             float angulo = (i / 4f) * Mathf.PI * 2f;
-            t.transform.localPosition = new Vector3(Mathf.Cos(angulo) * 3f, 0, Mathf.Sin(angulo) * 3f);
+            t.transform.localPosition = new Vector3(Mathf.Cos(angulo) * 1.6f, -0.45f, Mathf.Sin(angulo) * 1.6f);
             torretas[i] = t.transform;
         }
         pilar.puntosTorretas = torretas;
+        // Prefab torreta (Fase 4) - intenta cargar prefab real, fallback runtime si no existe
+        GameObject prefabTorreta = Resources.Load<GameObject>("Prefabs/Torreta");
+        if (prefabTorreta == null)
+        {
+            prefabTorreta = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            prefabTorreta.name = "TorretaPrefab";
+            prefabTorreta.transform.localScale = new Vector3(1.4f, 2.2f, 1.4f);
+            var rendTorreta = prefabTorreta.GetComponent<Renderer>();
+            Shader sTorreta = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
+            var matTorreta = new Material(sTorreta);
+            Color colTorreta = new Color(1f, 0.85f, 0.1f);
+            if (matTorreta.HasProperty("_BaseColor")) matTorreta.SetColor("_BaseColor", colTorreta);
+            else matTorreta.color = colTorreta;
+            if (matTorreta.HasProperty("_Color")) matTorreta.SetColor("_Color", colTorreta);
+            if (matTorreta.HasProperty("_EmissionColor")) matTorreta.SetColor("_EmissionColor", colTorreta * 0.6f);
+            matTorreta.EnableKeyword("_EMISSION");
+            rendTorreta.material = matTorreta;
+            var boxTorreta = prefabTorreta.GetComponent<BoxCollider>();
+            if (boxTorreta == null) boxTorreta = prefabTorreta.AddComponent<BoxCollider>();
+            boxTorreta.isTrigger = false;
+            boxTorreta.center = Vector3.zero;
+            boxTorreta.size = Vector3.one;
+            var lightTorreta = prefabTorreta.AddComponent<Light>();
+            lightTorreta.type = LightType.Point;
+            lightTorreta.color = colTorreta;
+            lightTorreta.range = 6f;
+            lightTorreta.intensity = 2f;
+            var torreta = prefabTorreta.AddComponent<Torreta>();
+            torreta.rango = 22f;
+            torreta.cadencia = 0.9f;
+            torreta.daño = 6f;
+            torreta.velocidadProyectil = 28f;
+            torreta.vidaMaxima = 120f;
+            torreta.vidaActual = 120f;
+            torreta.municionMaxima = 15;
+            torreta.municionActual = 15;
+            torreta.tiempoRecarga = 10f;
+            var pdTorreta = new GameObject("PuntoDisparo");
+            pdTorreta.transform.SetParent(prefabTorreta.transform);
+            pdTorreta.transform.localPosition = Vector3.forward * 0.8f + Vector3.up * 0.6f;
+            pdTorreta.transform.localRotation = Quaternion.identity;
+            pdTorreta.transform.localScale = Vector3.one;
+            torreta.puntoDisparo = pdTorreta.transform;
+            prefabTorreta.SetActive(false);
+        }
+        else
+        {
+            Debug.Log("[TestSceneSetup] Usando prefab real Torreta desde Resources/Prefabs");
+        }
+        pilar.prefabTorreta = prefabTorreta;
         
         // 3. Suelo / Arena
         GameObject suelo = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -79,25 +129,71 @@ public class TestSceneSetup : MonoBehaviour
         // Tag removido - no es necesario para el funcionamiento
         if (matSuelo != null) suelo.GetComponent<Renderer>().material = matSuelo;
         
-        // 4. Pozo Central (inicialmente desactivado)
+        // 4. Pozo Central (inicialmente desactivado) - con PozoKill funcional - VISIBLE alrededor del Pilar
         GameObject pozo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pozo.name = "PozoCentral";
+        // Reemplazar collider por trigger mortal (BoxCollider trigger robusto para caída) - grande para ser visible y tocable
         Destroy(pozo.GetComponent<Collider>());
-        pozo.transform.position = new Vector3(0, -3f, 0);
-        pozo.transform.localScale = new Vector3(3f, 3f, 3f);
-        pozo.GetComponent<Renderer>().material.color = Color.black;
+        var triggerPozo = pozo.AddComponent<BoxCollider>();
+        triggerPozo.isTrigger = true;
+        triggerPozo.size = new Vector3(1f, 1f, 1f);
+        triggerPozo.center = Vector3.zero;
+        var pozoKill = pozo.AddComponent<PozoKill>();
+        pozoKill.radioMortal = 5f; // Un poco más grande que pilar para ser tocable sin estar debajo
+        pozoKill.alturaMortal = 1.5f; // Mata si y <= pozo.y + 1.5 (permite caminar sobre borde sin morir, solo al caer)
+        var rbPozo = pozo.GetComponent<Rigidbody>();
+        if (rbPozo == null) rbPozo = pozo.AddComponent<Rigidbody>();
+        rbPozo.isKinematic = true;
+        rbPozo.useGravity = false;
+        // Posición visible: anillo alrededor del Pilar, ligeramente hundido pero con borde visible sobre el suelo - hitbox = visual
+        pozo.transform.position = new Vector3(0, -0.2f, 0);
+        pozo.transform.localScale = new Vector3(10f, 0.5f, 10f); // Radio 5 (0.5*10), coincide con radioMortal 5
+        var rendPozo = pozo.GetComponent<Renderer>();
+        rendPozo.material.color = Color.black;
+        // Añadir borde emissive para visibilidad
+        if (rendPozo.material.HasProperty("_EmissionColor")) rendPozo.material.SetColor("_EmissionColor", Color.red * 0.3f);
         pozo.SetActive(false);
         
-        // 5. Zona de Gravedad (inicialmente desactivada)
+        // 5. Zona de Gravedad (inicialmente desactivada) - TRIGGER EXAGERADO
         GameObject zonaGrav = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         zonaGrav.name = "ZonaGravedad";
-        Destroy(zonaGrav.GetComponent<Collider>());
-        zonaGrav.transform.position = new Vector3(8f, 1f, 0);
-        zonaGrav.transform.localScale = new Vector3(6f, 6f, 6f);
-        var matZona = new Material(Shader.Find("Standard"));
-        matZona.color = new Color(0.3f, 0f, 0.6f, 0.2f);
-        matZona.SetFloat("_Mode", 3);
-        zonaGrav.GetComponent<Renderer>().material = matZona;
+        // Mantener collider como trigger gigante
+        var colZona = zonaGrav.GetComponent<SphereCollider>();
+        colZona.isTrigger = true;
+        colZona.radius = 0.5f;
+        zonaGrav.transform.position = new Vector3(8f, 0.5f, 0);
+        zonaGrav.transform.localScale = new Vector3(10f, 4f, 10f); // mas grande y achatada (exagerado)
+        Shader shaderZona = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
+        var matZona = new Material(shaderZona);
+        // Color violeta neón exagerado
+        if (matZona.HasProperty("_Color")) matZona.color = new Color(0.6f, 0.1f, 1f, 0.35f);
+        else if (matZona.HasProperty("_BaseColor")) matZona.SetColor("_BaseColor", new Color(0.6f, 0.1f, 1f, 0.35f));
+        if (matZona.HasProperty("_Mode")) matZona.SetFloat("_Mode", 3);
+        if (matZona.HasProperty("_SrcBlend")) matZona.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (matZona.HasProperty("_DstBlend")) matZona.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (matZona.HasProperty("_ZWrite")) matZona.SetInt("_ZWrite", 0);
+        matZona.DisableKeyword("_ALPHATEST_ON");
+        matZona.EnableKeyword("_ALPHABLEND_ON");
+        matZona.renderQueue = 3000;
+        var rendZona = zonaGrav.GetComponent<Renderer>();
+        if (rendZona != null) rendZona.material = matZona;
+        // Script de efecto exagerado
+        var zonaScript = zonaGrav.AddComponent<ZonaGravedadEffect>();
+        zonaScript.fuerzaAscenso = 18f;
+        zonaScript.radioEfecto = 5f;
+        // Particulas flotantes visuales
+        for (int p=0;p<15;p++)
+        {
+            GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = "ParticulaFlotante";
+            Destroy(part.GetComponent<Collider>());
+            part.transform.SetParent(zonaGrav.transform);
+            part.transform.localPosition = UnityEngine.Random.insideUnitSphere * 0.4f;
+            part.transform.localScale = Vector3.one * UnityEngine.Random.Range(0.08f,0.18f);
+            var r = part.GetComponent<Renderer>();
+            r.material.color = new Color(0.8f,0.4f,1f,0.9f);
+            part.AddComponent<ParticulaFlotante>();
+        }
         zonaGrav.SetActive(false);
         
         // 6. Jugador (GameObject vacío + hijo visual para evitar conflictos)
@@ -119,6 +215,20 @@ public class TestSceneSetup : MonoBehaviour
         cam.transform.localPosition = new Vector3(0, 0.8f, 0);
         var camera = cam.AddComponent<Camera>();
         camera.nearClipPlane = 0.1f;
+        camera.tag = "MainCamera";
+        cam.AddComponent<AudioListener>();
+        // Desactivar la Main Camera vieja de SampleScene (quedaba en 0,1,-10 fija)
+        var oldCams = FindObjectsByType<Camera>(FindObjectsSortMode.None);
+        foreach (var oc in oldCams)
+        {
+            if (oc.gameObject != cam)
+            {
+                oc.enabled = false;
+                var al = oc.GetComponent<AudioListener>();
+                if (al != null) al.enabled = false;
+                Debug.Log($"[TestSceneSetup] Camara vieja desactivada: {oc.gameObject.name}");
+            }
+        }
         
         var playerController = jugador.AddComponent<PlayerController>();
         playerController.camaraJugador = camera;
@@ -126,7 +236,9 @@ public class TestSceneSetup : MonoBehaviour
         
         // Componentes
         jugador.AddComponent<EnergySystem>();
-        jugador.AddComponent<WeaponSystem>();
+        var ws = jugador.AddComponent<WeaponSystem>();
+        ws.camara = camera;
+        ws.puntoDisparo = cam.transform;
         
         // CharacterController se agrega automáticamente por [RequireComponent] en PlayerController
         var cc = jugador.GetComponent<CharacterController>();
@@ -138,6 +250,10 @@ public class TestSceneSetup : MonoBehaviour
         GameObject spawnerGO = new GameObject("Spawner");
         var spawner = spawnerGO.AddComponent<EnemySpawner>();
         spawner.radioSpawn = 25f;
+
+        // 7b. PoolManager mínimo viable
+        GameObject poolGO = new GameObject("PoolManager");
+        var poolMgr = poolGO.AddComponent<PoolManager>();
         
         // 8. Arena Manager
         GameObject arenaGO = new GameObject("ArenaManager");
@@ -147,28 +263,90 @@ public class TestSceneSetup : MonoBehaviour
         arena.pozoCentral = pozo;
         arena.zonaGravedad = zonaGrav;
         
-        // 9. Prefab de energía (crear primero para asignar a enemigos)
-        GameObject energia = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        energia.name = "EnergiaPickup";
-        Destroy(energia.GetComponent<Collider>());
-        var sc = energia.AddComponent<SphereCollider>();
-        sc.isTrigger = true;
-        sc.radius = 0.5f;
-        energia.transform.localScale = Vector3.one * 0.5f;
-        if (matEnergia != null) energia.GetComponent<Renderer>().material = matEnergia;
-        else energia.GetComponent<Renderer>().material.color = Color.cyan;
-        energia.AddComponent<EnergyPickup>();
+        // 9. Prefab de energía (intenta cargar real, fallback runtime)
+        GameObject energia = Resources.Load<GameObject>("Prefabs/EnergiaPickup");
+        bool energiaIsReal = energia != null;
+        if (energia == null)
+        {
+            energia = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            energia.name = "EnergiaPickup";
+            Destroy(energia.GetComponent<Collider>());
+            var sc = energia.AddComponent<SphereCollider>();
+            sc.isTrigger = true;
+            sc.radius = 0.5f;
+            energia.transform.localScale = Vector3.one * 0.5f;
+            if (matEnergia != null) energia.GetComponent<Renderer>().material = matEnergia;
+            else energia.GetComponent<Renderer>().material.color = Color.cyan;
+            var rbEnergia = energia.AddComponent<Rigidbody>();
+            rbEnergia.isKinematic = true;
+            rbEnergia.useGravity = false;
+            energia.AddComponent<EnergyPickup>();
+        }
+        else Debug.Log("[TestSceneSetup] Usando prefab real EnergiaPickup");
+        // Registrar pool para pickups (mínimo 15)
+        poolMgr.RegisterPool("EnergyPickup", energia, 15, 50);
+
+        // Prefab proyectil base (intenta cargar real)
+        GameObject projPrefab = Resources.Load<GameObject>("Prefabs/ProyectilBase");
+        bool projIsReal = projPrefab != null;
+        if (projPrefab == null)
+        {
+            projPrefab = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            projPrefab.name = "ProyectilBase";
+            projPrefab.transform.localScale = Vector3.one * 0.6f;
+            Destroy(projPrefab.GetComponent<SphereCollider>());
+            var colProj = projPrefab.AddComponent<SphereCollider>();
+            colProj.isTrigger = true;
+            colProj.radius = 0.5f;
+            var rendProj = projPrefab.GetComponent<Renderer>();
+            Shader sProj = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
+            var matProj = new Material(sProj);
+            Color colProjMat = new Color(1f, 0.5f, 0f);
+            if (matProj.HasProperty("_BaseColor")) matProj.SetColor("_BaseColor", colProjMat);
+            else matProj.color = colProjMat;
+            if (matProj.HasProperty("_Color")) matProj.SetColor("_Color", colProjMat);
+            if (matProj.HasProperty("_EmissionColor")) matProj.SetColor("_EmissionColor", colProjMat * 1.2f);
+            matProj.EnableKeyword("_EMISSION");
+            rendProj.material = matProj;
+            var rbProj = projPrefab.AddComponent<Rigidbody>();
+            rbProj.useGravity = false;
+            rbProj.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            var trail = projPrefab.AddComponent<TrailRenderer>();
+            trail.time = 0.4f;
+            trail.startWidth = 0.25f;
+            trail.endWidth = 0.05f;
+            trail.material = matProj;
+            trail.startColor = colProjMat;
+            trail.endColor = new Color(1, 0.5f, 0, 0.2f);
+            var lightProj = projPrefab.AddComponent<Light>();
+            lightProj.type = LightType.Point;
+            lightProj.color = colProjMat;
+            lightProj.range = 4f;
+            lightProj.intensity = 2f;
+            var projComp = projPrefab.AddComponent<Projectile>();
+            projComp.daño = 10f;
+            projComp.tiempoVida = 5f;
+        }
+        else Debug.Log("[TestSceneSetup] Usando prefab real ProyectilBase");
+        // Asegurar PooledObject y estado inactivo para pool
+        if (projPrefab.GetComponent<PooledObject>() == null) projPrefab.AddComponent<PooledObject>().poolKey = "Proyectil";
+        if (projPrefab.activeSelf) projPrefab.SetActive(false);
+        poolMgr.RegisterPool("Proyectil", projPrefab, 20, 80);
+        // Asignar a torreta prefab
+        var torretaComp = prefabTorreta.GetComponent<Torreta>();
+        if (torretaComp != null) torretaComp.prefabProyectil = projPrefab;
         
-        // 10. Crear prefabs de enemigos para el spawner
-        spawner.prefabCorredor = CrearPrefabEnemigo("Corredor", Color.red, typeof(Runner), energia);
-        spawner.prefabArtillero = CrearPrefabEnemigo("Artillero", Color.blue, typeof(Artillery), energia);
-        spawner.prefabExplosivo = CrearPrefabEnemigo("Explosivo", Color.yellow, typeof(Explosive), energia);
-        spawner.prefabTejedor = CrearPrefabEnemigo("Tejedor", Color.magenta, typeof(Weaver), energia);
-        spawner.prefabNido = CrearPrefabEnemigo("Nido", Color.gray, typeof(Nest), energia);
-        spawner.prefabColoso = CrearPrefabEnemigo("Coloso", new Color(0.5f, 0f, 0f), typeof(Colossus), energia);
-        
-        spawner.prefabNido.transform.localScale = new Vector3(2f, 1f, 2f);
-        spawner.prefabColoso.transform.localScale = new Vector3(2.5f, 3f, 2.5f);
+        // 10. Crear prefabs de enemigos (intenta cargar reales desde Resources/Prefabs, fallback runtime)
+        spawner.prefabCorredor = CargarOcrearEnemigo("Corredor", Color.red, typeof(Runner), energia);
+        spawner.prefabArtillero = CargarOcrearEnemigo("Artillero", Color.blue, typeof(Artillery), energia);
+        spawner.prefabExplosivo = CargarOcrearEnemigo("Explosivo", Color.yellow, typeof(Explosive), energia);
+        spawner.prefabTejedor = CargarOcrearEnemigo("Tejedor", Color.magenta, typeof(Weaver), energia);
+        spawner.prefabNido = CargarOcrearEnemigo("Nido", Color.gray, typeof(Nest), energia);
+        spawner.prefabColoso = CargarOcrearEnemigo("Coloso", new Color(0.5f, 0f, 0f), typeof(Colossus), energia);
+        // Escala ya viene en prefab real (2,1,2 y 2.5,3,2.5); no modificar asset
+        // Asignar proyectil al Artillero (si es prefab real, no modificar asset directamente - se asigna en instancia)
+        var artComp = spawner.prefabArtillero.GetComponent<Artillery>();
+        if (artComp != null && artComp.prefabProyectil == null) artComp.prefabProyectil = projPrefab;
         
         // 11. Configurar GameManager
         gameManager.pilar = pilar;
@@ -217,9 +395,13 @@ public class TestSceneSetup : MonoBehaviour
         
         go.AddComponent(tipoScript);
         
-        // Asignar prefab de energía
+        // Asignar prefab de energía y modelo visual (evita UnassignedReference)
         var enemy = go.GetComponent<Enemy>();
-        if (enemy != null) enemy.prefabEnergia = prefabEnergia;
+        if (enemy != null)
+        {
+            enemy.prefabEnergia = prefabEnergia;
+            if (enemy.modeloVisual == null) enemy.modeloVisual = go.transform;
+        }
         
         // Rigidbody para física
         var rb = go.AddComponent<Rigidbody>();
@@ -229,5 +411,19 @@ public class TestSceneSetup : MonoBehaviour
         // Hacerlo prefab
         go.SetActive(false);
         return go;
+    }
+
+    GameObject CargarOcrearEnemigo(string nombre, Color color, Type tipoScript, GameObject prefabEnergia)
+    {
+        var loaded = Resources.Load<GameObject>("Prefabs/" + nombre);
+        if (loaded != null)
+        {
+            Debug.Log($"[TestSceneSetup] Usando prefab real {nombre} desde Resources/Prefabs");
+            var e = loaded.GetComponent<Enemy>();
+            if (e != null && e.prefabEnergia == null) e.prefabEnergia = prefabEnergia;
+            // Asegurar que el asset no se modifique en escena (instancia se creará via Instantiate)
+            return loaded;
+        }
+        return CrearPrefabEnemigo(nombre, color, tipoScript, prefabEnergia);
     }
 }

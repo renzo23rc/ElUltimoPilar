@@ -109,21 +109,43 @@ public class EnemySpawner : MonoBehaviour
     {
         oleadaActual = numero;
         enemigosSpawned = 0;
-        enemigosActivos.Clear();
+        // Limpiar solo nulos; los vivos de oleada anterior ya deben estar muertos (incluye crías de Nido)
+        // pero por seguridad removemos nulos y mantenemos vivos si aún existen (evita perder track de crías)
+        enemigosActivos.RemoveAll(e => e == null);
+        if (enemigosActivos.Count > 0)
+        {
+            Debug.LogWarning($"[Spawner] IniciarOleada {numero} con {enemigosActivos.Count} enemigos residuales (crías de Nido u otros). Se mantienen en conteo.");
+        }
         
         ConfigOleada config = ConfigActual();
         if (config == null)
         {
-            // Generar config automática si no está definida
             config = GenerarConfigAutomatica(numero);
         }
-        configActualCache = config;
+        // Clonar para no mutar la config original (evita bug de decrementar contadores)
+        configActualCache = ClonarConfig(config);
         
-        enemigosPorSpawnear = config.cantidadTotal;
+        enemigosPorSpawnear = configActualCache.cantidadTotal;
         OleadaEnProgreso = true;
         timerSpawn = 0f;
         
-        Debug.Log($"[Spawner] Oleada {numero} iniciada. Enemigos: {enemigosPorSpawnear} (config cacheada: C{config.corredores} A{config.artilleros} E{config.explosivos})");
+        Debug.Log($"[Spawner] Oleada {numero} iniciada. Enemigos: {enemigosPorSpawnear} (config cacheada: C{configActualCache.corredores} A{configActualCache.artilleros} E{configActualCache.explosivos} T{configActualCache.tejedores} N{configActualCache.nidos} Col{configActualCache.colosos})");
+    }
+
+    ConfigOleada ClonarConfig(ConfigOleada src)
+    {
+        return new ConfigOleada
+        {
+            numeroOleada = src.numeroOleada,
+            cantidadTotal = src.cantidadTotal,
+            corredores = src.corredores,
+            artilleros = src.artilleros,
+            explosivos = src.explosivos,
+            tejedores = src.tejedores,
+            nidos = src.nidos,
+            colosos = src.colosos,
+            intervaloSpawn = src.intervaloSpawn
+        };
     }
 
     void SpawnearSiguienteEnemigo()
@@ -222,18 +244,27 @@ public class EnemySpawner : MonoBehaviour
 
     ConfigOleada GenerarConfigAutomatica(int oleada)
     {
+        // Balanceo B1: 10 oleadas escalables, 12-20 min totales (~70-120s por oleada)
+        // Curva testeada: oleada 1 ~8 enemigos (~12s spawn), oleada 10 ~28 enemigos (~28s spawn) + combate
         var config = new ConfigOleada
         {
             numeroOleada = oleada,
-            cantidadTotal = 5 + oleada * 3,
-            corredores = 3 + oleada * 2,
+            cantidadTotal = 6 + oleada * 2 + (oleada >= 5 ? 2 : 0) + (oleada >= 8 ? 4 : 0), // 8,10,12..28 para 10
+            corredores = 3 + oleada * 1 + (oleada >= 4 ? 1 : 0),
             artilleros = Mathf.Max(0, oleada - 1),
-            explosivos = Mathf.Max(0, oleada - 2),
-            tejedores = Mathf.Max(0, oleada - 3),
+            explosivos = Mathf.Max(0, oleada >= 3 ? (oleada - 2) / 2 + 1 : 0), // menos spam explosivo
+            tejedores = Mathf.Max(0, oleada >= 4 ? 1 : 0) + (oleada >= 7 ? 1 : 0),
             nidos = oleada >= 5 ? 1 : 0,
             colosos = oleada >= 7 ? 1 : 0,
-            intervaloSpawn = Mathf.Max(0.5f, 2f - oleada * 0.1f)
+            intervaloSpawn = Mathf.Max(0.7f, 1.8f - oleada * 0.08f) // 1.7s -> 1.0s, evita masacre instant
         };
+        // Clamp para que suma de tipos no supere cantidadTotal (prioridad en SeleccionarPrefab maneja fallback)
+        int suma = config.corredores + config.artilleros + config.explosivos + config.tejedores + config.nidos + config.colosos;
+        if (suma > config.cantidadTotal)
+        {
+            // Reducir corredores si sobra
+            config.corredores = Mathf.Max(1, config.cantidadTotal - (config.artilleros + config.explosivos + config.tejedores + config.nidos + config.colosos));
+        }
         return config;
     }
 
@@ -256,6 +287,35 @@ public class EnemySpawner : MonoBehaviour
     {
         enemigosActivos.Remove(enemy);
         EnemigosVivos = enemigosActivos.Count;
+    }
+
+    /// <summary>
+    /// Registra enemigos generados externamente (ej. corredores de Nido) para que la oleada no termine mientras sigan vivos.
+    /// </summary>
+    public void RegistrarEnemigoExterno(Enemy enemy)
+    {
+        if (enemy == null) return;
+        if (enemigosActivos.Contains(enemy)) return;
+        enemigosActivos.Add(enemy);
+        EnemigosVivos = enemigosActivos.Count;
+        // Asegurar que el spawner lo elimine cuando muera (si el enemigo no lo hace ya)
+        enemy.OnMuerte += () => EnemigoEliminado(enemy);
+        Debug.Log($"[Spawner] Enemigo externo registrado: {enemy.name} - Vivos ahora: {EnemigosVivos}");
+    }
+
+    /// <summary>
+    /// Limpia todos los enemigos activos (usado al finalizar partida para evitar leaks).
+    /// </summary>
+    public void LimpiarTodos()
+    {
+        foreach (var e in enemigosActivos)
+        {
+            if (e != null) Destroy(e.gameObject);
+        }
+        enemigosActivos.Clear();
+        EnemigosVivos = 0;
+        OleadaEnProgreso = false;
+        enemigosPorSpawnear = 0;
     }
 
     void OnDestroy()

@@ -21,7 +21,7 @@ public class Artillery : Enemy
     {
         base.Start();
         atacaJugador = true; // Puede atacar al jugador o al Pilar
-        velocidadMovimiento = 2f;
+        velocidadMovimiento = 1f;
         vidaMaxima = 40f;
         vidaActual = vidaMaxima;
         dañoAlPilar = 15f;
@@ -118,8 +118,23 @@ public class Artillery : Enemy
             return;
         }
         
-        GameObject proj = Instantiate(prefabProyectil, puntoDisparo.position, 
-            Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
+        GameObject proj = null;
+        if (PoolManager.Instance != null)
+        {
+            // Intentar obtener del pool "Proyectil" (registrado en TestSceneSetup)
+            proj = PoolManager.Instance.Get("Proyectil", puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
+            if (proj == null)
+                proj = Instantiate(prefabProyectil, puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
+            else
+            {
+                proj.transform.SetPositionAndRotation(puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
+                proj.SetActive(true);
+            }
+        }
+        else
+        {
+            proj = Instantiate(prefabProyectil, puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
+        }
         
         var rb = proj.GetComponent<Rigidbody>();
         if (rb != null)
@@ -133,6 +148,10 @@ public class Artillery : Enemy
         {
             projComp.daño = dañoAlPilar;
             projComp.dañoJugador = dañoAlJugador;
+            // Si está en pool, asegurar auto-release programado
+            var pooled = proj.GetComponent<PooledObject>();
+            if (pooled != null && PoolManager.Instance != null)
+                pooled.ScheduleRelease(projComp.tiempoVida);
         }
     }
 }

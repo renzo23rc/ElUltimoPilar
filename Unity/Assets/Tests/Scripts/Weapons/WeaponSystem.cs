@@ -37,10 +37,10 @@ public class WeaponSystem : MonoBehaviour
     {
         nombre = "Rifle Directo",
         tipo = TipoArma.Directa,
-        daño = 15f,
+        daño = 16f, // Balanceo: 15->16 para TTK 2 hits corredor débil (10 vida)
         cadencia = 0.15f,
-        municionMaxima = 60,
-        municionActual = 60,
+        municionMaxima = 80, // 60->80 para sostener oleada larga sin quedarse seco
+        municionActual = 80,
         alcance = 100f
     };
     
@@ -48,12 +48,12 @@ public class WeaponSystem : MonoBehaviour
     {
         nombre = "Lanzador de Área",
         tipo = TipoArma.Area,
-        daño = 40f,
-        cadencia = 1.2f,
-        municionMaxima = 12,
-        municionActual = 12,
-        alcance = 30f,
-        radioArea = 5f
+        daño = 42f, // 40->42 compensa resistencia coloso 0.8
+        cadencia = 1.1f, // 1.2->1.1 un poco más ágil
+        municionMaxima = 16, // 12->16 para decisiones recursos: área vs directa
+        municionActual = 16,
+        alcance = 32f,
+        radioArea = 5.5f
     };
     
     public Arma armaMelee = new Arma
@@ -87,10 +87,30 @@ public class WeaponSystem : MonoBehaviour
     void Start()
     {
         player = GetComponent<PlayerController>();
+        // Preferir la camara del PlayerController (siempre es la correcta), fallback a hijos, luego Camera.main
+        if (camara == null && player != null && player.camaraJugador != null)
+        {
+            camara = player.camaraJugador;
+            puntoDisparo = player.puntoDisparo;
+        }
+        if (camara == null)
+            camara = GetComponentInChildren<Camera>();
         if (camara == null)
             camara = Camera.main;
         if (puntoDisparo == null && camara != null)
             puntoDisparo = camara.transform;
+        if (camara != null)
+            Debug.Log($"[WeaponSystem] Camara asignada: {camara.name} en {camara.transform.position}, puntoDisparo: {puntoDisparo.name}");
+    }
+
+    void LateUpdate()
+    {
+        // Asegurar que puntoDisparo siga a la camara del jugador si cambió
+        if (player != null && player.camaraJugador != null && camara != player.camaraJugador)
+        {
+            camara = player.camaraJugador;
+            puntoDisparo = player.puntoDisparo;
+        }
     }
 
     void Update()
@@ -154,25 +174,35 @@ public class WeaponSystem : MonoBehaviour
 
     void DispararDirecto(Arma arma)
     {
+        if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
         Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
-        
-        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, capasImpacto))
+        LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
+        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, mask))
         {
             var enemy = hit.collider.GetComponent<Enemy>();
             if (enemy != null)
             {
                 enemy.RecibirDaño(arma.daño);
                 Debug.Log($"[WeaponSystem] Impacto directo: {arma.daño} daño a {enemy.name}");
+                CrearImpactoVisual(hit.point, hit.normal, Color.red, 0.35f, true);
+            }
+            else
+            {
+                CrearImpactoVisual(hit.point, hit.normal, Color.white, 0.25f, false);
             }
             
-            // Efecto de impacto
+            // Efecto de impacto prefab si existe
             if (arma.prefabImpacto != null)
-                Instantiate(arma.prefabImpacto, hit.point, Quaternion.identity);
+                Instantiate(arma.prefabImpacto, hit.point, Quaternion.LookRotation(hit.normal));
             
+            CrearTrazador(ray.origin, hit.point, Color.red);
             Debug.DrawRay(ray.origin, ray.direction * hit.distance, Color.red, 0.3f);
         }
         else
         {
+            Vector3 fin = ray.origin + ray.direction * arma.alcance;
+            CrearTrazador(ray.origin, fin, new Color(1,1,1,0.4f));
+            CrearImpactoVisual(fin, -ray.direction, Color.gray, 0.15f, false);
             Debug.DrawRay(ray.origin, ray.direction * arma.alcance, Color.white, 0.3f);
         }
         
@@ -184,16 +214,25 @@ public class WeaponSystem : MonoBehaviour
             if (rb != null)
                 rb.linearVelocity = puntoDisparo.forward * 50f;
         }
+        else
+        {
+            // Flash de boca procedural si no hay prefab
+            CrearFlashBoca(Color.red);
+        }
     }
 
     void DispararArea(Arma arma)
     {
+        if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
         Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
+        LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
         Vector3 puntoImpacto;
+        Vector3 normal = -ray.direction;
         
-        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, capasImpacto))
+        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, mask))
         {
             puntoImpacto = hit.point;
+            normal = hit.normal;
         }
         else
         {
@@ -215,11 +254,14 @@ public class WeaponSystem : MonoBehaviour
         
         Debug.Log($"[WeaponSystem] Explosión de área: {arma.daño} daño a {contador} enemigos");
         
-        // Efecto visual
+        // Efecto visual procedural SIEMPRE (aunque haya prefab)
+        CrearExplosionArea(puntoImpacto, normal, arma.radioArea, contador > 0 ? Color.yellow : new Color(1,0.6f,0,0.8f));
+        CrearTrazador(ray.origin, puntoImpacto, Color.yellow);
+        
         if (arma.prefabImpacto != null)
             Instantiate(arma.prefabImpacto, puntoImpacto, Quaternion.identity);
         
-        // Debug
+        CrearFlashBoca(Color.yellow);
         Debug.DrawRay(ray.origin, ray.direction * (puntoImpacto - puntoDisparo.position).magnitude, Color.yellow, 0.5f);
     }
 
@@ -291,6 +333,113 @@ public class WeaponSystem : MonoBehaviour
         Debug.Log("[WeaponSystem] Munición repuesta");
     }
 
+    // ===== VISUAL FEEDBACK PROCEDURAL (sin prefabs) =====
+    void CrearTrazador(Vector3 inicio, Vector3 fin, Color color)
+    {
+        GameObject go = new GameObject("Trazador");
+        var lr = go.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.SetPositions(new Vector3[]{ inicio, fin });
+        lr.startWidth = 0.025f;
+        lr.endWidth = 0.015f;
+        lr.numCapVertices = 4;
+        lr.numCornerVertices = 2;
+        // Material URP simple, fallback a Sprites/Default
+        Shader s = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+        lr.material = new Material(s);
+        lr.material.color = color;
+        // Sin sombras, billboard
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.receiveShadows = false;
+        Destroy(go, 0.12f);
+    }
+
+    void CrearImpactoVisual(Vector3 pos, Vector3 normal, Color color, float size, bool esHit)
+    {
+        GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        esfera.name = esHit ? "Impacto_HIT" : "Impacto_MISS";
+        esfera.transform.position = pos + normal * 0.05f;
+        esfera.transform.localScale = Vector3.one * size;
+        // Quitar collider para no bloquear
+        Destroy(esfera.GetComponent<Collider>());
+        var rend = esfera.GetComponent<Renderer>();
+        // Material emision simple
+        Material m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        m.SetColor("_BaseColor", color);
+        m.SetColor("_Color", color);
+        // Emision para que brille
+        if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", color * 1.5f);
+        if (m.HasProperty("_EmissiveColor")) m.SetColor("_EmissiveColor", color * 1.5f);
+        rend.material = m;
+        // Animar escala y desvanecer
+        esfera.AddComponent<ImpactoAnim>().Init(esHit ? 0.35f : 0.2f, esHit);
+        // Anillo extra si es hit
+        if (esHit)
+        {
+            GameObject anillo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            anillo.name = "AnilloImpacto";
+            Destroy(anillo.GetComponent<Collider>());
+            anillo.transform.position = pos + normal * 0.02f;
+            anillo.transform.localScale = new Vector3(size*1.8f, 0.02f, size*1.8f);
+            anillo.transform.rotation = Quaternion.FromToRotation(Vector3.up, normal);
+            var r2 = anillo.GetComponent<Renderer>();
+            Material m2 = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+            m2.SetColor("_BaseColor", Color.white);
+            m2.SetColor("_Color", Color.white);
+            r2.material = m2;
+            Destroy(anillo, 0.25f);
+        }
+    }
+
+    void CrearExplosionArea(Vector3 pos, Vector3 normal, float radio, Color color)
+    {
+        // Esfera de explosion semitransparente
+        GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        esfera.name = "ExplosionArea";
+        Destroy(esfera.GetComponent<Collider>());
+        esfera.transform.position = pos + Vector3.up * 0.05f;
+        esfera.transform.localScale = Vector3.one * 0.2f;
+        var rend = esfera.GetComponent<Renderer>();
+        Material m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        Color c = new Color(color.r, color.g, color.b, 0.35f);
+        m.SetColor("_BaseColor", c);
+        m.SetColor("_Color", c);
+        // Transparencia
+        if (m.HasProperty("_Surface")) m.SetFloat("_Surface", 1);
+        rend.material = m;
+        esfera.AddComponent<ExplosionAnim>().Init(radio, 0.45f, color);
+        
+        // Anillo de onda en suelo
+        GameObject onda = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        onda.name = "OndaArea";
+        Destroy(onda.GetComponent<Collider>());
+        onda.transform.position = pos + Vector3.up * 0.02f;
+        onda.transform.localScale = new Vector3(0.5f, 0.02f, 0.5f);
+        var r2 = onda.GetComponent<Renderer>();
+        Material m2 = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        m2.SetColor("_BaseColor", color);
+        m2.SetColor("_Color", color);
+        r2.material = m2;
+        onda.AddComponent<OndaAreaAnim>().Init(radio*2f, 0.45f);
+    }
+
+    void CrearFlashBoca(Color color)
+    {
+        if (puntoDisparo == null) return;
+        GameObject flash = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        flash.name = "FlashBoca";
+        Destroy(flash.GetComponent<Collider>());
+        flash.transform.position = puntoDisparo.position + puntoDisparo.forward * 0.3f;
+        flash.transform.localScale = Vector3.one * 0.18f;
+        var rend = flash.GetComponent<Renderer>();
+        Material m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        m.SetColor("_BaseColor", color);
+        m.SetColor("_Color", color);
+        if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", color * 2f);
+        rend.material = m;
+        Destroy(flash, 0.06f);
+    }
+
     void OnDrawGizmosSelected()
     {
         if (armaEquipada == TipoArma.CuerpoACuerpo)
@@ -298,5 +447,62 @@ public class WeaponSystem : MonoBehaviour
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(transform.position + transform.forward * 1.5f, armaMelee.radioArea);
         }
+    }
+}
+
+// Helpers visuales (sin prefabs)
+public class ImpactoAnim : MonoBehaviour
+{
+    float dur; bool hit; float t; Vector3 ini;
+    public void Init(float d, bool h){ dur=d; hit=h; t=0; ini=transform.localScale; }
+    void Update()
+    {
+        t+=Time.deltaTime;
+        float p=t/dur;
+        if(hit) transform.localScale = Vector3.Lerp(ini, ini*1.6f, p);
+        else transform.localScale = Vector3.Lerp(ini, ini*0.6f, p);
+        var r=GetComponent<Renderer>();
+        if(r!=null){
+            Color c=r.material.color;
+            c.a=Mathf.Lerp(1,0,p);
+            r.material.color=c;
+        }
+        if(t>=dur) Destroy(gameObject);
+    }
+}
+public class ExplosionAnim : MonoBehaviour
+{
+    float radio, dur, t; Color col;
+    public void Init(float r,float d,Color c){ radio=r; dur=d; col=c; t=0; }
+    void Update()
+    {
+        t+=Time.deltaTime;
+        float p=t/dur;
+        float s=Mathf.Lerp(0.2f, radio*2f, p);
+        transform.localScale=new Vector3(s,s*0.6f,s);
+        var r=GetComponent<Renderer>();
+        if(r!=null){
+            Color c=col; c.a=Mathf.Lerp(0.5f,0,p);
+            r.material.SetColor("_BaseColor",c);
+            r.material.SetColor("_Color",c);
+        }
+        if(t>=dur) Destroy(gameObject);
+    }
+}
+public class OndaAreaAnim : MonoBehaviour
+{
+    float radio,dur,t;
+    public void Init(float r,float d){ radio=r; dur=d; t=0; }
+    void Update()
+    {
+        t+=Time.deltaTime;
+        float p=t/dur;
+        float s=Mathf.Lerp(0.5f, radio, p);
+        transform.localScale=new Vector3(s,0.02f,s);
+        var r=GetComponent<Renderer>();
+        if(r!=null){
+            Color c=r.material.color; c.a=Mathf.Lerp(0.8f,0,p); r.material.color=c;
+        }
+        if(t>=dur) Destroy(gameObject);
     }
 }

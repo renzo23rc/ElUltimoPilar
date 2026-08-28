@@ -54,13 +54,27 @@ public class TestHUD : MonoBehaviour
         if (gameManager != null)
         {
             gameManager.OnVictoria += () => MostrarMensaje("¡VICTORIA!");
-            gameManager.OnDerrota += () => MostrarMensaje("DERROTA - El Pilar cayó");
+            gameManager.OnDerrota += () => MostrarMensaje("DERROTA", 0);
             gameManager.OnOleadaIniciada += (o) => MostrarMensaje($"Oleada {o}", 2f);
+        }
+        // Suscribir a todos los jugadores para derribado co-op
+        var todosJugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var p in todosJugadores)
+        {
+            p.OnDerribado += (pl) => MostrarMensaje($"¡{pl.name} DERRIBADO! - Reanima con [E]", 3f);
+            p.OnReanimado += (pl) => MostrarMensaje($"{pl.name} reanimado!", 2f);
         }
     }
 
     void Update()
     {
+        // Auto-referencia si se generó después de Start (TestSceneSetup genera en Start)
+        if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
+        if (jugador == null) jugador = FindFirstObjectByType<PlayerController>();
+        if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
+        if (jugador != null && energia == null) energia = jugador.GetComponent<EnergySystem>();
+        if (jugador != null && armas == null) armas = jugador.GetComponent<WeaponSystem>();
+
         // Vida del Pilar
         if (pilar != null)
         {
@@ -74,14 +88,39 @@ public class TestHUD : MonoBehaviour
             }
         }
         
-        // Vida del Jugador
+        // Vida del Jugador + estado derribado (co-op)
         if (jugador != null)
         {
             float pctJ = jugador.vidaActual / jugador.vidaMaxima;
             if (textoVidaJugador != null)
-                textoVidaJugador.text = $"Vida: {jugador.vidaActual:F0}/{jugador.vidaMaxima:F0}";
+            {
+                if (jugador.estaDerribado)
+                    textoVidaJugador.text = $"Vida: DERRIBADO - [E] a {jugador.rangoReanimacion:F0}m para reanimar!";
+                else
+                    textoVidaJugador.text = $"Vida: {jugador.vidaActual:F0}/{jugador.vidaMaxima:F0}";
+                textoVidaJugador.color = jugador.estaDerribado ? Color.red : Color.white;
+            }
             if (barraVidaJugador != null)
-                barraVidaJugador.fillAmount = pctJ;
+            {
+                barraVidaJugador.fillAmount = jugador.estaDerribado ? 0f : pctJ;
+                barraVidaJugador.color = jugador.estaDerribado ? Color.red : Color.green;
+            }
+            // Mostrar prompt si aliado cerca derribado
+            if (!jugador.estaDerribado)
+            {
+                var todos = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+                foreach (var p in todos)
+                {
+                    if (p == jugador || !p.estaDerribado) continue;
+                    float d = Vector3.Distance(jugador.transform.position, p.transform.position);
+                    if (d <= jugador.rangoReanimacion + 0.5f && textoMensaje != null && string.IsNullOrEmpty(textoMensaje.text))
+                    {
+                        textoMensaje.text = $"Presiona [E] para reanimar a {p.name} ({d:F1}m)";
+                        textoMensaje.color = Color.yellow;
+                        break;
+                    }
+                }
+            }
         }
         
         // Energía
@@ -132,7 +171,22 @@ public class TestHUD : MonoBehaviour
             }
             if (Keyboard.current.rKey.wasPressedThisFrame)
             {
-                pilar?.RecibirDaño(10f);
+                if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
+                if (pilar != null)
+                {
+                    // R funciona siempre, incluso antes de WASD (fuerza inicio para que arena/torretas disparen)
+                    if (gameManager != null && !gameManager.juegoActivo)
+                    {
+                        Debug.Log("[TestHUD] R: forzando inicio de juego para test de fases");
+                        gameManager.juegoActivo = true;
+                    }
+                    pilar.AplicarDañoPrueba(10f);
+                    Debug.Log($"[TestHUD] R: pilar dañado 10% -> {pilar.vidaActual}% fase {pilar.faseActual}");
+                }
+                else
+                {
+                    Debug.LogWarning("[TestHUD] R: pilar aún null (¿generación no completada?)");
+                }
             }
         }
     }
@@ -149,15 +203,29 @@ public class TestHUD : MonoBehaviour
         };
     }
 
-    void MostrarMensaje(string mensaje, float duracion = 0)
+    public void MostrarMensaje(string mensaje, float duracion = 0)
     {
         if (textoMensaje != null)
         {
             textoMensaje.text = mensaje;
+            textoMensaje.color = Color.white;
             if (duracion > 0)
                 Invoke(nameof(LimpiarMensaje), duracion);
         }
         Debug.Log($"[TestHUD] {mensaje}");
+    }
+
+    public void MostrarAdvertencia(string mensaje, Color color, float duracion)
+    {
+        if (textoMensaje != null)
+        {
+            textoMensaje.text = mensaje;
+            textoMensaje.color = color;
+            textoMensaje.fontSize = 40;
+            if (duracion > 0)
+                Invoke(nameof(LimpiarMensaje), duracion);
+        }
+        Debug.Log($"[TestHUD] ADVERTENCIA: {mensaje}");
     }
 
     void LimpiarMensaje()

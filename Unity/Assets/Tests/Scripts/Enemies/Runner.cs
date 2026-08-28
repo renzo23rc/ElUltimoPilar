@@ -8,14 +8,14 @@ using UnityEngine;
 public class Runner : Enemy
 {
     [Header("Runner Específico")]
-    public float velocidadSprint = 12f;
+    public float velocidadSprint = 5f;
     public float distanciaSprint = 15f;
     
     protected override void Start()
     {
         base.Start();
         atacaJugador = false;
-        velocidadMovimiento = 8f;
+        velocidadMovimiento = 3.5f;
         vidaMaxima = 20f;
         vidaActual = vidaMaxima;
         dañoAlPilar = 8f;

@@ -6,6 +6,7 @@
  * Colocar en un GameObject vacío "GameManager" en la escena.
  */
 using UnityEngine;
+using UnityEngine.InputSystem;
 using System;
 
 public class GameManager : MonoBehaviour
@@ -18,8 +19,8 @@ public class GameManager : MonoBehaviour
     public PlayerController player;
     
     [Header("Configuración de Oleadas")]
-    public int totalOleadas = 10;
-    public float tiempoEntreOleadas = 5f;
+    public int totalOleadas = 10; // B1: 10 oleadas escalables 12-20min
+    public float tiempoEntreOleadas = 7f; // Balanceo: 5->7s para respiro táctico y decisión energía/munición
     
     [Header("Estado Actual")]
     public int oleadaActual = 0;
@@ -46,6 +47,10 @@ public class GameManager : MonoBehaviour
         Instance = this;
     }
 
+    [Header("Inicio")]
+    public bool iniciarAlMover = true;
+    private bool esperandoInputInicial = true;
+
     void Start()
     {
         if (pilar == null)
@@ -68,14 +73,39 @@ public class GameManager : MonoBehaviour
         {
             Debug.LogWarning("[GameManager] No se encontró el Jugador.");
         }
+
+        // Suscribirse a eventos de derribado para todos los jugadores (co-op, derrota si todos derribados)
+        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var p in jugadores)
+        {
+            p.OnDerribado += _ => VerificarDerrotaCoop();
+            p.OnReanimado += _ => Debug.Log($"[GameManager] Jugador reanimado - derrota evitada");
+        }
             
-        // Auto-iniciar para testing
-        IniciarJuego();
+        if (iniciarAlMover)
+        {
+            juegoActivo = false;
+            esperandoInputInicial = true;
+            Debug.Log("[GameManager] Presiona WASD o mueve el mouse para iniciar. (Para PC lenta)");
+        }
+        else
+        {
+            IniciarJuego();
+        }
     }
 
     void Update()
     {
-        if (!juegoActivo || juegoPausado) return;
+        if (!juegoActivo)
+        {
+            if (esperandoInputInicial && DetectarInputInicio())
+            {
+                esperandoInputInicial = false;
+                IniciarJuego();
+            }
+            return;
+        }
+        if (juegoPausado) return;
         
         if (esperandoOleada)
         {
@@ -99,6 +129,16 @@ public class GameManager : MonoBehaviour
         oleadaActual = 0;
         
         pilar?.RestaurarVida();
+        // Restaurar jugadores si estaban derribados
+        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var j in jugadores)
+        {
+            if (j.estaDerribado) j.Reanimar();
+            j.vidaActual = j.vidaMaxima;
+            // Re-suscribir si son nuevos
+            j.OnDerribado -= _ => VerificarDerrotaCoop();
+            j.OnDerribado += _ => VerificarDerrotaCoop();
+        }
         OnJuegoIniciado?.Invoke();
         
         IniciarSiguienteOleada();
@@ -124,8 +164,10 @@ public class GameManager : MonoBehaviour
         OnOleadaCompletada?.Invoke(oleadaActual);
         Debug.Log($"[GameManager] Oleada {oleadaActual} completada");
         
-        // Dar munición al final de oleada (según GDD)
-        player?.ReponerMunicion();
+        // Dar munición al final de oleada (según GDD) - a todos los jugadores si co-op
+        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        if (jugadores.Length > 0) foreach (var j in jugadores) j.ReponerMunicion();
+        else player?.ReponerMunicion();
         
         if (oleadaActual >= totalOleadas)
         {
@@ -148,9 +190,73 @@ public class GameManager : MonoBehaviour
 
     public void Derrota()
     {
+        if (!juegoActivo) return; // Evitar doble derrota
         juegoActivo = false;
         Debug.Log("[GameManager] DERROTA - El Pilar ha caído");
         OnDerrota?.Invoke();
+    }
+
+    public void DerrotaPorJugadores()
+    {
+        if (!juegoActivo) return;
+        juegoActivo = false;
+        Debug.Log("[GameManager] DERROTA - Todos los jugadores derribados");
+        OnDerrota?.Invoke();
+    }
+
+    public void NotificarJugadorDerribado(PlayerController p)
+    {
+        VerificarDerrotaCoop();
+    }
+
+    public void NotificarJugadorReanimado(PlayerController p)
+    {
+        // No hace falta acción, solo log
+    }
+
+    void VerificarDerrotaCoop()
+    {
+        if (!juegoActivo) return;
+        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        if (jugadores.Length == 0) return;
+        bool todosDerribados = true;
+        foreach (var j in jugadores)
+        {
+            if (!j.estaDerribado)
+            {
+                todosDerribados = false;
+                break;
+            }
+        }
+        if (todosDerribados)
+        {
+            Debug.Log($"[GameManager] Todos los {jugadores.Length} jugadores derribados - Derrota co-op");
+            DerrotaPorJugadores();
+        }
+        else
+        {
+            int vivos = 0; foreach (var j in jugadores) if (!j.estaDerribado) vivos++;
+            Debug.Log($"[GameManager] Jugador derribado, quedan {vivos}/{jugadores.Length} en pie - Reanimación posible (E)");
+        }
+    }
+
+    bool DetectarInputInicio()
+    {
+        if (Keyboard.current == null) return false;
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.aKey.isPressed || 
+            Keyboard.current.sKey.isPressed || Keyboard.current.dKey.isPressed ||
+            Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.spaceKey.isPressed ||
+            Keyboard.current.upArrowKey.isPressed || Keyboard.current.downArrowKey.isPressed ||
+            Keyboard.current.leftArrowKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+            return true;
+        if (Mouse.current != null)
+        {
+            Vector2 delta = Mouse.current.delta.ReadValue();
+            if (delta.magnitude > 2f) return true;
+            if (Mouse.current.leftButton.wasPressedThisFrame) return true;
+        }
+        if (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame) return true;
+        return false;
     }
 
     void OnDestroy()

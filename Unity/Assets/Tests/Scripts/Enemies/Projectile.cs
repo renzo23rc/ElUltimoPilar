@@ -19,7 +19,15 @@ public class Projectile : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        Destroy(gameObject, tiempoVida);
+        // Si está en pool, el PooledObject manejará auto-release; si no, Destroy tradicional
+        if (TryGetComponent<PooledObject>(out var pooled) && !string.IsNullOrEmpty(pooled.poolKey))
+        {
+            pooled.ScheduleRelease(tiempoVida);
+        }
+        else
+        {
+            Destroy(gameObject, tiempoVida);
+        }
     }
 
     void OnTriggerEnter(Collider other)
@@ -50,6 +58,15 @@ public class Projectile : MonoBehaviour
             Impacto();
             return;
         }
+
+        var torreta = other.GetComponent<Torreta>();
+        if (torreta == null) torreta = other.GetComponentInParent<Torreta>();
+        if (torreta != null)
+        {
+            torreta.RecibirDaño(daño);
+            Impacto();
+            return;
+        }
         
         // Impacto con cualquier otra cosa (pared, suelo, etc)
         if (!other.isTrigger)
@@ -61,9 +78,20 @@ public class Projectile : MonoBehaviour
     void Impacto()
     {
         if (prefabImpacto != null)
-            Instantiate(prefabImpacto, transform.position, Quaternion.identity);
+        {
+            if (PoolManager.Instance != null)
+                PoolManager.Instance.GetVFX("Impacto", transform.position, Quaternion.identity, 1f);
+            else
+                Instantiate(prefabImpacto, transform.position, Quaternion.identity);
+        }
         
         if (destruirAlImpactar)
-            Destroy(gameObject);
+        {
+            var pooled = GetComponent<PooledObject>();
+            if (pooled != null && !string.IsNullOrEmpty(pooled.poolKey) && PoolManager.Instance != null)
+                PoolManager.Instance.Release(pooled.poolKey, gameObject);
+            else
+                Destroy(gameObject);
+        }
     }
 }

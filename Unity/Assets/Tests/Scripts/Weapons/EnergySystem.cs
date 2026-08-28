@@ -14,9 +14,9 @@ public class EnergySystem : MonoBehaviour
     [Header("Configuración")]
     public float energiaMaxima = 100f;
     public float energiaActual = 0f;
-    public float costoCuracion = 20f; // 20 energía = 1% vida
-    public float vidaPorCuracion = 1f; // 1% de vida
-    public float costoHabilidad = 30f;
+    public float costoCuracion = 15f; // Balanceo: 20->15 para que curar no sea castigo extremo (decisión real)
+    public float vidaPorCuracion = 8f; // 1->8% vida: ahora curar es relevante tácticamente (2 curas = 16% vida)
+    public float costoHabilidad = 28f; // 30->28 un poco más accesible para habilidad de control
     
     [Header("Habilidades")]
     public bool habilidadPulsoDaño = true; // true = pulso de daño, false = ralentización
@@ -103,19 +103,45 @@ public class EnergySystem : MonoBehaviour
 
     void RalentizacionArea()
     {
-        // Aquí se implementaría la ralentización de enemigos en área
-        // Por ahora, daño reducido pero afecta más enemigos
-        Collider[] enemigos = Physics.OverlapSphere(transform.position, radioPulso * 1.5f);
-        foreach (var col in enemigos)
+        // Ralentización temporal (stack prohibido) afecta a enemigos y jugadores en área
+        Collider[] colisiones = Physics.OverlapSphere(transform.position, radioPulso * 1.5f);
+        int countE = 0, countP = 0;
+        foreach (var col in colisiones)
         {
             var enemy = col.GetComponent<Enemy>();
+            if (enemy == null) enemy = col.GetComponentInParent<Enemy>();
             if (enemy != null)
             {
-                enemy.velocidadMovimiento *= factorRalentizacion;
+                enemy.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
+                countE++;
+            }
+            var player = col.GetComponent<PlayerController>();
+            if (player == null) player = col.GetComponentInParent<PlayerController>();
+            if (player != null)
+            {
+                // No ralentizar al propio lanzador si se desea? Sí afecta a todos por spec, incluso self, pero evitamos self para habilidad aliada
+                // Por ahora sí afecta a todos excepto self para no penalizar al usarla
+                if (player.gameObject != this.gameObject)
+                {
+                    player.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
+                    countP++;
+                }
+            }
+        }
+        // También afectar a todos los jugadores si rango incluye múltiples (co-op)
+        var todosPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var p in todosPlayers)
+        {
+            if (p.gameObject == this.gameObject) continue;
+            float d = Vector3.Distance(p.transform.position, transform.position);
+            if (d <= radioPulso * 1.5f && !System.Array.Exists(colisiones, c => c.GetComponentInParent<PlayerController>() == p))
+            {
+                p.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
+                countP++;
             }
         }
         
-        Debug.Log("[EnergySystem] ¡Ralentización de área activada!");
+        Debug.Log($"[EnergySystem] ¡Ralentización área! Enemigos {countE}, Jugadores {countP} x{factorRalentizacion} por {duracionRalentizacion}s");
         CrearOndaVisual(Color.cyan, radioPulso * 1.5f);
     }
 

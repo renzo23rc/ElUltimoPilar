@@ -5,6 +5,7 @@
  * Aplica daño por segundo dentro del área.
  */
 using UnityEngine;
+using System.Collections.Generic;
 
 public class Weaver : Enemy
 {
@@ -23,7 +24,7 @@ public class Weaver : Enemy
     {
         base.Start();
         atacaJugador = true;
-        velocidadMovimiento = 3f;
+        velocidadMovimiento = 1.2f;
         vidaMaxima = 35f;
         vidaActual = vidaMaxima;
         energiaDrop = 4;
@@ -112,7 +113,8 @@ public class Weaver : Enemy
 
 /**
  * WeaverZone.cs
- * Zona de efecto del Tejedor.
+ * Zona de efecto del Tejedor. Ralentiza temporalmente, daño por segundo.
+ * Stack prohibido: no acumula multiplicadores. Restaura al salir o expirar.
  */
 public class WeaverZone : MonoBehaviour
 {
@@ -121,6 +123,9 @@ public class WeaverZone : MonoBehaviour
     public float duracion = 8f;
     
     private float timer = 0f;
+    private readonly HashSet<PlayerController> playersRalentizados = new HashSet<PlayerController>();
+    private readonly HashSet<Enemy> enemigosRalentizados = new HashSet<Enemy>();
+    private float pollTimer = 0f;
 
     void Start()
     {
@@ -131,12 +136,100 @@ public class WeaverZone : MonoBehaviour
     void Update()
     {
         timer -= Time.deltaTime;
+
+        // Poll ralentización cada 0.15s para detectar enter/exit sin sobrecarga
+        pollTimer -= Time.deltaTime;
+        if (pollTimer <= 0f)
+        {
+            pollTimer = 0.15f;
+            ActualizarRalentizacion();
+        }
         
-        // Pulso de daño cada segundo
+        // Pulso de daño cada segundo (usando FloorToInt trick)
         if (Mathf.FloorToInt(timer) != Mathf.FloorToInt(timer + Time.deltaTime))
         {
             AplicarDañoEnArea();
         }
+
+        // Si zona expiró, restaurar todos antes de Destroy
+        if (timer <= 0f)
+        {
+            RestaurarTodos();
+        }
+    }
+
+    void ActualizarRalentizacion()
+    {
+        float radio = transform.localScale.x * 0.5f;
+        Collider[] enZona = Physics.OverlapSphere(transform.position, radio);
+        var playersDentro = new HashSet<PlayerController>();
+        var enemigosDentro = new HashSet<Enemy>();
+
+        foreach (var col in enZona)
+        {
+            var player = col.GetComponent<PlayerController>();
+            if (player != null) playersDentro.Add(player);
+            // También buscar en parent (CharacterController está en root, pero collider puede estar en hijo)
+            if (player == null) player = col.GetComponentInParent<PlayerController>();
+            if (player != null) playersDentro.Add(player);
+
+            var enemy = col.GetComponent<Enemy>();
+            if (enemy != null) enemigosDentro.Add(enemy);
+            if (enemy == null) enemy = col.GetComponentInParent<Enemy>();
+            if (enemy != null) enemigosDentro.Add(enemy);
+        }
+
+        // Aplicar a nuevos entrantes (stack prohibido: solo si no estaba ya)
+        foreach (var p in playersDentro)
+        {
+            if (!playersRalentizados.Contains(p))
+            {
+                p.AplicarRalentizacion(factorRalentizacion, duracion);
+                playersRalentizados.Add(p);
+            }
+        }
+        foreach (var e in enemigosDentro)
+        {
+            if (e is Nest) continue; // Nido estacionario, no afecta movimiento
+            if (!enemigosRalentizados.Contains(e))
+            {
+                e.AplicarRalentizacion(factorRalentizacion, duracion);
+                enemigosRalentizados.Add(e);
+            }
+        }
+
+        // Restaurar a los que salieron
+        var salirPlayers = new List<PlayerController>();
+        foreach (var p in playersRalentizados) if (!playersDentro.Contains(p)) salirPlayers.Add(p);
+        foreach (var p in salirPlayers)
+        {
+            p.QuitarRalentizacion();
+            playersRalentizados.Remove(p);
+        }
+
+        var salirEnemigos = new List<Enemy>();
+        foreach (var e in enemigosRalentizados) if (!enemigosDentro.Contains(e) || e == null) salirEnemigos.Add(e);
+        foreach (var e in salirEnemigos)
+        {
+            if (e != null) e.QuitarRalentizacion();
+            enemigosRalentizados.Remove(e);
+        }
+        // Limpiar nulos
+        enemigosRalentizados.RemoveWhere(e => e == null);
+        playersRalentizados.RemoveWhere(p => p == null);
+    }
+
+    void RestaurarTodos()
+    {
+        foreach (var p in playersRalentizados) if (p != null) p.QuitarRalentizacion();
+        foreach (var e in enemigosRalentizados) if (e != null) e.QuitarRalentizacion();
+        playersRalentizados.Clear();
+        enemigosRalentizados.Clear();
+    }
+
+    void OnDestroy()
+    {
+        RestaurarTodos();
     }
 
     void AplicarDañoEnArea()
@@ -145,17 +238,24 @@ public class WeaverZone : MonoBehaviour
         foreach (var col in enZona)
         {
             var player = col.GetComponent<PlayerController>();
+            if (player == null) player = col.GetComponentInParent<PlayerController>();
             if (player != null)
             {
                 player.RecibirDaño(dañoPorSegundo);
-                // Aquí se aplicaría ralentización al sistema de movimiento
             }
             
             var pilar = col.GetComponent<Pilar>();
+            if (pilar == null) pilar = col.GetComponentInParent<Pilar>();
             if (pilar != null)
             {
                 pilar.RecibirDaño(dañoPorSegundo * 0.5f);
             }
         }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(0.6f, 0.2f, 1f, 0.3f);
+        Gizmos.DrawWireSphere(transform.position, transform.localScale.x * 0.5f);
     }
 }

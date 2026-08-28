@@ -4,6 +4,7 @@
  * Enemigo de presión y control.
  */
 using UnityEngine;
+using System.Collections.Generic;
 
 public class Nest : Enemy
 {
@@ -15,6 +16,7 @@ public class Nest : Enemy
     
     private float timerGeneracion = 0f;
     private int corredoresGenerados = 0;
+    private readonly List<Enemy> corredoresVivos = new List<Enemy>();
 
     protected override void Start()
     {
@@ -36,13 +38,18 @@ public class Nest : Enemy
     protected override void Update()
     {
         if (estaMuerto) return;
-        if (!GameManager.Instance.juegoActivo) return;
+        if (GameManager.Instance != null && !GameManager.Instance.juegoActivo) return;
         
         timerGeneracion -= Time.deltaTime;
         
         if (timerGeneracion <= 0 && prefabCorredor != null)
         {
-            GenerarCorredor();
+            // Limpiar nulos antes de chequear límite
+            corredoresVivos.RemoveAll(e => e == null);
+            if (corredoresVivos.Count < maxCorredoresSimultaneos)
+            {
+                GenerarCorredor();
+            }
             timerGeneracion = intervaloGeneracion;
         }
     }
@@ -53,18 +60,40 @@ public class Nest : Enemy
         pos.y = transform.position.y;
         
         GameObject corredor = Instantiate(prefabCorredor, pos, Quaternion.identity);
-        
+        corredor.SetActive(true);
+        corredor.name = prefabCorredor.name + "(Clone_Nido)";
+
         // Configurar como corredor débil
         var runner = corredor.GetComponent<Runner>();
         if (runner != null)
         {
             runner.vidaMaxima = 10f;
             runner.vidaActual = 10f;
-            runner.velocidadMovimiento = 6f;
+            runner.velocidadMovimiento = 2.5f;
+        }
+
+        var enemy = corredor.GetComponent<Enemy>();
+        if (enemy != null)
+        {
+            corredoresVivos.Add(enemy);
+            // Registrar en spawner para que la oleada no termine mientras sigan vivos
+            EnemySpawner.Instance?.RegistrarEnemigoExterno(enemy);
+            // Liberar cupo cuando muera
+            enemy.OnMuerte += () => {
+                corredoresVivos.Remove(enemy);
+                // El spawner ya lo quita vía EnemigoEliminado, no hace falta duplicar
+            };
         }
         
         corredoresGenerados++;
-        Debug.Log("[Nest] Corredor generado");
+        Debug.Log($"[Nest] Corredor generado ({corredoresVivos.Count}/{maxCorredoresSimultaneos}) total {corredoresGenerados}");
+    }
+
+    protected override void Morir()
+    {
+        // Al morir el nido, los corredores ya generados siguen vivos (presión residual)
+        // pero limpiamos referencia para GC
+        base.Morir();
     }
 
     protected override void Comportamiento()
