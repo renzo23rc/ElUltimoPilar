@@ -2,38 +2,57 @@
  * GameManager.cs
  * Controla el flujo de la partida: oleadas, estado del juego,
  * victoria/derrota, y comunicación entre sistemas.
- * 
+ *
  * Colocar en un GameObject vacío "GameManager" en la escena.
  */
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System;
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
-    
+
     [Header("Referencias")]
     public Pilar pilar;
     public EnemySpawner spawner;
     public PlayerController player;
-    
+
     [Header("Configuración de Oleadas")]
     public int totalOleadas = 10; // B1: 10 oleadas escalables 12-20min
     public float tiempoEntreOleadas = 7f; // Balanceo: 5->7s para respiro táctico y decisión energía/munición
-    
+
+    [Header("Configuración de Jugadores")]
+    [Range(PlayerRoster<PlayerController>.MinimumCapacity, PlayerRoster<PlayerController>.MaximumCapacity)]
+    public int maxPlayers = PlayerRoster<PlayerController>.MaximumCapacity;
+
     [Header("Estado Actual")]
-    public int oleadaActual = 0;
-    public bool juegoActivo = false;
-    public bool juegoPausado = false;
-    
+    public int oleadaActual => matchFlow?.CurrentWave ?? 0;
+    public bool juegoActivo => matchFlow != null &&
+        (matchFlow.State == MatchState.Playing || matchFlow.State == MatchState.Paused);
+    public bool juegoPausado => matchFlow?.State == MatchState.Paused;
+    public MatchState EstadoActual => matchFlow?.State ?? MatchState.WaitingToStart;
+    public MatchResult CurrentResult { get; private set; }
+
+    private MatchFlow matchFlow;
+    private PlayerRoster<PlayerController> playerRoster;
+    private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
+
+    public IReadOnlyList<PlayerController> Players =>
+        playerRoster?.Players ?? Array.Empty<PlayerController>();
+    public int PlayerCount => playerRoster?.Count ?? 0;
+
     // Eventos para que otros sistemas se suscriban
     public event Action<int> OnOleadaIniciada;
     public event Action<int> OnOleadaCompletada;
     public event Action OnVictoria;
     public event Action OnDerrota;
+    public event Action<MatchResult> OnMatchResult;
     public event Action OnJuegoIniciado;
-    
+    public event Action<PlayerController> OnPlayerRegistered;
+    public event Action<PlayerController> OnPlayerUnregistered;
+
     private float timerEntreOleadas = 0f;
     private bool esperandoOleada = false;
 
@@ -45,6 +64,25 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+        InitializePlayerRoster();
+        matchFlow = new MatchFlow(totalOleadas);
+    }
+
+    void OnValidate()
+    {
+        maxPlayers = Mathf.Clamp(
+            maxPlayers,
+            PlayerRoster<PlayerController>.MinimumCapacity,
+            PlayerRoster<PlayerController>.MaximumCapacity);
+    }
+
+    void InitializePlayerRoster()
+    {
+        maxPlayers = Mathf.Clamp(
+            maxPlayers,
+            PlayerRoster<PlayerController>.MinimumCapacity,
+            PlayerRoster<PlayerController>.MaximumCapacity);
+        playerRoster = new PlayerRoster<PlayerController>(maxPlayers);
     }
 
     [Header("Inicio")]
@@ -57,9 +95,7 @@ public class GameManager : MonoBehaviour
             pilar = FindFirstObjectByType<Pilar>();
         if (spawner == null)
             spawner = FindFirstObjectByType<EnemySpawner>();
-        if (player == null)
-            player = FindFirstObjectByType<PlayerController>();
-        
+
         if (pilar == null)
         {
             Debug.LogError("[GameManager] No se encontró el Pilar en la escena.");
@@ -69,22 +105,22 @@ public class GameManager : MonoBehaviour
         {
             Debug.LogWarning("[GameManager] No se encontró el Spawner. Las oleadas no funcionarán.");
         }
+        // Descubrimiento inicial temporal para registrar la escena existente.
+        var jugadoresDescubiertos = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var jugadorDescubierto in jugadoresDescubiertos)
+        {
+            RegisterPlayer(jugadorDescubierto);
+        }
+
         if (player == null)
         {
             Debug.LogWarning("[GameManager] No se encontró el Jugador.");
         }
 
-        // Suscribirse a eventos de derribado para todos los jugadores (co-op, derrota si todos derribados)
-        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        foreach (var p in jugadores)
-        {
-            p.OnDerribado += _ => VerificarDerrotaCoop();
-            p.OnReanimado += _ => Debug.Log($"[GameManager] Jugador reanimado - derrota evitada");
-        }
-            
         if (iniciarAlMover)
         {
-            juegoActivo = false;
+            matchFlow.Reset();
+            CurrentResult = null;
             esperandoInputInicial = true;
             Debug.Log("[GameManager] Presiona WASD o mueve el mouse para iniciar. (Para PC lenta)");
         }
@@ -98,7 +134,7 @@ public class GameManager : MonoBehaviour
     {
         if (!juegoActivo)
         {
-            if (esperandoInputInicial && DetectarInputInicio())
+            if (EstadoActual == MatchState.WaitingToStart && esperandoInputInicial && DetectarInputInicio())
             {
                 esperandoInputInicial = false;
                 IniciarJuego();
@@ -106,7 +142,7 @@ public class GameManager : MonoBehaviour
             return;
         }
         if (juegoPausado) return;
-        
+
         if (esperandoOleada)
         {
             timerEntreOleadas -= Time.deltaTime;
@@ -124,51 +160,76 @@ public class GameManager : MonoBehaviour
 
     public void IniciarJuego()
     {
-        juegoActivo = true;
-        juegoPausado = false;
-        oleadaActual = 0;
-        
+        if (EstadoActual != MatchState.WaitingToStart)
+            matchFlow.Reset();
+        CurrentResult = null;
+        if (!matchFlow.Start()) return;
+
+        Time.timeScale = 1f;
+        esperandoInputInicial = false;
+        esperandoOleada = false;
+        timerEntreOleadas = 0f;
+
         pilar?.RestaurarVida();
         // Restaurar jugadores si estaban derribados
-        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        foreach (var j in jugadores)
+        foreach (var jugadorRegistrado in Players)
         {
-            if (j.estaDerribado) j.Reanimar();
-            j.vidaActual = j.vidaMaxima;
-            // Re-suscribir si son nuevos
-            j.OnDerribado -= _ => VerificarDerrotaCoop();
-            j.OnDerribado += _ => VerificarDerrotaCoop();
+            if (jugadorRegistrado.estaDerribado) jugadorRegistrado.Reanimar();
+            jugadorRegistrado.vidaActual = jugadorRegistrado.vidaMaxima;
         }
         OnJuegoIniciado?.Invoke();
-        
+
         IniciarSiguienteOleada();
+    }
+
+    public void PausarJuego()
+    {
+        if (!matchFlow.Pause()) return;
+        Time.timeScale = 0f;
+    }
+
+    public void ReanudarJuego()
+    {
+        if (!matchFlow.Resume()) return;
+        Time.timeScale = 1f;
+    }
+
+    public void ReiniciarJuego()
+    {
+        Time.timeScale = 1f;
+        matchFlow.Reset();
+        CurrentResult = null;
+        esperandoInputInicial = false;
+        esperandoOleada = false;
+        timerEntreOleadas = 0f;
+        spawner?.LimpiarTodos();
+        IniciarJuego();
     }
 
     void IniciarSiguienteOleada()
     {
-        if (oleadaActual >= totalOleadas)
+        if (matchFlow.CurrentWave >= matchFlow.TotalWaves)
         {
             Victoria();
             return;
         }
-        
-        oleadaActual++;
-        spawner?.IniciarOleada(oleadaActual);
-        OnOleadaIniciada?.Invoke(oleadaActual);
-        
-        Debug.Log($"[GameManager] Oleada {oleadaActual}/{totalOleadas} iniciada");
+        if (!matchFlow.TryStartNextWave()) return;
+
+        int wave = matchFlow.CurrentWave;
+        spawner?.IniciarOleada(wave);
+        OnOleadaIniciada?.Invoke(wave);
+
+        Debug.Log($"[GameManager] Oleada {wave}/{totalOleadas} iniciada");
     }
 
     void CompletarOleadaActual()
     {
         OnOleadaCompletada?.Invoke(oleadaActual);
         Debug.Log($"[GameManager] Oleada {oleadaActual} completada");
-        
-        // Dar munición al final de oleada (según GDD) - a todos los jugadores si co-op
-        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        if (jugadores.Length > 0) foreach (var j in jugadores) j.ReponerMunicion();
-        else player?.ReponerMunicion();
-        
+
+        // Dar munición al final de oleada (según GDD) a todos los jugadores registrados.
+        playerRoster?.ReplenishWaveAmmo();
+
         if (oleadaActual >= totalOleadas)
         {
             Victoria();
@@ -182,26 +243,79 @@ public class GameManager : MonoBehaviour
 
     public void Victoria()
     {
-        juegoActivo = false;
-        float vidaRestante = pilar != null ? pilar.VidaActual : 0;
-        Debug.Log($"[GameManager] ¡VICTORIA! Vida restante del Pilar: {vidaRestante}%");
-        OnVictoria?.Invoke();
+        PublishTerminalResult(MatchState.Victory);
     }
 
     public void Derrota()
     {
-        if (!juegoActivo) return; // Evitar doble derrota
-        juegoActivo = false;
-        Debug.Log("[GameManager] DERROTA - El Pilar ha caído");
-        OnDerrota?.Invoke();
+        PublishTerminalResult(MatchState.Defeat);
     }
 
     public void DerrotaPorJugadores()
     {
-        if (!juegoActivo) return;
-        juegoActivo = false;
-        Debug.Log("[GameManager] DERROTA - Todos los jugadores derribados");
-        OnDerrota?.Invoke();
+        PublishTerminalResult(MatchState.Defeat);
+    }
+
+    private void PublishTerminalResult(MatchState outcome)
+    {
+        bool transitioned;
+        switch (outcome)
+        {
+            case MatchState.Victory:
+                transitioned = matchFlow.SetVictory();
+                break;
+            case MatchState.Defeat:
+                transitioned = matchFlow.SetDefeat();
+                break;
+            default:
+                return;
+        }
+
+        if (!transitioned) return;
+
+        Time.timeScale = 1f;
+        PilarHealthSnapshot snapshot;
+        if (TryCreatePilarHealthSnapshot(out snapshot))
+        {
+            CurrentResult = new MatchResult(outcome, snapshot);
+        }
+        else
+        {
+            CurrentResult = null;
+        }
+
+        if (outcome == MatchState.Victory)
+        {
+            float vidaRestante = CurrentResult != null ? CurrentResult.PilarHealth.RemainingPercentage : 0f;
+            Debug.Log($"[GameManager] ¡VICTORIA! Vida restante del Pilar: {vidaRestante}%");
+            OnVictoria?.Invoke();
+        }
+        else
+        {
+            Debug.Log("[GameManager] DERROTA - El Pilar ha caído");
+            OnDerrota?.Invoke();
+        }
+
+        if (CurrentResult != null)
+            OnMatchResult?.Invoke(CurrentResult);
+    }
+
+    private bool TryCreatePilarHealthSnapshot(out PilarHealthSnapshot snapshot)
+    {
+        snapshot = default(PilarHealthSnapshot);
+        if (pilar == null)
+        {
+            Debug.LogError("[GameManager] No se puede publicar el resultado: no se encontró el Pilar.");
+            return false;
+        }
+
+        if (!PilarHealthSnapshot.TryCreate(pilar.VidaActual, pilar.vidaMaxima, out snapshot))
+        {
+            Debug.LogError($"[GameManager] No se puede publicar el resultado: salud inválida del Pilar (restante={pilar.VidaActual}, máxima={pilar.vidaMaxima}).");
+            return false;
+        }
+
+        return true;
     }
 
     public void NotificarJugadorDerribado(PlayerController p)
@@ -214,36 +328,76 @@ public class GameManager : MonoBehaviour
         // No hace falta acción, solo log
     }
 
+    public bool RegisterPlayer(PlayerController jugador)
+    {
+        if (jugador == null) return false;
+        if (playerRoster == null) InitializePlayerRoster();
+        if (!playerRoster.Register(jugador)) return false;
+
+        if (player == null) player = jugador;
+        SuscribirEventosJugador(jugador);
+        OnPlayerRegistered?.Invoke(jugador);
+        return true;
+    }
+
+    public bool UnregisterPlayer(PlayerController jugador)
+    {
+        if (jugador == null || playerRoster == null || !playerRoster.Unregister(jugador))
+            return false;
+
+        DesuscribirEventosJugador(jugador);
+        if (player == jugador)
+            player = Players.Count > 0 ? Players[0] : null;
+        OnPlayerUnregistered?.Invoke(jugador);
+        VerificarDerrotaCoop();
+        return true;
+    }
+
+    void SuscribirEventosJugador(PlayerController jugador)
+    {
+        if (jugador == null || !jugadoresSuscritos.Add(jugador)) return;
+
+        jugador.OnDerribado += OnJugadorDerribado;
+        jugador.OnReanimado += OnJugadorReanimado;
+    }
+
+    void DesuscribirEventosJugador(PlayerController jugador)
+    {
+        if (jugador == null || !jugadoresSuscritos.Remove(jugador)) return;
+
+        jugador.OnDerribado -= OnJugadorDerribado;
+        jugador.OnReanimado -= OnJugadorReanimado;
+    }
+
+    void OnJugadorDerribado(PlayerController jugador)
+    {
+        VerificarDerrotaCoop();
+    }
+
+    void OnJugadorReanimado(PlayerController jugador)
+    {
+        Debug.Log("[GameManager] Jugador reanimado - derrota evitada");
+    }
+
     void VerificarDerrotaCoop()
     {
-        if (!juegoActivo) return;
-        var jugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        if (jugadores.Length == 0) return;
-        bool todosDerribados = true;
-        foreach (var j in jugadores)
+        if (!juegoActivo || playerRoster == null || playerRoster.Count == 0) return;
+
+        if (playerRoster.AreAllDowned)
         {
-            if (!j.estaDerribado)
-            {
-                todosDerribados = false;
-                break;
-            }
-        }
-        if (todosDerribados)
-        {
-            Debug.Log($"[GameManager] Todos los {jugadores.Length} jugadores derribados - Derrota co-op");
+            Debug.Log($"[GameManager] Todos los {playerRoster.Count} jugadores derribados - Derrota co-op");
             DerrotaPorJugadores();
         }
         else
         {
-            int vivos = 0; foreach (var j in jugadores) if (!j.estaDerribado) vivos++;
-            Debug.Log($"[GameManager] Jugador derribado, quedan {vivos}/{jugadores.Length} en pie - Reanimación posible (E)");
+            Debug.Log($"[GameManager] Jugador derribado, quedan {playerRoster.StandingCount}/{playerRoster.Count} en pie - Reanimación posible (E)");
         }
     }
 
     bool DetectarInputInicio()
     {
         if (Keyboard.current == null) return false;
-        if (Keyboard.current.wKey.isPressed || Keyboard.current.aKey.isPressed || 
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.aKey.isPressed ||
             Keyboard.current.sKey.isPressed || Keyboard.current.dKey.isPressed ||
             Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.spaceKey.isPressed ||
             Keyboard.current.upArrowKey.isPressed || Keyboard.current.downArrowKey.isPressed ||
@@ -261,6 +415,18 @@ public class GameManager : MonoBehaviour
 
     void OnDestroy()
     {
-        if (Instance == this) Instance = null;
+        foreach (var jugador in jugadoresSuscritos)
+        {
+            if (jugador == null) continue;
+            jugador.OnDerribado -= OnJugadorDerribado;
+            jugador.OnReanimado -= OnJugadorReanimado;
+        }
+        jugadoresSuscritos.Clear();
+
+        if (Instance == this)
+        {
+            Time.timeScale = 1f;
+            Instance = null;
+        }
     }
 }

@@ -84,6 +84,11 @@ public class WeaponSystem : MonoBehaviour
     
     private PlayerController player;
 
+    private static void ApplyDamage(IDamageable target, float amount)
+    {
+        target.ReceiveDamage(new DamageRequest(amount));
+    }
+
     void Start()
     {
         player = GetComponent<PlayerController>();
@@ -182,7 +187,7 @@ public class WeaponSystem : MonoBehaviour
             var enemy = hit.collider.GetComponent<Enemy>();
             if (enemy != null)
             {
-                enemy.RecibirDaño(arma.daño);
+                ApplyDamage(enemy, arma.daño);
                 Debug.Log($"[WeaponSystem] Impacto directo: {arma.daño} daño a {enemy.name}");
                 CrearImpactoVisual(hit.point, hit.normal, Color.red, 0.35f, true);
             }
@@ -247,7 +252,7 @@ public class WeaponSystem : MonoBehaviour
             var enemy = col.GetComponent<Enemy>();
             if (enemy != null)
             {
-                enemy.RecibirDaño(arma.daño);
+                ApplyDamage(enemy, arma.daño);
                 contador++;
             }
         }
@@ -275,7 +280,7 @@ public class WeaponSystem : MonoBehaviour
             var enemy = col.GetComponent<Enemy>();
             if (enemy != null)
             {
-                enemy.RecibirDaño(arma.daño);
+                ApplyDamage(enemy, arma.daño);
                 
                 // Empujar enemigo (física)
                 Rigidbody rb = col.GetComponent<Rigidbody>();

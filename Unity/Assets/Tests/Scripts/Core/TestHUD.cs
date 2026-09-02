@@ -8,6 +8,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 public class TestHUD : MonoBehaviour
 {
@@ -38,44 +39,170 @@ public class TestHUD : MonoBehaviour
     public Color colorFase3 = new Color(1f, 0.5f, 0f);
     public Color colorFase4 = Color.red;
 
+    private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
+    private GameManager managerSuscrito;
+    private bool managerEventosSuscritos;
+
     void Start()
     {
         if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
-        if (jugador == null) jugador = FindFirstObjectByType<PlayerController>();
         if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
-        if (jugador != null && energia == null) energia = jugador.GetComponent<EnergySystem>();
-        if (jugador != null && armas == null) armas = jugador.GetComponent<WeaponSystem>();
+        SeleccionarJugadorPrincipal();
+        ConfigurarReferenciasJugador(false);
         
         // Crear UI si no existe
         if (textoVidaPilar == null)
             CrearUI();
         
-        // Suscribirse a eventos
-        if (gameManager != null)
+        SuscribirEventosGameManager();
+    }
+
+    void SeleccionarJugadorPrincipal()
+    {
+        if (jugador != null || gameManager == null || gameManager.Players.Count == 0) return;
+        jugador = gameManager.Players[0];
+    }
+
+    void ConfigurarReferenciasJugador(bool reemplazar)
+    {
+        if (jugador == null)
         {
-            gameManager.OnVictoria += () => MostrarMensaje("¡VICTORIA!");
-            gameManager.OnDerrota += () => MostrarMensaje("DERROTA", 0);
-            gameManager.OnOleadaIniciada += (o) => MostrarMensaje($"Oleada {o}", 2f);
+            energia = null;
+            armas = null;
+            return;
         }
-        // Suscribir a todos los jugadores para derribado co-op
-        var todosJugadores = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        foreach (var p in todosJugadores)
+
+        if (reemplazar || energia == null) energia = jugador.GetComponent<EnergySystem>();
+        if (reemplazar || armas == null) armas = jugador.GetComponent<WeaponSystem>();
+    }
+
+    void SuscribirEventosGameManager()
+    {
+        if (gameManager == null || managerSuscrito == gameManager) return;
+
+        if (managerEventosSuscritos)
         {
-            p.OnDerribado += (pl) => MostrarMensaje($"¡{pl.name} DERRIBADO! - Reanima con [E]", 3f);
-            p.OnReanimado += (pl) => MostrarMensaje($"{pl.name} reanimado!", 2f);
+            if (managerSuscrito != null)
+            {
+                managerSuscrito.OnVictoria -= ManejarVictoria;
+                managerSuscrito.OnDerrota -= ManejarDerrota;
+                managerSuscrito.OnOleadaIniciada -= ManejarOleadaIniciada;
+                managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
+                managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+            }
+
+            DesuscribirTodosLosJugadores();
+            jugador = null;
         }
+
+        managerSuscrito = gameManager;
+        managerSuscrito.OnVictoria += ManejarVictoria;
+        managerSuscrito.OnDerrota += ManejarDerrota;
+        managerSuscrito.OnOleadaIniciada += ManejarOleadaIniciada;
+        managerSuscrito.OnPlayerRegistered += ManejarJugadorRegistrado;
+        managerSuscrito.OnPlayerUnregistered += ManejarJugadorDesregistrado;
+        managerEventosSuscritos = true;
+        SuscribirJugadores();
+    }
+
+    void SuscribirJugadores()
+    {
+        if (gameManager == null) return;
+
+        foreach (var jugadorRegistrado in gameManager.Players)
+            SuscribirJugador(jugadorRegistrado);
+
+        SeleccionarJugadorPrincipal();
+        ConfigurarReferenciasJugador(false);
+    }
+
+    void SuscribirJugador(PlayerController jugadorRegistrado)
+    {
+        if (jugadorRegistrado == null || !jugadoresSuscritos.Add(jugadorRegistrado)) return;
+
+        jugadorRegistrado.OnDerribado += ManejarJugadorDerribado;
+        jugadorRegistrado.OnReanimado += ManejarJugadorReanimado;
+    }
+
+    void DesuscribirJugador(PlayerController jugadorRegistrado)
+    {
+        if (jugadorRegistrado == null || !jugadoresSuscritos.Remove(jugadorRegistrado)) return;
+
+        jugadorRegistrado.OnDerribado -= ManejarJugadorDerribado;
+        jugadorRegistrado.OnReanimado -= ManejarJugadorReanimado;
+    }
+
+    void DesuscribirTodosLosJugadores()
+    {
+        foreach (var jugadorRegistrado in jugadoresSuscritos)
+        {
+            if (jugadorRegistrado == null) continue;
+
+            jugadorRegistrado.OnDerribado -= ManejarJugadorDerribado;
+            jugadorRegistrado.OnReanimado -= ManejarJugadorReanimado;
+        }
+
+        jugadoresSuscritos.Clear();
+    }
+
+    void ManejarJugadorRegistrado(PlayerController jugadorRegistrado)
+    {
+        SuscribirJugador(jugadorRegistrado);
+        if (jugador != null) return;
+
+        jugador = jugadorRegistrado;
+        ConfigurarReferenciasJugador(true);
+    }
+
+    void ManejarJugadorDesregistrado(PlayerController jugadorDesregistrado)
+    {
+        DesuscribirJugador(jugadorDesregistrado);
+        if (jugador != jugadorDesregistrado) return;
+
+        jugador = null;
+        SeleccionarJugadorPrincipal();
+        ConfigurarReferenciasJugador(true);
+    }
+
+    void ManejarVictoria()
+    {
+        MostrarMensaje("¡VICTORIA!");
+    }
+
+    void ManejarDerrota()
+    {
+        MostrarMensaje("DERROTA");
+    }
+
+    void ManejarOleadaIniciada(int oleada)
+    {
+        MostrarMensaje($"Oleada {oleada}", 2f);
+    }
+
+    void ManejarJugadorDerribado(PlayerController jugador)
+    {
+        MostrarMensaje($"¡{jugador.name} DERRIBADO! - Reanima con [E]", 3f);
+    }
+
+    void ManejarJugadorReanimado(PlayerController jugador)
+    {
+        MostrarMensaje($"{jugador.name} reanimado!", 2f);
     }
 
     void Update()
     {
         // Auto-referencia si se generó después de Start (TestSceneSetup genera en Start)
         if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
-        if (jugador == null) jugador = FindFirstObjectByType<PlayerController>();
         if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
-        if (jugador != null && energia == null) energia = jugador.GetComponent<EnergySystem>();
-        if (jugador != null && armas == null) armas = jugador.GetComponent<WeaponSystem>();
+        SuscribirEventosGameManager();
+        if (jugador == null)
+        {
+            SeleccionarJugadorPrincipal();
+            ConfigurarReferenciasJugador(false);
+        }
 
         // Vida del Pilar
+
         if (pilar != null)
         {
             float pct = pilar.PorcentajeVida / 100f;
@@ -106,21 +233,21 @@ public class TestHUD : MonoBehaviour
                 barraVidaJugador.color = jugador.estaDerribado ? Color.red : Color.green;
             }
             // Mostrar prompt si aliado cerca derribado
-            if (!jugador.estaDerribado)
+            if (!jugador.estaDerribado && gameManager != null)
             {
-                var todos = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-                foreach (var p in todos)
+                foreach (var jugadorRegistrado in gameManager.Players)
                 {
-                    if (p == jugador || !p.estaDerribado) continue;
-                    float d = Vector3.Distance(jugador.transform.position, p.transform.position);
+                    if (jugadorRegistrado == jugador || !jugadorRegistrado.estaDerribado) continue;
+                    float d = Vector3.Distance(jugador.transform.position, jugadorRegistrado.transform.position);
                     if (d <= jugador.rangoReanimacion + 0.5f && textoMensaje != null && string.IsNullOrEmpty(textoMensaje.text))
                     {
-                        textoMensaje.text = $"Presiona [E] para reanimar a {p.name} ({d:F1}m)";
+                        textoMensaje.text = $"Presiona [E] para reanimar a {jugadorRegistrado.name} ({d:F1}m)";
                         textoMensaje.color = Color.yellow;
                         break;
                     }
                 }
             }
+
         }
         
         // Energía
@@ -178,7 +305,7 @@ public class TestHUD : MonoBehaviour
                     if (gameManager != null && !gameManager.juegoActivo)
                     {
                         Debug.Log("[TestHUD] R: forzando inicio de juego para test de fases");
-                        gameManager.juegoActivo = true;
+                        gameManager.IniciarJuego();
                     }
                     pilar.AplicarDañoPrueba(10f);
                     Debug.Log($"[TestHUD] R: pilar dañado 10% -> {pilar.vidaActual}% fase {pilar.faseActual}");
@@ -232,6 +359,21 @@ public class TestHUD : MonoBehaviour
     {
         if (textoMensaje != null)
             textoMensaje.text = "";
+    }
+
+    void OnDestroy()
+    {
+        if (managerEventosSuscritos && managerSuscrito != null)
+        {
+            managerSuscrito.OnVictoria -= ManejarVictoria;
+            managerSuscrito.OnDerrota -= ManejarDerrota;
+            managerSuscrito.OnOleadaIniciada -= ManejarOleadaIniciada;
+            managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
+            managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+        }
+
+        DesuscribirTodosLosJugadores();
+        managerEventosSuscritos = false;
     }
 
     void CrearUI()

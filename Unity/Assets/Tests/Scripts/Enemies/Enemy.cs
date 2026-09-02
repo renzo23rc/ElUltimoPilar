@@ -9,7 +9,7 @@ using UnityEngine;
 using System;
 
 [RequireComponent(typeof(Collider))]
-public class Enemy : MonoBehaviour
+public class Enemy : MonoBehaviour, IDamageable
 {
     [Header("Estadísticas Base")]
     public float vidaMaxima = 30f;
@@ -160,6 +160,11 @@ public class Enemy : MonoBehaviour
         timerAtaque = cooldownAtaque;
         
         Debug.Log($"[{GetType().Name}] Atacó al Pilar por {dañoAlPilar} de daño");
+    }
+
+    void IDamageable.ReceiveDamage(DamageRequest request)
+    {
+        RecibirDaño(request.Amount);
     }
 
     public virtual void RecibirDaño(float cantidad)

@@ -13,7 +13,7 @@ using System.Collections;
 using System;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IPlayerRosterMember
 {
     [Header("Movimiento")]
     public float velocidadMovimiento = 8f;
@@ -58,6 +58,11 @@ public class PlayerController : MonoBehaviour
     private Coroutine coRalentizacion;
     private float factorRalentActual = 1f;
 
+    void OnEnable()
+    {
+        GameManager.Instance?.RegisterPlayer(this);
+    }
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -70,6 +75,12 @@ public class PlayerController : MonoBehaviour
             puntoDisparo = camaraJugador?.transform;
             
         Cursor.lockState = CursorLockMode.Locked;
+        GameManager.Instance?.RegisterPlayer(this);
+    }
+
+    void OnDisable()
+    {
+        GameManager.Instance?.UnregisterPlayer(this);
     }
 
     void Update()
@@ -260,6 +271,7 @@ public class PlayerController : MonoBehaviour
 
     public event System.Action<PlayerController> OnDerribado;
     public event System.Action<PlayerController> OnReanimado;
+    public bool IsDowned => estaDerribado;
 
     public void EntrarDerribado()
     {
@@ -347,10 +359,12 @@ public class PlayerController : MonoBehaviour
         if (estaDerribado) return;
         if (!Keyboard.current.eKey.wasPressedThisFrame) return;
 
-        var todos = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        var gameManager = GameManager.Instance;
+        if (gameManager == null) return;
+
         PlayerController objetivo = null;
         float minDist = float.MaxValue;
-        foreach (var p in todos)
+        foreach (var p in gameManager.Players)
         {
             if (p == this || !p.estaDerribado) continue;
             float d = Vector3.Distance(transform.position, p.transform.position);
@@ -367,10 +381,17 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public void ReplenishWaveAmmo()
+    {
+        ReponerMunicion();
+    }
+
     public void ReponerMunicion()
     {
         municionDirecta = 80;
         municionArea = 16;
+        if (armas == null) armas = GetComponent<WeaponSystem>();
+        armas?.ReponerMunicion();
         Debug.Log("[Player] Munición repuesta al final de oleada");
     }
 
