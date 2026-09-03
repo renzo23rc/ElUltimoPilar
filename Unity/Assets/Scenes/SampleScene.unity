@@ -468,6 +468,7 @@ MonoBehaviour:
   matEnemigo: {fileID: 0}
   matJugador: {fileID: 0}
   matEnergia: {fileID: 0}
+  inputActionAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
 --- !u!4 &881311886
 Transform:
   m_ObjectHideFlags: 0

@@ -34,6 +34,9 @@ public class TestSceneSetup : MonoBehaviour
     public Material matJugador;
     public Material matEnergia;
 
+    [Header("Input")]
+    [SerializeField] private InputActionAsset inputActionAsset;
+
     void Start()
     {
         if (generarAlIniciar)
@@ -198,6 +201,7 @@ public class TestSceneSetup : MonoBehaviour
         
         // 6. Jugador (GameObject vacío + hijo visual para evitar conflictos)
         GameObject jugador = new GameObject("Jugador");
+        jugador.SetActive(false);
         jugador.transform.position = new Vector3(0, 1f, -8f);
         
         // Hijo visual (Cube)
@@ -215,21 +219,29 @@ public class TestSceneSetup : MonoBehaviour
         cam.transform.localPosition = new Vector3(0, 0.8f, 0);
         var camera = cam.AddComponent<Camera>();
         camera.nearClipPlane = 0.1f;
-        camera.tag = "MainCamera";
+        camera.tag = "Untagged";
         cam.AddComponent<AudioListener>();
         // Desactivar la Main Camera vieja de SampleScene (quedaba en 0,1,-10 fija)
         var oldCams = FindObjectsByType<Camera>(FindObjectsSortMode.None);
         foreach (var oc in oldCams)
         {
-            if (oc.gameObject != cam)
-            {
-                oc.enabled = false;
-                var al = oc.GetComponent<AudioListener>();
-                if (al != null) al.enabled = false;
-                Debug.Log($"[TestSceneSetup] Camara vieja desactivada: {oc.gameObject.name}");
-            }
+            if (oc == null || oc.gameObject == cam)
+                continue;
+
+            oc.enabled = false;
+            var al = oc.GetComponent<AudioListener>();
+            if (al != null) al.enabled = false;
+            if (oc.CompareTag("MainCamera") && !IsRegisteredPlayerCamera(gameManager, oc))
+                oc.tag = "Untagged";
+            Debug.Log($"[TestSceneSetup] Camara vieja desactivada: {oc.gameObject.name}");
         }
-        
+
+        var playerInput = jugador.AddComponent<PlayerInput>();
+        playerInput.actions = inputActionAsset;
+        playerInput.defaultActionMap = "Player";
+        playerInput.defaultControlScheme = "Keyboard&Mouse";
+        playerInput.neverAutoSwitchControlSchemes = true;
+
         var playerController = jugador.AddComponent<PlayerController>();
         playerController.camaraJugador = camera;
         playerController.puntoDisparo = cam.transform;
@@ -245,7 +257,13 @@ public class TestSceneSetup : MonoBehaviour
         cc.radius = 0.5f;
         cc.height = 2f;
         cc.center = new Vector3(0, 0, 0);
-        
+
+        // Mantener una plantilla inactiva para los jugadores que entren por gamepad.
+        GameObject playerTemplateObject = Instantiate(jugador);
+        playerTemplateObject.name = "PlayerTemplate";
+        playerTemplateObject.SetActive(false);
+        var playerTemplate = playerTemplateObject.GetComponent<PlayerController>();
+
         // 7. Spawner
         GameObject spawnerGO = new GameObject("Spawner");
         var spawner = spawnerGO.AddComponent<EnemySpawner>();
@@ -352,7 +370,12 @@ public class TestSceneSetup : MonoBehaviour
         gameManager.pilar = pilar;
         gameManager.spawner = spawner;
         gameManager.player = playerController;
-        
+
+        var joinCoordinator = gm.AddComponent<PlayerJoinCoordinator>();
+        joinCoordinator.Configure(inputActionAsset, playerTemplate, gameManager);
+        var splitScreenCoordinator = gm.AddComponent<SplitScreenCameraCoordinator>();
+        splitScreenCoordinator.Configure(gameManager);
+
         // 12. Luz y ambiente básica
         GameObject luz = new GameObject("DirectionalLight");
         var light = luz.AddComponent<Light>();
@@ -376,11 +399,69 @@ public class TestSceneSetup : MonoBehaviour
         cv.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.AddComponent<UnityEngine.UI.CanvasScaler>();
         canvas.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+        // 13b. Presentación y feedback final (HUD, combate, audio, variante).
+        GameObject hudGO = new GameObject("Hud");
+        var hud = hudGO.AddComponent<Hud>();
+        hud.pilar = pilar;
+        hud.gameManager = gameManager;
+        
+        GameObject feedbackGO = new GameObject("CombatFeedback");
+        feedbackGO.AddComponent<CombatFeedback>();
+        
+        GameObject audioGO = new GameObject("AudioAdapter");
+        audioGO.AddComponent<AudioAdapter>();
+        
+        // Pickup de variante temporal visible en la arena + prefab para drops de enemigos.
+        GameObject variantePrefab = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        variantePrefab.name = "VariantePickup";
+        Destroy(variantePrefab.GetComponent<SphereCollider>());
+        var colVariante = variantePrefab.AddComponent<SphereCollider>();
+        colVariante.isTrigger = true;
+        colVariante.radius = 0.5f;
+        variantePrefab.transform.localScale = Vector3.one * 0.6f;
+        var rbVariante = variantePrefab.AddComponent<Rigidbody>();
+        rbVariante.isKinematic = true;
+        rbVariante.useGravity = false;
+        var varianteComp = variantePrefab.AddComponent<WeaponVariantPickup>();
+        varianteComp.tipoPotenciado = WeaponSystem.TipoArma.Directa;
+        varianteComp.multiplicadorDaño = 2f;
+        varianteComp.duracionSegundos = 12f;
+        variantePrefab.SetActive(false);
+        
+        GameObject varianteEscena = Instantiate(variantePrefab, new Vector3(5f, 1f, -5f), Quaternion.identity);
+        varianteEscena.name = "VariantePickup_Escena";
+        varianteEscena.SetActive(true);
+        
+        foreach (var prefabEnemigo in new[] { spawner.prefabCorredor, spawner.prefabArtillero, spawner.prefabExplosivo, spawner.prefabTejedor, spawner.prefabNido, spawner.prefabColoso })
+        {
+            if (prefabEnemigo == null) continue;
+            var enemigo = prefabEnemigo.GetComponent<Enemy>();
+            if (enemigo != null && enemigo.prefabVariante == null)
+                enemigo.prefabVariante = variantePrefab;
+        }
+        
+        // Activar solo después de completar la composición y configurar las acciones del jugador.
+        jugador.SetActive(true);
         
         Debug.Log("[TestSceneSetup] ¡Escena de prueba generada! Apreta Play para testear.");
         
         if (destruirDespuésDeGenerar)
             Destroy(gameObject);
+    }
+
+    private static bool IsRegisteredPlayerCamera(GameManager manager, Camera camera)
+    {
+        if (manager == null || camera == null)
+            return false;
+
+        foreach (var player in manager.Players)
+        {
+            if (player != null && player.camaraJugador == camera)
+                return true;
+        }
+
+        return false;
     }
 
     GameObject CrearPrefabEnemigo(string nombre, Color color, Type tipoScript, GameObject prefabEnergia)

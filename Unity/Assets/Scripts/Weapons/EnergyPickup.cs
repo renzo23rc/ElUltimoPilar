@@ -43,7 +43,7 @@ public class EnergyPickup : MonoBehaviour
 
     void AtraccionJugador()
     {
-        PlayerController jugador = FindFirstObjectByType<PlayerController>();
+        PlayerController jugador = ResolverJugadorCercano();
         if (jugador == null) return;
         
         float distancia = Vector3.Distance(transform.position, jugador.transform.position);
@@ -96,5 +96,27 @@ public class EnergyPickup : MonoBehaviour
     {
         // Fallback por si CharacterController no dispara OnTriggerEnter
         OnTriggerEnter(other);
+    }
+    
+    PlayerController ResolverJugadorCercano()
+    {
+        var manager = GameManager.Instance;
+        if (manager != null && manager.PlayerCount > 0)
+        {
+            PlayerController cercano = null;
+            float minDist = float.MaxValue;
+            foreach (var jugador in manager.Players)
+            {
+                if (jugador == null) continue;
+                float d = Vector3.Distance(transform.position, jugador.transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    cercano = jugador;
+                }
+            }
+            if (cercano != null) return cercano;
+        }
+        return FindFirstObjectByType<PlayerController>();
     }
 }

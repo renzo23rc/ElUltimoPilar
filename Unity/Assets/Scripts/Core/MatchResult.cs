@@ -7,6 +7,7 @@ public sealed class MatchResult
 {
     public MatchState Outcome { get; }
     public PilarHealthSnapshot PilarHealth { get; }
+    public int Score { get; }
 
     public MatchResult(MatchState outcome, PilarHealthSnapshot pilarHealth)
     {
@@ -17,5 +18,6 @@ public sealed class MatchResult
 
         Outcome = outcome;
         PilarHealth = pilarHealth;
+        Score = ScorePolicy.Calculate(pilarHealth);
     }
 }

@@ -97,6 +97,7 @@ public class Explosive : Enemy
         if (prefabExplosion != null)
             Instantiate(prefabExplosion, transform.position, Quaternion.identity);
         
+        CombatFeedback.NotifyHit(true);
         Debug.Log("[Explosive] ¡BOOM!");
         
         // No dropear energía si explota (se destruye sin llamar a Morir) - evita duplicar drop
@@ -111,6 +112,7 @@ public class Explosive : Enemy
 
         vidaActual -= cantidad;
         NotificarDañoRecibido(cantidad);
+        CombatFeedback.NotifyHit(vidaActual <= 0);
         StartCoroutine(FlashDaño());
 
         if (vidaActual <= 0)

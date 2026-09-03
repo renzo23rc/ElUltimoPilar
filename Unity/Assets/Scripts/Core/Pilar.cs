@@ -7,6 +7,7 @@
  */
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 
 public class Pilar : MonoBehaviour
 {
@@ -40,10 +41,14 @@ public class Pilar : MonoBehaviour
     
     private Renderer rend;
     private int faseAnterior = 1;
+    private readonly List<GameObject> spawnedTurrets = new List<GameObject>();
 
     void Start()
     {
-        rend = GetComponent<Renderer>();
+        if (rend == null) rend = GetComponent<Renderer>();
+        // GameManager owns the match reset. Keep standalone Pilar scenes
+        // usable without introducing a second reset in a managed match.
+        if (GameManager.Instance == null)
         RestaurarVida();
     }
 
@@ -141,14 +146,27 @@ public class Pilar : MonoBehaviour
 
     public void RestaurarVida()
     {
+        if (rend == null) rend = GetComponent<Renderer>();
+        ClearSpawnedTurrets();
         vidaActual = vidaMaxima;
         faseActual = 1;
         faseAnterior = 1;
         torretasActivas = false;
         OnVidaCambiada?.Invoke(vidaActual);
-        
+            
         if (rend != null)
             rend.material.color = colorFase1;
+    }
+
+    void ClearSpawnedTurrets()
+    {
+        foreach (var turret in spawnedTurrets)
+        {
+            if (turret == null) continue;
+            turret.SetActive(false);
+            Destroy(turret);
+        }
+        spawnedTurrets.Clear();
     }
 
     void ActivarTorretas()
@@ -171,6 +189,7 @@ public class Pilar : MonoBehaviour
             {
                 torretaGO = CrearTorretaFallback(punto);
             }
+            spawnedTurrets.Add(torretaGO);
             torretaGO.name = $"Torreta_{punto.name}";
             // Asegurar que quede a ras de suelo y visible (no dentro del pilar ni del pozo) - y 1.1 = base por encima de pozo top 0.3
             torretaGO.transform.position = new Vector3(punto.position.x, 1.1f, punto.position.z);

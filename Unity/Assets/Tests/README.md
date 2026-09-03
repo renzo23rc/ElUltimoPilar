@@ -5,32 +5,60 @@ Este entorno permite testear todas las mecánicas de programación sin depender 
 ## Estructura
 
 ```
-Assets/Tests/
+Assets/
 ├── Scripts/
 │   ├── Core/
+│   │   ├── AudioAdapter.cs         # Audio reactivo procedural
+│   │   ├── CombatFeedback.cs       # Screen shake e hitstop
+│   │   ├── DamageRequest.cs        # Solicitud pura de daño
 │   │   ├── GameManager.cs          # Control de oleadas y estado del juego
+│   │   ├── Hud.cs                  # HUD definitivo de partida
+│   │   ├── IDamageable.cs          # Contrato de recepción de daño
+│   │   ├── IInputAdapter.cs        # Contrato de adaptación de input
+│   │   ├── IPlayerRosterMember.cs  # Contrato de miembro del registro
+│   │   ├── MatchFlow.cs            # Flujo de estados de la partida
+│   │   ├── MatchResult.cs          # Resultado terminal de la partida
+│   │   ├── MatchState.cs           # Estados de la partida
 │   │   ├── Pilar.cs                # Vida, fases y transformaciones del Pilar
+│   │   ├── PilarHealthSnapshot.cs  # Snapshot de salud del Pilar
+│   │   ├── PlayerCommand.cs        # Snapshot de comando del jugador
 │   │   ├── PlayerController.cs     # Movimiento, cámara, input
+│   │   ├── PlayerInputAdapter.cs   # Adaptador del input del jugador
+│   │   ├── PlayerJoinCoordinator.cs # Join con gamepads independientes
+│   │   ├── PlayerRoster.cs         # Registro de jugadores
+│   │   ├── PoolManager.cs          # Gestión de objetos reutilizables
+│   │   ├── PooledObject.cs          # Objeto reutilizable
+│   │   ├── ScorePolicy.cs          # Cálculo determinista del puntaje
+│   │   ├── SplitScreenCameraCoordinator.cs # Viewports split-screen
 │   │   ├── TestSceneSetup.cs       # Generador automático de escena de prueba
-│   │   └── TestHUD.cs              # UI de debug
+│   │   └── Torreta.cs              # Torreta defensiva
 │   ├── Enemies/
+│   │   ├── Artillery.cs            # Artillero (dispara a distancia)
+│   │   ├── Colossus.cs             # Coloso (mini-jefe)
 │   │   ├── Enemy.cs                # Clase base de enemigos
 │   │   ├── EnemySpawner.cs         # Spawner de oleadas
-│   │   ├── Runner.cs               # Corredor (rápido, va al Pilar)
-│   │   ├── Artillery.cs            # Artillero (dispara a distancia)
 │   │   ├── Explosive.cs            # Explosivo/Kamikaze
-│   │   ├── Weaver.cs               # Tejedor (campos de ralentización)
 │   │   ├── Nest.cs                 # Nido/Incubadora
-│   │   ├── Colossus.cs             # Coloso (mini-jefe)
-│   │   └── Projectile.cs           # Proyectil de artillero
+│   │   ├── Projectile.cs           # Proyectil de artillero
+│   │   ├── Runner.cs               # Corredor (rápido, va al Pilar)
+│   │   └── Weaver.cs               # Tejedor (campos de ralentización)
 │   ├── Weapons/
-│   │   ├── WeaponSystem.cs         # Sistema de 3 armas
+│   │   ├── EnergyPickup.cs         # Orbes de energía
 │   │   ├── EnergySystem.cs         # Energía, curación y habilidades
-│   │   └── EnergyPickup.cs         # Orbes de energía
+│   │   ├── WeaponSystem.cs         # Sistema de 3 armas + variantes
+│   │   └── WeaponVariantPickup.cs  # Drop de variante temporal
 │   └── Arena/
-│       └── ArenaTransform.cs       # Transformaciones del escenario
-├── Prefabs/
-└── Scenes/
+│       ├── ArenaTransform.cs       # Transformaciones del escenario
+│       └── PozoKill.cs              # Pozo central de la arena
+└── Tests/
+    ├── Editor/
+    │   ├── DamageRequestTests.cs
+    │   ├── MatchFlowTests.cs
+    │   ├── MatchResultTests.cs
+    │   ├── PlayerCommandTests.cs
+    │   ├── PlayerRosterTests.cs
+    │   └── ScorePolicyTests.cs
+    └── Prefabs/
 ```
 
 ## Cómo empezar
@@ -44,6 +72,7 @@ Assets/Tests/
 5. Apretar **Play**
 
 El script genera automáticamente:
+
 - Pilar central (cilindro)
 - Jugador (capsule + cámara)
 - Suelo circular
@@ -79,7 +108,7 @@ Si preferís armar la escena vos mismo:
 | `1` | Arma Directa |
 | `2` | Arma de Área |
 | `3` | Cuerpo a Cuerpo |
-| `Scroll` | Cambiar arma |
+| `Scroll` | Cambio de arma con rueda del mouse (diferido/futuro) |
 | `H` | Curarse (gasta energía) |
 | `J` | Activar habilidad (gasta energía) |
 | `R` | **Debug:** Dañar Pilar (-10%) |
@@ -111,10 +140,13 @@ Para forzar las transformaciones sin esperar a que los enemigos dañen el Pilar:
 El `EnemySpawner` puede configurarse de dos formas:
 
 ### Configuración manual (Inspector)
+
 En `configuracionOleadas` definir cada oleada con cantidades específicas de cada tipo de enemigo.
 
 ### Configuración automática
+
 Si no hay configuración definida, el spawner genera oleadas automáticamente:
+
 - Oleada 1: 5+ enemigos, solo corredores
 - Oleada 3+: Empiezan a aparecer artilleros y explosivos
 - Oleada 5+: Aparecen nidos
@@ -132,15 +164,16 @@ Si no hay configuración definida, el spawner genera oleadas automáticamente:
 - Coloso: 20 energía
 
 **Gasto:**
-- `H` - Curarse: 20 energía = +1% vida
-- `J` - Habilidad: 30 energía (pulso de daño o ralentización)
+
+- `H` - Curarse: 15 energía = +8% vida
+- `J` - Habilidad: 28 energía (pulso de daño o ralentización)
 
 ## Armas
 
 | Arma | Munición | Daño | Uso |
 |------|----------|------|-----|
-| Directa | 60 | 15 | Confiable, media cadencia |
-| Área | 12 | 40 | Explosión en punto de impacto |
+| Directa | 80 | 16 | Confiable, media cadencia |
+| Área | 16 | 42 | Explosión en punto de impacto |
 | Melee | ∞ | 50 | Empuja enemigos |
 
 La munición se repone automáticamente al final de cada oleada.
@@ -174,7 +207,7 @@ energySystem.OnHabilidadActivada += () => { };
 
 ## Notas para Programadores
 
-- Todos los scripts están en la carpeta `Tests/` para no mezclarse con assets finales.
+- Los scripts runtime están en `Assets/Scripts/` y las pruebas EditMode en `Assets/Tests/Editor/`.
 - Los enemigos usan cubos de colores como placeholders.
 - El Pilar usa un cilindro con cambio de color según su fase.
 - El suelo es un plane escalado.
@@ -185,7 +218,7 @@ energySystem.OnHabilidadActivada += () => { };
 
 1. Ajustar balance de daño/vida en el Inspector
 2. Implementar el sistema de roles de defensor (Chatarrero, Técnica, etc.)
-3. Agregar variantes de armas temporales
+3. Ajustar chance de drop y balance de variantes de armas temporales
 4. Mejorar IA de enemigos (patrullaje, evasión)
 5. Implementar sistema de gravedad alterada real
 6. Agregar más feedback visual/sonoro

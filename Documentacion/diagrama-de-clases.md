@@ -1,6 +1,6 @@
-# Diagrama de clases planificado
+# Diagrama de clases
 
-Este diagrama muestra la estructura que vamos a construir de forma incremental. Separa las reglas puras de los adaptadores de Unity y deja explícitas las integraciones que todavía no vamos a implementar.
+Estructura implementada de Último Pilar. Separa las reglas puras de los adaptadores de Unity e incluye la presentación, el audio y las variantes ya implementadas; los diferidos explícitos están en los límites.
 
 ```mermaid
 classDiagram
@@ -42,6 +42,7 @@ classDiagram
         <<pure immutable>>
         +MatchState Outcome
         +PilarHealthSnapshot PilarHealth
+        +int Score
     }
 
     class IPlayerRosterMember {
@@ -93,6 +94,7 @@ classDiagram
     class PlayerController {
         <<Unity adapter>>
         +bool IsDowned
+        +OnCommandIssued
         +RecibirDaño(float)
         +Curar(float)
         +Reanimar()
@@ -166,36 +168,97 @@ classDiagram
         +OnTransformacionCompletada
     }
 
-    class TestHUD {
-        <<transitional presentation>>
+    class PlayerJoinCoordinator {
+        <<Unity composition>>
+        +TryJoin(Gamepad) bool
     }
 
-    class InputAdapter {
-        <<planned>>
-        +ReadPlayerCommands()
+    class SplitScreenCameraCoordinator {
+        <<Unity composition>>
+        +ApplyViewports()
     }
 
-    class MatchUiAdapter {
-        <<planned>>
-        +ShowMatchResult(MatchResult)
-        +RequestPause()
-        +RequestRestart()
+    class Hud {
+        <<Unity presentation>>
+        +MostrarMensaje(string)
+        +MostrarAdvertencia(string)
+        +FlashCrosshair(bool)
     }
 
+    class TestSceneSetup {
+        <<Unity composition>>
+        +InputActionAsset inputActionAsset
+        +GenerarEscenaDePrueba()
+    }
+
+    class PlayerInput {
+        <<Unity component>>
+        +InputActionAsset actions
+        +string defaultActionMap
+        +string defaultControlScheme
+        +bool neverAutoSwitchControlSchemes
+    }
+
+    class PlayerCommand {
+        <<pure immutable value>>
+        +float MoveX
+        +float MoveY
+        +float LookX
+        +float LookY
+        +bool Jump
+        +bool Fire
+        +bool Interact
+        +bool Heal
+        +bool Ability
+        +bool PreviousWeapon
+        +bool NextWeapon
+        +int? WeaponSlot
+    }
+
+    class IInputAdapter {
+        <<pure interface>>
+        +bool IsEnabled
+        +PlayerCommand CurrentCommand
+        +Enable()
+        +Disable()
+    }
+
+    class PlayerInputAdapter {
+        <<Unity adapter>>
+        +PlayerInput AssignedPlayerInput
+        +InputAction JoinAction
+        +Enable()
+        +Disable()
+    }
+
+    class CombatFeedback {
+        <<Unity presentation>>
+        +NotifyShot(float)
+        +NotifyHit(bool)
+        +OnCombatHit
+    }
+    
+    class WeaponVariantPickup {
+        <<Unity adapter>>
+        +OnRecogida
+    }
+    
     class AudioAdapter {
-        <<planned>>
-        +HandleMatchEvents()
-        +HandleArenaEvents()
+        <<Unity adapter>>
+        +Play(Sfx)
     }
 
     class ScorePolicy {
-        <<planned product decision>>
-        +Calculate(MatchResult) int
+        <<pure policy>>
+        +Calculate(PilarHealthSnapshot) int
+        +Calculate(float) int
     }
 
     MatchFlow --> MatchState : manages
     MatchResult *-- PilarHealthSnapshot : contains
     MatchResult --> MatchState : outcome
+    MatchResult ..> ScorePolicy : computes Score
+    ScorePolicy ..> PilarHealthSnapshot : reads factual percentage
 
     PlayerRoster~TPlayer~ ..> IPlayerRosterMember : constrains
     PlayerController ..|> IPlayerRosterMember
@@ -209,11 +272,18 @@ classDiagram
     GameManager ..> PlayerController : registers
     PlayerRoster~TPlayer~ o-- PlayerController : tracks
 
-    PlayerController --> GameManager : registers through current boundary
-    PlayerController --> WeaponSystem : delegates firing
+    PlayerController --> GameManager : registers and publishes command event
+    PlayerController --> PlayerInputAdapter : reads one command snapshot per frame
+    PlayerController --> WeaponSystem : consumes weapon command
     PlayerController --> EnergySystem : delegates abilities
+
     WeaponSystem ..> IDamageable : first caller
     WeaponSystem ..> DamageRequest : creates
+    WeaponSystem ..> CombatFeedback : notifies shots
+    WeaponVariantPickup --> WeaponSystem : applies variant
+    Enemy ..> CombatFeedback : notifies hits/kills
+    Enemy ..> WeaponVariantPickup : drops variant
+    Enemy ..> PlayerController : targets nearest
     Enemy --> Pilar : current target
     Enemy --> EnemySpawner : reports death
 
@@ -225,15 +295,28 @@ classDiagram
     Colossus --|> Enemy
 
     ArenaTransform --> Pilar : consumes phase events
-    TestHUD ..> GameManager : consumes state/events
-    TestHUD ..> PlayerController : displays primary player
-
-    InputAdapter ..> GameManager : sends commands
-    MatchUiAdapter ..> GameManager : reads state/requests actions
-    MatchUiAdapter ..> ArenaTransform : displays warnings
+    Hud ..> GameManager : consumes state/result/score
+    Hud ..> PlayerController : displays every registered player
+    Hud ..> MatchResult : shows score
+    Hud ..> WeaponSystem : shows variant timer
+    CombatFeedback ..> GameManager : shakes registered cameras
+    Hud ..> CombatFeedback : subscribes OnCombatHit
     AudioAdapter ..> GameManager : consumes events
-    AudioAdapter ..> ArenaTransform : consumes events
-    ScorePolicy ..> MatchResult : future score formula
+    AudioAdapter ..> CombatFeedback : consumes hits
+    AudioAdapter ..> WeaponSystem : consumes shots
+    AudioAdapter ..> EnergySystem : consumes heal/ability
+
+    IInputAdapter ..> PlayerCommand : returns snapshots
+    PlayerInputAdapter ..|> IInputAdapter
+    PlayerInputAdapter ..> PlayerCommand : creates snapshots
+    TestSceneSetup --> PlayerInput : configures primary player
+    TestSceneSetup --> PlayerController : composes inactive, then activates primary
+    TestSceneSetup --> PlayerJoinCoordinator : configures join and template
+    TestSceneSetup --> SplitScreenCameraCoordinator : configures split-screen
+    PlayerJoinCoordinator --> GameManager : registers joined players
+    PlayerJoinCoordinator --> PlayerInput : pairs gamepads exclusively
+    SplitScreenCameraCoordinator --> GameManager : reads roster order
+    SplitScreenCameraCoordinator --> PlayerController : configures explicit cameras
 ```
 
 ## Cómo leerlo
@@ -242,23 +325,23 @@ classDiagram
 |---|---|
 | `<<pure>>` | Código C# independiente de Unity, testeable sin escenas ni `MonoBehaviour`. |
 | `<<Unity adapter>>` | Componente que conecta las reglas con Unity, física, tiempo o escena. |
-| `<<transitional presentation>>` | Código existente que se mantendrá mientras se reemplaza por presentación desacoplada. |
-| `<<planned>>` | Contrato conceptual; todavía no existe como implementación final. |
-| `<<planned product decision>>` | No se implementa hasta definir la regla de producto correspondiente. |
+| `<<pure policy>>` | Regla determinista sin dependencia de Unity. |
 
-## Orden de implementación
+## Orden de construcción
 
-1. **Base pura existente:** `MatchState`, `MatchFlow`, `PlayerRoster`, `PilarHealthSnapshot`, `MatchResult`, `DamageRequest` e `IDamageable`.
+1. **Base pura existente:** `MatchState`, `MatchFlow`, `PlayerRoster`, `PilarHealthSnapshot`, `ScorePolicy`, `MatchResult`, `DamageRequest` e `IDamageable`.
 2. **Adaptadores estabilizados:** `GameManager`, `PlayerController` y `Enemy` conservando sus APIs públicas actuales.
-3. **Migración gradual:** `Pilar`, torretas, proyectiles, energía y demás receptores pasan a `IDamageable` sin cambiar reglas de gameplay accidentalmente.
-4. **Presentación:** `MatchUiAdapter` y `AudioAdapter` consumen eventos; ningún adaptador de presentación modifica el estado interno.
-5. **Input y features:** `InputAdapter`, variantes temporales de armas y cámaras se incorporan después de definir sus contratos.
-6. **Puntaje:** `ScorePolicy` queda separado hasta acordar normalización, redondeo y tratamiento de victoria/derrota.
+3. **Migración gradual de daño:** `Enemy` recibe y `WeaponSystem` llama vía `IDamageable`; `Pilar`, torretas, proyectiles y energía conservan `RecibirDaño(float)` como compatibilidad.
+4. **Presentación:** `Hud` (filas por jugador, overlays, resultado con puntaje, crosshair, variante), `CombatFeedback` (shake + hitstop) y `AudioAdapter` (efectos procedurales) consumen eventos; ningún adaptador de presentación modifica el estado interno.
+5. **Input y features:** `PlayerCommand`, `IInputAdapter` y `PlayerInputAdapter` definen la frontera por jugador. El consumidor primario ya enruta movimiento, mirada, salto, disparo, habilidades, interacción y selección de armas; `TestSceneSetup` configura el `PlayerInput` primario con el asset `Keyboard&Mouse` antes de activarlo. `PlayerJoinCoordinator` crea jugadores adicionales con gamepads independientes (Start/A) y `SplitScreenCameraCoordinator` configura las cámaras.
+6. **Puntaje:** `ScorePolicy` convierte el porcentaje factual restante del Pilar a un entero entre 0 y 100, con redondeo al entero más cercano y midpoint hacia arriba; `MatchResult.Score` conserva ese resultado.
 
 ## Límites deliberados
 
-- No se agregan todavía `PlayerInput`, asignación de dispositivos, cámaras split-screen, assets, escenas ni prefabs.
-- No se inventa una razón de derrota nueva: el resultado actual expone únicamente `Victory` o `Defeat` y el estado factual del Pilar.
+- `PlayerInputAdapter` usa únicamente el `PlayerInput` asignado y el mapa `Player`; el jugador primario se configura con `Keyboard&Mouse` y el asset existente. No descubre dispositivos, crea jugadores ni coordina el join. El mapa `Join` conserva Start/A, es gamepad-only y queda expuesto para la integración futura.
+- `PlayerJoinCoordinator` y `SplitScreenCameraCoordinator` ya están implementados y compuestos por `TestSceneSetup`: el primero crea jugadores adicionales con emparejamiento independiente de gamepads y el segundo configura cámaras split-screen por orden del roster.
+- El lobby, el HUD por jugador separado, hotplug y el cambio de arma con rueda del mouse quedan diferidos; `Enemy` y `EnergyPickup` ya resuelven al jugador registrado más cercano.
+
+- La derrota ocurre si el Pilar llega a cero o si todos los jugadores registrados están derribados; el resultado expone únicamente `Victory` o `Defeat`, el estado factual del Pilar y su `Score`, sin agregar una causa de derrota.
 - `RecibirDaño(float)` se conserva como API de compatibilidad mientras se completa la migración a `IDamageable`.
-- `TestHUD` no representa el HUD final ni intenta resolver la UX de cuatro jugadores.
-- Las relaciones marcadas como `planned` describen dirección arquitectónica, no clases listas para conectar en una escena.
+- `Hud` es el HUD definitivo: consume `OnMatchResult` y el roster, muestra hasta cuatro jugadores, overlays de inicio/pausa/resultado con puntaje, crosshair con flash y timer de variante temporal.

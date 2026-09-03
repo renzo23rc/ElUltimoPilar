@@ -19,6 +19,10 @@ public class Enemy : MonoBehaviour, IDamageable
     public float dañoAlJugador = 15f;
     public int energiaDrop = 2;
     
+    [Header("Variante temporal")]
+    public GameObject prefabVariante;
+    [Range(0f, 1f)] public float chanceDropVariante = 0.08f;
+    
     [Header("Comportamiento")]
     public bool atacaJugador = false; // Si es false, va directo al Pilar
     public float rangoAtaque = 2f;
@@ -50,8 +54,8 @@ public class Enemy : MonoBehaviour, IDamageable
         pilarObjetivo = FindFirstObjectByType<Pilar>();
         rb = GetComponent<Rigidbody>();
         
-        // Encontrar jugador más cercano (para cooperativo, se podría mejorar)
-        jugadorObjetivo = FindFirstObjectByType<PlayerController>();
+        // Jugador más cercano para cooperativo (se revalida si se pierde la referencia).
+        ResolverJugadorCercano();
 
         // Auto-asignar modeloVisual si quedó sin asignar (evita UnassignedReference)
         if (modeloVisual == null)
@@ -62,6 +66,8 @@ public class Enemy : MonoBehaviour, IDamageable
     {
         if (estaMuerto) return;
         if (!GameManager.Instance.juegoActivo) return;
+        if (jugadorObjetivo == null)
+            ResolverJugadorCercano();
         
         timerAtaque -= Time.deltaTime;
         
@@ -173,6 +179,7 @@ public class Enemy : MonoBehaviour, IDamageable
         
         vidaActual -= cantidad;
         NotificarDañoRecibido(cantidad);
+        CombatFeedback.NotifyHit(vidaActual <= 0);
         
         // Feedback visual de daño
         StartCoroutine(FlashDaño());
@@ -196,12 +203,41 @@ public class Enemy : MonoBehaviour, IDamageable
         // Dropear energía
         DropearEnergia();
         
+        // Chance de variante temporal de arma
+        DropearVariante();
+        
         // Notificar al spawner
         EnemySpawner.Instance?.EnemigoEliminado(this);
         
         Destroy(gameObject, 0.1f);
     }
 
+    protected void ResolverJugadorCercano()
+    {
+        var manager = GameManager.Instance;
+        if (manager != null && manager.PlayerCount > 0)
+        {
+            PlayerController cercano = null;
+            float minDist = float.MaxValue;
+            foreach (var jugador in manager.Players)
+            {
+                if (jugador == null) continue;
+                float d = Vector3.Distance(transform.position, jugador.transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    cercano = jugador;
+                }
+            }
+            if (cercano != null)
+            {
+                jugadorObjetivo = cercano;
+                return;
+            }
+        }
+        jugadorObjetivo = FindFirstObjectByType<PlayerController>();
+    }
+    
     protected virtual void DropearEnergia()
     {
         if (prefabEnergia != null)
@@ -238,6 +274,14 @@ public class Enemy : MonoBehaviour, IDamageable
             if (pickup != null)
                 pickup.cantidad = energiaDrop;
         }
+    }
+    
+    protected virtual void DropearVariante()
+    {
+        if (prefabVariante == null) return;
+        if (UnityEngine.Random.value > chanceDropVariante) return;
+        var drop = Instantiate(prefabVariante, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+        drop.SetActive(true);
     }
 
     protected System.Collections.IEnumerator FlashDaño()

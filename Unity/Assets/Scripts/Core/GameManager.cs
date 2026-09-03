@@ -6,7 +6,6 @@
  * Colocar en un GameObject vacío "GameManager" en la escena.
  */
 using UnityEngine;
-using UnityEngine.InputSystem;
 using System;
 using System.Collections.Generic;
 
@@ -37,6 +36,7 @@ public class GameManager : MonoBehaviour
 
     private MatchFlow matchFlow;
     private PlayerRoster<PlayerController> playerRoster;
+    private ArenaTransform arenaTransform;
     private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
 
     public IReadOnlyList<PlayerController> Players =>
@@ -95,6 +95,8 @@ public class GameManager : MonoBehaviour
             pilar = FindFirstObjectByType<Pilar>();
         if (spawner == null)
             spawner = FindFirstObjectByType<EnemySpawner>();
+        if (arenaTransform == null)
+            arenaTransform = FindFirstObjectByType<ArenaTransform>();
 
         if (pilar == null)
         {
@@ -117,10 +119,12 @@ public class GameManager : MonoBehaviour
             Debug.LogWarning("[GameManager] No se encontró el Jugador.");
         }
 
+        // Dejar la escena en un estado limpio una sola vez. Si el inicio se
+        // difiere hasta recibir input, IniciarJuego reutiliza este estado.
+        ResetOwnedState();
+
         if (iniciarAlMover)
         {
-            matchFlow.Reset();
-            CurrentResult = null;
             esperandoInputInicial = true;
             Debug.Log("[GameManager] Presiona WASD o mueve el mouse para iniciar. (Para PC lenta)");
         }
@@ -132,15 +136,7 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        if (!juegoActivo)
-        {
-            if (EstadoActual == MatchState.WaitingToStart && esperandoInputInicial && DetectarInputInicio())
-            {
-                esperandoInputInicial = false;
-                IniciarJuego();
-            }
-            return;
-        }
+        if (!juegoActivo) return;
         if (juegoPausado) return;
 
         if (esperandoOleada)
@@ -160,26 +156,48 @@ public class GameManager : MonoBehaviour
 
     public void IniciarJuego()
     {
+        // El arranque inicial ya fue preparado por Start. Los reinicios y
+        // los nuevos partidos posteriores a un estado previo sí requieren
+        // volver a limpiar el estado propio.
         if (EstadoActual != MatchState.WaitingToStart)
-            matchFlow.Reset();
-        CurrentResult = null;
+            ResetOwnedState();
         if (!matchFlow.Start()) return;
 
+        esperandoInputInicial = false;
+        OnJuegoIniciado?.Invoke();
+
+        IniciarSiguienteOleada();
+    }
+
+    private void ResetOwnedState()
+    {
+        // Restaurar el reloj antes de detener cualquier estado dependiente del tiempo.
         Time.timeScale = 1f;
+        matchFlow.Reset();
+        CurrentResult = null;
         esperandoInputInicial = false;
         esperandoOleada = false;
         timerEntreOleadas = 0f;
 
+        if (spawner == null)
+            spawner = FindFirstObjectByType<EnemySpawner>();
+        if (arenaTransform == null)
+            arenaTransform = FindFirstObjectByType<ArenaTransform>();
+
+        // Detener actores de la partida antes de restaurar sus fuentes de estado.
+        spawner?.LimpiarTodos();
+        arenaTransform?.ResetState();
         pilar?.RestaurarVida();
-        // Restaurar jugadores si estaban derribados
+
+        // El roster y sus suscripciones sobreviven al reinicio; solo se reinicia su estado propio.
         foreach (var jugadorRegistrado in Players)
         {
-            if (jugadorRegistrado.estaDerribado) jugadorRegistrado.Reanimar();
-            jugadorRegistrado.vidaActual = jugadorRegistrado.vidaMaxima;
-        }
-        OnJuegoIniciado?.Invoke();
+            if (jugadorRegistrado == null) continue;
 
-        IniciarSiguienteOleada();
+            jugadorRegistrado.ResetState();
+            jugadorRegistrado.GetComponent<WeaponSystem>()?.ResetState();
+            jugadorRegistrado.GetComponent<EnergySystem>()?.ResetState();
+        }
     }
 
     public void PausarJuego()
@@ -196,13 +214,6 @@ public class GameManager : MonoBehaviour
 
     public void ReiniciarJuego()
     {
-        Time.timeScale = 1f;
-        matchFlow.Reset();
-        CurrentResult = null;
-        esperandoInputInicial = false;
-        esperandoOleada = false;
-        timerEntreOleadas = 0f;
-        spawner?.LimpiarTodos();
         IniciarJuego();
     }
 
@@ -292,7 +303,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            Debug.Log("[GameManager] DERROTA - El Pilar ha caído");
+            Debug.Log("[GameManager] DERROTA");
             OnDerrota?.Invoke();
         }
 
@@ -359,6 +370,7 @@ public class GameManager : MonoBehaviour
 
         jugador.OnDerribado += OnJugadorDerribado;
         jugador.OnReanimado += OnJugadorReanimado;
+        jugador.OnCommandIssued += OnJugadorCommandIssued;
     }
 
     void DesuscribirEventosJugador(PlayerController jugador)
@@ -367,6 +379,7 @@ public class GameManager : MonoBehaviour
 
         jugador.OnDerribado -= OnJugadorDerribado;
         jugador.OnReanimado -= OnJugadorReanimado;
+        jugador.OnCommandIssued -= OnJugadorCommandIssued;
     }
 
     void OnJugadorDerribado(PlayerController jugador)
@@ -377,6 +390,16 @@ public class GameManager : MonoBehaviour
     void OnJugadorReanimado(PlayerController jugador)
     {
         Debug.Log("[GameManager] Jugador reanimado - derrota evitada");
+    }
+
+    void OnJugadorCommandIssued(PlayerController jugador, PlayerCommand command)
+    {
+        if (jugador != player) return;
+        if (EstadoActual != MatchState.WaitingToStart || !esperandoInputInicial) return;
+        if (!DetectarInputInicio(command)) return;
+
+        esperandoInputInicial = false;
+        IniciarJuego();
     }
 
     void VerificarDerrotaCoop()
@@ -394,23 +417,13 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    bool DetectarInputInicio()
+    bool DetectarInputInicio(PlayerCommand command)
     {
-        if (Keyboard.current == null) return false;
-        if (Keyboard.current.wKey.isPressed || Keyboard.current.aKey.isPressed ||
-            Keyboard.current.sKey.isPressed || Keyboard.current.dKey.isPressed ||
-            Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.spaceKey.isPressed ||
-            Keyboard.current.upArrowKey.isPressed || Keyboard.current.downArrowKey.isPressed ||
-            Keyboard.current.leftArrowKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
+        if (command.MoveX != 0f || command.MoveY != 0f)
             return true;
-        if (Mouse.current != null)
-        {
-            Vector2 delta = Mouse.current.delta.ReadValue();
-            if (delta.magnitude > 2f) return true;
-            if (Mouse.current.leftButton.wasPressedThisFrame) return true;
-        }
-        if (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame) return true;
-        return false;
+        if (new Vector2(command.LookX, command.LookY).magnitude > 2f)
+            return true;
+        return command.Jump || command.Fire;
     }
 
     void OnDestroy()
@@ -420,6 +433,7 @@ public class GameManager : MonoBehaviour
             if (jugador == null) continue;
             jugador.OnDerribado -= OnJugadorDerribado;
             jugador.OnReanimado -= OnJugadorReanimado;
+            jugador.OnCommandIssued -= OnJugadorCommandIssued;
         }
         jugadoresSuscritos.Clear();
 

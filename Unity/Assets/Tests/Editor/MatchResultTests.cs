@@ -15,6 +15,7 @@ public class MatchResultTests
         Assert.That(result.PilarHealth.Remaining, Is.EqualTo(75f));
         Assert.That(result.PilarHealth.Maximum, Is.EqualTo(MaximumHealth));
         Assert.That(result.PilarHealth, Is.EqualTo(snapshot));
+        Assert.That(result.Score, Is.EqualTo(75));
     }
 
     [Test]
@@ -25,6 +26,7 @@ public class MatchResultTests
 
         Assert.That(result.Outcome, Is.EqualTo(MatchState.Defeat));
         Assert.That(result.PilarHealth.Remaining, Is.Zero);
+        Assert.That(result.Score, Is.Zero);
     }
 
     [Test]
@@ -34,6 +36,17 @@ public class MatchResultTests
 
         Assert.That(snapshot.RemainingPercentage, Is.EqualTo(25f).Within(0.0001f));
         Assert.That(snapshot.RemainingRatio, Is.EqualTo(0.25f).Within(0.0001f));
+    }
+
+    [Test]
+    public void MatchResultPreservesTheComputedHealthScore()
+    {
+        var snapshot = new PilarHealthSnapshot(50.5f, MaximumHealth);
+        var result = new MatchResult(MatchState.Victory, snapshot);
+
+        Assert.That(result.Score, Is.EqualTo(51));
+        Assert.That(typeof(MatchResult).GetProperty(nameof(MatchResult.Score)).CanWrite,
+            Is.False);
     }
 
     [Test]
@@ -150,6 +163,7 @@ public class MatchResultTests
         Assert.That(manager.CurrentResult, Is.Not.Null);
         Assert.That(manager.CurrentResult.Outcome, Is.EqualTo(MatchState.Defeat));
         Assert.That(manager.CurrentResult.PilarHealth.Remaining, Is.EqualTo(MaximumHealth));
+        Assert.That(manager.CurrentResult.Score, Is.EqualTo(100));
         Assert.That(resultPublicationCount, Is.EqualTo(1));
     }
 

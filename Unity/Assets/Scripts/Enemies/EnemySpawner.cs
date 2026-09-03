@@ -308,6 +308,11 @@ public class EnemySpawner : MonoBehaviour
     /// </summary>
     public void LimpiarTodos()
     {
+        if (enemigosActivos == null)
+            enemigosActivos = new List<Enemy>();
+
+        // Only enemies owned and tracked by this spawner are cleaned here.
+        // Projectiles, pickups and WeaverZones have no coordinated owner yet.
         foreach (var e in enemigosActivos)
         {
             if (e != null) Destroy(e.gameObject);
@@ -315,7 +320,11 @@ public class EnemySpawner : MonoBehaviour
         enemigosActivos.Clear();
         EnemigosVivos = 0;
         OleadaEnProgreso = false;
+        oleadaActual = 0;
+        enemigosSpawned = 0;
         enemigosPorSpawnear = 0;
+        timerSpawn = 0f;
+        configActualCache = null;
     }
 
     void OnDestroy()

@@ -28,13 +28,28 @@ public class EnergySystem : MonoBehaviour
     // Eventos
     public event Action<float> OnEnergiaCambiada;
     public event Action OnHabilidadActivada;
+    public event Action OnCuracionUsada;
     
     private PlayerController player;
 
-    void Start()
+    void Awake()
     {
         player = GetComponent<PlayerController>();
+    }
+
+    void Start()
+    {
+        if (player == null) player = GetComponent<PlayerController>();
+        // GameManager owns the managed match reset; preserve the old
+        // standalone component initialization when no manager exists.
+        if (GameManager.Instance == null)
+            energiaActual = 0f;
+    }
+
+    public void ResetState()
+    {
         energiaActual = 0f;
+        OnEnergiaCambiada?.Invoke(energiaActual);
     }
 
     public void RecolectarEnergia(float cantidad)
@@ -52,6 +67,7 @@ public class EnergySystem : MonoBehaviour
             energiaActual -= costoCuracion;
             player.Curar(vidaPorCuracion);
             OnEnergiaCambiada?.Invoke(energiaActual);
+            OnCuracionUsada?.Invoke();
             
             Debug.Log($"[EnergySystem] Curación usada. Vida +{vidaPorCuracion}%. Energía restante: {energiaActual}");
             return true;

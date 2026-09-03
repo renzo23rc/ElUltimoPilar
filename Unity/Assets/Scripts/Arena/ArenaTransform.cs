@@ -14,6 +14,7 @@
 using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 public class ArenaTransform : MonoBehaviour
 {
@@ -44,6 +45,18 @@ public class ArenaTransform : MonoBehaviour
     private readonly System.Collections.Generic.Queue<int> colaFases = new System.Collections.Generic.Queue<int>();
     private bool procesandoCola = false;
 
+    private Vector3 initialPitScale;
+    private Vector3 initialGravityZoneScale;
+    private Vector3 initialEmergencyDebrisScale;
+    private Color initialFloorColor;
+    private bool initialPitScaleCaptured;
+    private bool initialGravityZoneScaleCaptured;
+    private bool initialEmergencyDebrisScaleCaptured;
+    private bool initialFloorColorCaptured;
+    private GameObject warningMarker;
+    private GameObject warningRing;
+    private readonly List<GameObject> activeDebris = new List<GameObject>();
+
     void Start()
     {
         if (pilar == null)
@@ -55,14 +68,105 @@ public class ArenaTransform : MonoBehaviour
             pilar.OnFaseCambiada += OnPilarFaseCambiada;
         }
         
-        // Estado inicial: todo desactivado excepto fase 1
-        InicializarEstado();
+            // GameManager owns the managed match reset. Preserve standalone
+            // arena scenes without repeating the reset in a managed match.
+            if (GameManager.Instance == null)
+                ResetState();
     }
 
     void OnDestroy()
     {
         if (pilar != null)
             pilar.OnFaseCambiada -= OnPilarFaseCambiada;
+    }
+
+    public void ResetState()
+    {
+        CaptureInitialPresentationState();
+        StopAllCoroutines();
+        colaFases.Clear();
+        procesandoCola = false;
+        transformacionEnProgreso = false;
+        faseActual = 1;
+        if (fasesActivadas == null || fasesActivadas.Length != 5)
+fasesActivadas = new bool[5];
+        else
+Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
+    
+        ClearGeneratedArenaObjects();
+        InicializarEstado();
+        RestoreInitialPresentationState();
+    }
+
+    void CaptureInitialPresentationState()
+    {
+        if (!initialPitScaleCaptured && pozoCentral != null)
+        {
+            initialPitScale = pozoCentral.transform.localScale;
+            initialPitScaleCaptured = true;
+        }
+        if (!initialGravityZoneScaleCaptured && zonaGravedad != null)
+        {
+            initialGravityZoneScale = zonaGravedad.transform.localScale;
+            initialGravityZoneScaleCaptured = true;
+        }
+        if (!initialEmergencyDebrisScaleCaptured && escombrosFase4 != null)
+        {
+            initialEmergencyDebrisScale = escombrosFase4.transform.localScale;
+            initialEmergencyDebrisScaleCaptured = true;
+        }
+        if (!initialFloorColorCaptured && sueloBase != null)
+        {
+            var floorRenderer = sueloBase.GetComponent<Renderer>();
+            if (floorRenderer != null)
+            {
+                initialFloorColor = floorRenderer.material.color;
+                initialFloorColorCaptured = true;
+            }
+        }
+    }
+
+    void RestoreInitialPresentationState()
+    {
+        if (initialPitScaleCaptured && pozoCentral != null)
+            pozoCentral.transform.localScale = initialPitScale;
+        if (initialGravityZoneScaleCaptured && zonaGravedad != null)
+            zonaGravedad.transform.localScale = initialGravityZoneScale;
+        if (initialEmergencyDebrisScaleCaptured && escombrosFase4 != null)
+            escombrosFase4.transform.localScale = initialEmergencyDebrisScale;
+        if (initialFloorColorCaptured && sueloBase != null)
+        {
+            var floorRenderer = sueloBase.GetComponent<Renderer>();
+            if (floorRenderer != null) floorRenderer.material.color = initialFloorColor;
+        }
+    }
+
+    void ClearGeneratedArenaObjects()
+    {
+        ClearWarningObjects();
+        foreach (var debris in activeDebris)
+        {
+            if (debris == null) continue;
+            debris.SetActive(false);
+            Destroy(debris);
+        }
+        activeDebris.Clear();
+    }
+
+    void ClearWarningObjects()
+    {
+        if (warningMarker != null)
+        {
+            warningMarker.SetActive(false);
+            Destroy(warningMarker);
+            warningMarker = null;
+        }
+        if (warningRing != null)
+        {
+            warningRing.SetActive(false);
+            Destroy(warningRing);
+            warningRing = null;
+        }
     }
 
     void InicializarEstado()
@@ -115,32 +219,38 @@ public class ArenaTransform : MonoBehaviour
         Debug.Log($"[ArenaTransform] ¡AVISO! Transformación a Fase {fase} en {tiempoAvisoPrevio} segundos...");
         OnTransformacionIniciada?.Invoke(fase);
         
-        // Sonido de aviso (stinger) con guard para Camera.main null
-        if (sonidoTransformacion != null)
-        {
-            Vector3 posAudio = Camera.main != null ? Camera.main.transform.position : transform.position;
-            AudioSource.PlayClipAtPoint(sonidoTransformacion, posAudio, 0.7f);
-        }
+            // Sonido de aviso (stinger) desde la camara explicita del jugador primario.
+            if (sonidoTransformacion != null)
+            {
+                var gameManager = GameManager.Instance;
+                var primaryCamera = gameManager != null && gameManager.player != null
+                    ? gameManager.player.camaraJugador
+                    : null;
+                Vector3 posAudio = primaryCamera != null
+                    ? primaryCamera.transform.position
+                    : transform.position;
+                AudioSource.PlayClipAtPoint(sonidoTransformacion, posAudio, 0.7f);
+            }
 
         // Advertencia específica del pozo (Fase 2): visual + HUD 3s previo
         if (fase == 2 && pozoCentral != null)
         {
             StartCoroutine(AdvertenciaPozoVisual(tiempoAvisoPrevio));
-            var hud = FindFirstObjectByType<TestHUD>();
+            var hud = FindFirstObjectByType<Hud>();
             if (hud != null) hud.MostrarAdvertencia("¡ADVERTENCIA: ¡POZO SE ABRE! ¡Aléjate del centro! (" + tiempoAvisoPrevio + "s)", Color.red, tiempoAvisoPrevio);
             else Debug.LogWarning("[ArenaTransform] Advertencia pozo: ¡Pozo en " + tiempoAvisoPrevio + "s!");
         }
         else if (fase == 3)
         {
-            var hud = FindFirstObjectByType<TestHUD>();
+            var hud = FindFirstObjectByType<Hud>();
             if (hud != null) hud.MostrarAdvertencia("¡ALERTA: Zona gravedad alterada!", new Color(0.6f,0.2f,1f), tiempoAvisoPrevio);
         }
         else if (fase == 4)
         {
-            var hud = FindFirstObjectByType<TestHUD>();
+            var hud = FindFirstObjectByType<Hud>();
             if (hud != null) hud.MostrarAdvertencia("¡PROTOCOLO EMERGENCIA! Torretas activadas", Color.cyan, tiempoAvisoPrevio);
         }
-        
+
         // Efecto visual de aviso (parpadear el suelo)
         yield return StartCoroutine(AvisoVisual(tiempoAvisoPrevio));
         
@@ -197,7 +307,8 @@ public class ArenaTransform : MonoBehaviour
         Vector3 pos = pozoCentral.transform.position + Vector3.up * 0.5f;
         Vector3 escalaBase = pozoCentral.transform.localScale;
         // Cilindro rojo pulsante
-        GameObject adv = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        warningMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        GameObject adv = warningMarker;
         adv.name = "AdvertenciaPozo";
         Destroy(adv.GetComponent<Collider>());
         adv.transform.position = pos;
@@ -212,7 +323,8 @@ public class ArenaTransform : MonoBehaviour
         mat.renderQueue = 3000;
         rend.material = mat;
 
-        GameObject anillo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        warningRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        GameObject anillo = warningRing;
         anillo.name = "AnilloAdvertenciaPozo";
         Destroy(anillo.GetComponent<Collider>());
         anillo.transform.position = pos + Vector3.up * 0.3f;
@@ -239,6 +351,8 @@ public class ArenaTransform : MonoBehaviour
         }
         Destroy(adv);
         Destroy(anillo);
+        if (warningMarker == adv) warningMarker = null;
+        if (warningRing == anillo) warningRing = null;
     }
 
     void ActivarPozoCentral()
@@ -329,6 +443,7 @@ public class ArenaTransform : MonoBehaviour
             pos.y = 10f;
             
             GameObject escombro = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            activeDebris.Add(escombro);
             escombro.transform.position = pos;
             escombro.transform.localScale = Vector3.one * UnityEngine.Random.Range(0.3f, 1f);
             escombro.GetComponent<Renderer>().material.color = Color.gray;

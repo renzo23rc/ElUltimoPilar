@@ -2,7 +2,7 @@
  * PlayerController.cs
  * Movimiento, cámara, disparo básico y recolección de energía.
  * Usa el NUEVO Input System de Unity (configurado en Player Settings).
- * Lee input directamente en Update - NO requiere PlayerInput component.
+ * Lee snapshots de comando desde el PlayerInputAdapter del jugador.
  * 
  * Colocar en el GameObject del jugador.
  * Requiere: CharacterController y una cámara hija.
@@ -50,42 +50,95 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     // Componentes
     private EnergySystem energia;
     private WeaponSystem armas;
+    private PlayerInput playerInput;
+    private PlayerInputAdapter inputAdapter;
 
     [Header("Ralentización (Weaver)")]
     public bool estaRalentizado = false;
     private float velocidadOriginal = -1f;
     private float velocidadZonaOriginal = -1f;
     private Coroutine coRalentizacion;
+    private Coroutine fallCoroutine;
     private float factorRalentActual = 1f;
+
+    private float velocidadMovimientoInicial;
+    private float velocidadZonaInicial;
+    private int municionDirectaInicial;
+    private int municionAreaInicial;
+    private float fovCamaraInicial;
+    private Quaternion rotacionCamaraInicial;
+    private bool estadoInicialCapturado;
+    private bool estadoCamaraInicialCapturado;
+
+    void Awake()
+    {
+        ResolverReferencias();
+        CapturarEstadoInicial();
+    }
 
     void OnEnable()
     {
+        ResolverReferencias();
+        inputAdapter?.Enable();
         GameManager.Instance?.RegisterPlayer(this);
     }
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
-        energia = GetComponent<EnergySystem>();
-        armas = GetComponent<WeaponSystem>();
-        
-        if (camaraJugador == null)
-            camaraJugador = GetComponentInChildren<Camera>();
-        if (puntoDisparo == null)
-            puntoDisparo = camaraJugador?.transform;
-            
+        ResolverReferencias();
+        CapturarEstadoInicial();
+        inputAdapter?.Enable();
+
         Cursor.lockState = CursorLockMode.Locked;
         GameManager.Instance?.RegisterPlayer(this);
     }
 
+    void ResolverReferencias()
+    {
+        if (controller == null) controller = GetComponent<CharacterController>();
+        if (energia == null) energia = GetComponent<EnergySystem>();
+        if (armas == null) armas = GetComponent<WeaponSystem>();
+        if (playerInput == null) playerInput = GetComponent<PlayerInput>();
+        if (inputAdapter == null && playerInput != null)
+            inputAdapter = new PlayerInputAdapter(playerInput);
+        if (camaraJugador == null) camaraJugador = GetComponentInChildren<Camera>();
+        if (puntoDisparo == null) puntoDisparo = camaraJugador?.transform;
+    }
+
+    void CapturarEstadoInicial()
+    {
+        if (!estadoInicialCapturado)
+        {
+            velocidadMovimientoInicial = velocidadMovimiento;
+            velocidadZonaInicial = velocidadEnZona;
+            municionDirectaInicial = municionDirecta;
+            municionAreaInicial = municionArea;
+            estadoInicialCapturado = true;
+        }
+
+        if (!estadoCamaraInicialCapturado && camaraJugador != null)
+        {
+            fovCamaraInicial = camaraJugador.fieldOfView;
+            rotacionCamaraInicial = camaraJugador.transform.localRotation;
+            estadoCamaraInicialCapturado = true;
+        }
+    }
+
     void OnDisable()
     {
+        inputAdapter?.Disable();
         GameManager.Instance?.UnregisterPlayer(this);
     }
 
     void Update()
     {
-        if (GameManager.Instance == null || !GameManager.Instance.juegoActivo) return;
+        PlayerCommand command = LeerComando();
+        EmitirComando(command);
+
+        GameManager gameManager = GameManager.Instance;
+        bool juegoEstabaActivo = gameManager != null && gameManager.juegoActivo;
+        if (!juegoEstabaActivo) return;
+        if (gameManager.juegoPausado) return;
 
         if (estaDerribado)
         {
@@ -95,67 +148,82 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
                 ManejarGravedad();
             return;
         }
-        
-        LeerInput();
+
+        ManejarMirada(command);
+        ManejarMovimiento(command);
+        ManejarSalto(command);
+        ManejarCuracion(command);
+        ManejarHabilidad(command);
         ManejarGravedad();
-        ManejarDisparo();
-        ManejarReanimacionCoop();
+        ManejarDisparo(command);
+        ManejarInteraccion(command);
     }
 
-    void LeerInput()
+    PlayerCommand LeerComando()
     {
-        if (estaDerribado) return; // Bloqueo de controles cuando derribado
-        if (Keyboard.current == null || Mouse.current == null) return;
-        
-        // ========== MOVIMIENTO WASD ==========
-        Vector2 inputMovimiento = Vector2.zero;
-        if (Keyboard.current.wKey.isPressed) inputMovimiento.y += 1;
-        if (Keyboard.current.sKey.isPressed) inputMovimiento.y -= 1;
-        if (Keyboard.current.aKey.isPressed) inputMovimiento.x -= 1;
-        if (Keyboard.current.dKey.isPressed) inputMovimiento.x += 1;
-        
-        // ========== LOOK (MOUSE) ==========
-        Vector2 mouseDelta = Mouse.current.delta.ReadValue() * sensibilidadMouse;
-        rotacionX -= mouseDelta.y;
+        if (inputAdapter == null) return default(PlayerCommand);
+        return inputAdapter.CurrentCommand;
+    }
+
+    void EmitirComando(PlayerCommand command)
+    {
+        OnCommandIssued?.Invoke(this, command);
+    }
+
+    void ManejarMirada(PlayerCommand command)
+    {
+        Vector2 lookDelta = new Vector2(command.LookX, command.LookY) * sensibilidadMouse;
+        rotacionX -= lookDelta.y;
         rotacionX = Mathf.Clamp(rotacionX, -80f, 80f);
-        
+
         if (camaraJugador != null)
         {
             camaraJugador.transform.localRotation = Quaternion.Euler(rotacionX, 0, 0);
-            transform.Rotate(Vector3.up * mouseDelta.x);
+            transform.Rotate(Vector3.up * lookDelta.x);
         }
-        
-        // ========== MOVIMIENTO CON CÁMARA ==========
-        Vector3 forward = camaraJugador.transform.forward;
-        Vector3 right = camaraJugador.transform.right;
+    }
+
+    void ManejarMovimiento(PlayerCommand command)
+    {
+        if (controller == null) return;
+
+        Vector2 inputMovimiento = new Vector2(command.MoveX, command.MoveY);
+        Transform referenciaMovimiento = camaraJugador != null ? camaraJugador.transform : transform;
+        Vector3 forward = referenciaMovimiento.forward;
+        Vector3 right = referenciaMovimiento.right;
         forward.y = 0;
         right.y = 0;
         forward.Normalize();
         right.Normalize();
-        
+
         float vel = enZonaGravedad ? velocidadEnZona : velocidadMovimiento;
         Vector3 movimiento = (forward * inputMovimiento.y + right * inputMovimiento.x) * vel;
         // Flotacion extra en zona: movimiento mas esponjoso
         if (enZonaGravedad) movimiento.y += Mathf.Sin(Time.time * 2.5f) * 0.8f * Time.deltaTime * 60f;
         controller.Move(movimiento * Time.deltaTime);
-        
-        // ========== SALTO (Espacio) ==========
-        bool quiereSaltar = Keyboard.current.spaceKey.wasPressedThisFrame 
-            || (Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame);
-        if (quiereSaltar)
-        {
-            IntentarSaltar();
-        }
+    }
 
-        // ========== ACCIONES ==========
-        if (Keyboard.current.hKey.wasPressedThisFrame && energia != null)
-        {
+    void ManejarSalto(PlayerCommand command)
+    {
+        if (command.Jump)
+            IntentarSaltar();
+    }
+
+    void ManejarCuracion(PlayerCommand command)
+    {
+        if (command.Heal && energia != null)
             energia.GastarEnCuracion();
-        }
-        if (Keyboard.current.jKey.wasPressedThisFrame && energia != null)
-        {
+    }
+
+    void ManejarHabilidad(PlayerCommand command)
+    {
+        if (command.Ability && energia != null)
             energia.ActivarHabilidad();
-        }
+    }
+
+    void ManejarInteraccion(PlayerCommand command)
+    {
+        ManejarReanimacionCoop(command);
     }
 
     void ManejarGravedad()
@@ -197,7 +265,12 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         if (!enZonaGravedad) return;
         enZonaGravedad = false;
         Debug.Log("[Player] Saliste de zona de gravedad");
-        if (camaraJugador != null) camaraJugador.fieldOfView = 60f;
+        if (camaraJugador != null)
+        {
+            CapturarEstadoInicial();
+            if (estadoCamaraInicialCapturado)
+                camaraJugador.fieldOfView = fovCamaraInicial;
+        }
     }
 
     void IntentarSaltar()
@@ -218,12 +291,16 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         Debug.Log($"[Player] ¡Salto! vY={velocidadVertical.y:F1} (zona={enZonaGravedad})");
     }
 
-    void ManejarDisparo()
+    void ManejarDisparo(PlayerCommand command)
     {
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        if (armas != null)
         {
-            Disparar();
+            armas.ConsumeCommand(command);
+            return;
         }
+
+        if (command.Fire)
+            Disparar();
     }
 
     void Disparar()
@@ -271,6 +348,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
 
     public event System.Action<PlayerController> OnDerribado;
     public event System.Action<PlayerController> OnReanimado;
+    public event Action<PlayerController, PlayerCommand> OnCommandIssued;
     public bool IsDowned => estaDerribado;
 
     public void EntrarDerribado()
@@ -283,9 +361,8 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         if (estaRalentizado) QuitarRalentizacion();
         Debug.Log($"[Player] {name} DERRIBADO - Esperando reanimación (E a {rangoReanimacion}m)");
         OnDerribado?.Invoke(this);
-        // Notificar GameManager para chequear derrota co-op
-        GameManager.Instance?.NotificarJugadorDerribado(this);
-        // Feedback HUD via evento, TestHUD lo escuchará
+        // GameManager observa este evento a través de la frontera de jugadores registrados.
+        // Feedback HUD via evento, Hud lo escuchará
     }
 
     public void CaerEnPozo(Vector3 pozoPos)
@@ -293,7 +370,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         if (estaDerribado) return;
         Debug.Log($"[Player] {name} cayendo al pozo en {pozoPos} - instakill con caída");
         // Animación de caída: deshabilitar controller momentáneamente y mover hacia abajo
-        StartCoroutine(RutinaCaidaPozo(pozoPos));
+        fallCoroutine = StartCoroutine(RutinaCaidaPozo(pozoPos));
     }
 
     System.Collections.IEnumerator RutinaCaidaPozo(Vector3 pozoPos)
@@ -328,10 +405,10 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         // Ahora estado derribado definitivo
         vidaActual = 0;
         // Asegurar notificación si no estaba ya
-        if (!OnDerribado.GetInvocationList().Length.Equals(0)) {}
         OnDerribado?.Invoke(this);
-        GameManager.Instance?.NotificarJugadorDerribado(this);
         Debug.Log($"[Player] {name} derribado por pozo");
+        fallCoroutine = null;
+
     }
 
     public void Reanimar()
@@ -346,18 +423,58 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         GameManager.Instance?.NotificarJugadorReanimado(this);
     }
 
+    public void ResetState()
+    {
+        ResolverReferencias();
+        CapturarEstadoInicial();
+
+        if (fallCoroutine != null)
+        {
+            StopCoroutine(fallCoroutine);
+            fallCoroutine = null;
+        }
+        if (coRalentizacion != null)
+        {
+            StopCoroutine(coRalentizacion);
+            coRalentizacion = null;
+        }
+
+        velocidadMovimiento = velocidadMovimientoInicial;
+        velocidadEnZona = velocidadZonaInicial;
+        estaRalentizado = false;
+        factorRalentActual = 1f;
+        velocidadOriginal = -1f;
+        velocidadZonaOriginal = -1f;
+
+        vidaActual = vidaMaxima;
+        estaDerribado = false;
+        enZonaGravedad = false;
+        tiempoEnAire = 0f;
+        velocidadVertical = Vector3.zero;
+
+        municionDirecta = armas?.armaDirecta?.municionMaxima ?? municionDirectaInicial;
+        municionArea = armas?.armaArea?.municionMaxima ?? municionAreaInicial;
+
+        rotacionX = 0f;
+        if (camaraJugador != null && estadoCamaraInicialCapturado)
+        {
+            camaraJugador.fieldOfView = fovCamaraInicial;
+            camaraJugador.transform.localRotation = rotacionCamaraInicial;
+            rotacionX = rotacionCamaraInicial.eulerAngles.x;
+            if (rotacionX > 180f) rotacionX -= 360f;
+        }
+    }
+
     void ManejarEstadoDerribado()
     {
         // Solo mostrar mensaje pulsante en HUD, sin movimiento
         // El jugador derribado no puede moverse ni disparar
     }
 
-    void ManejarReanimacionCoop()
+    void ManejarReanimacionCoop(PlayerCommand command)
     {
-        if (Keyboard.current == null) return;
-        // Si estoy vivo, buscar aliados derribados cerca y pulsar E para reanimar
-        if (estaDerribado) return;
-        if (!Keyboard.current.eKey.wasPressedThisFrame) return;
+        // Si estoy vivo, buscar aliados derribados cerca y usar la acción Interact para reanimar.
+        if (estaDerribado || !command.Interact) return;
 
         var gameManager = GameManager.Instance;
         if (gameManager == null) return;
@@ -388,10 +505,18 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
 
     public void ReponerMunicion()
     {
-        municionDirecta = 80;
-        municionArea = 16;
-        if (armas == null) armas = GetComponent<WeaponSystem>();
-        armas?.ReponerMunicion();
+        ResolverReferencias();
+        if (armas != null)
+        {
+            armas.ReponerMunicion();
+            municionDirecta = armas.armaDirecta?.municionActual ?? municionDirecta;
+            municionArea = armas.armaArea?.municionActual ?? municionArea;
+        }
+        else
+        {
+            municionDirecta = municionDirectaInicial;
+            municionArea = municionAreaInicial;
+        }
         Debug.Log("[Player] Munición repuesta al final de oleada");
     }
 
@@ -447,6 +572,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
 
     void OnDestroy()
     {
+        if (fallCoroutine != null) StopCoroutine(fallCoroutine);
         if (coRalentizacion != null) StopCoroutine(coRalentizacion);
     }
 }

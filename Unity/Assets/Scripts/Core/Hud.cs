@@ -1,7 +1,9 @@
 /**
- * TestHUD.cs
- * HUD simple para el entorno de pruebas.
- * Muestra: Vida del Pilar, Vida del Jugador, Energía, Oleada, Munición.
+ * Hud.cs
+ * HUD definitivo de Último Pilar.
+ * Muestra: Vida del Pilar, estado de hasta 4 jugadores, Energía, Oleada,
+ * Munición, variante temporal, menús de inicio/pausa y pantalla de resultado
+ * con puntaje. Incluye crosshair central con flash de impacto.
  * 
  * Colocar en un GameObject en la escena (o se genera automáticamente).
  */
@@ -10,7 +12,7 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
-public class TestHUD : MonoBehaviour
+public class Hud : MonoBehaviour
 {
     [Header("Referencias")]
     public Pilar pilar;
@@ -28,6 +30,14 @@ public class TestHUD : MonoBehaviour
     public Text textoArma;
     public Text textoMensaje;
     
+    [Header("Co-op y resultado")]
+    public Text textoMenu;
+    public Text textoResultado;
+    public Text textoPuntaje;
+    public Text textoVariante;
+    public Text textoCrosshair;
+    public Transform filasJugadores;
+    
     [Header("Barras")]
     public Image barraVidaPilar;
     public Image barraVidaJugador;
@@ -42,6 +52,9 @@ public class TestHUD : MonoBehaviour
     private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
     private GameManager managerSuscrito;
     private bool managerEventosSuscritos;
+    private readonly List<Text> textosFilaJugadores = new List<Text>();
+    private int conteoFilas;
+    private float crosshairTimer;
 
     void Start()
     {
@@ -55,6 +68,7 @@ public class TestHUD : MonoBehaviour
             CrearUI();
         
         SuscribirEventosGameManager();
+        CombatFeedback.OnCombatHit += FlashCrosshair;
     }
 
     void SeleccionarJugadorPrincipal()
@@ -89,6 +103,7 @@ public class TestHUD : MonoBehaviour
                 managerSuscrito.OnOleadaIniciada -= ManejarOleadaIniciada;
                 managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
                 managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+                managerSuscrito.OnMatchResult -= ManejarResultado;
             }
 
             DesuscribirTodosLosJugadores();
@@ -101,6 +116,7 @@ public class TestHUD : MonoBehaviour
         managerSuscrito.OnOleadaIniciada += ManejarOleadaIniciada;
         managerSuscrito.OnPlayerRegistered += ManejarJugadorRegistrado;
         managerSuscrito.OnPlayerUnregistered += ManejarJugadorDesregistrado;
+        managerSuscrito.OnMatchResult += ManejarResultado;
         managerEventosSuscritos = true;
         SuscribirJugadores();
     }
@@ -148,6 +164,7 @@ public class TestHUD : MonoBehaviour
     void ManejarJugadorRegistrado(PlayerController jugadorRegistrado)
     {
         SuscribirJugador(jugadorRegistrado);
+        ReconstruirFilasJugadores();
         if (jugador != null) return;
 
         jugador = jugadorRegistrado;
@@ -157,6 +174,7 @@ public class TestHUD : MonoBehaviour
     void ManejarJugadorDesregistrado(PlayerController jugadorDesregistrado)
     {
         DesuscribirJugador(jugadorDesregistrado);
+        ReconstruirFilasJugadores();
         if (jugador != jugadorDesregistrado) return;
 
         jugador = null;
@@ -187,6 +205,22 @@ public class TestHUD : MonoBehaviour
     void ManejarJugadorReanimado(PlayerController jugador)
     {
         MostrarMensaje($"{jugador.name} reanimado!", 2f);
+    }
+    
+    void ManejarResultado(MatchResult resultado)
+    {
+        if (resultado == null) return;
+        string texto = resultado.Outcome == MatchState.Victory
+            ? $"¡VICTORIA! Puntaje: {resultado.Score}"
+            : $"DERROTA — Puntaje: {resultado.Score}";
+        MostrarMensaje(texto, 5f);
+    }
+    
+    public void FlashCrosshair(bool mato)
+    {
+        crosshairTimer = mato ? 0.35f : 0.15f;
+        if (textoCrosshair != null)
+            textoCrosshair.color = mato ? Color.red : Color.yellow;
     }
 
     void Update()
@@ -285,39 +319,143 @@ public class TestHUD : MonoBehaviour
             textoArma.text = $"Arma: {armas.ObtenerArmaActual()?.nombre}";
         }
         
-        // Inputs de debug
-        if (Keyboard.current != null)
+        ActualizarOverlays();
+        ActualizarFilasJugadores();
+        ActualizarVariante();
+        ActualizarCrosshair();
+        AtajosMenu();
+        
+        // R es exclusivamente un atajo de depuración; el gameplay usa PlayerCommand.
+        if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
         {
-            if (Keyboard.current.hKey.wasPressedThisFrame)
+            if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
+            if (pilar != null)
             {
-                energia?.GastarEnCuracion();
-            }
-            if (Keyboard.current.jKey.wasPressedThisFrame)
-            {
-                energia?.ActivarHabilidad();
-            }
-            if (Keyboard.current.rKey.wasPressedThisFrame)
-            {
-                if (pilar == null) pilar = FindFirstObjectByType<Pilar>();
-                if (pilar != null)
+                // R funciona siempre, incluso antes de WASD (fuerza inicio para que arena/torretas disparen)
+                if (gameManager != null && !gameManager.juegoActivo)
                 {
-                    // R funciona siempre, incluso antes de WASD (fuerza inicio para que arena/torretas disparen)
-                    if (gameManager != null && !gameManager.juegoActivo)
-                    {
-                        Debug.Log("[TestHUD] R: forzando inicio de juego para test de fases");
-                        gameManager.IniciarJuego();
-                    }
-                    pilar.AplicarDañoPrueba(10f);
-                    Debug.Log($"[TestHUD] R: pilar dañado 10% -> {pilar.vidaActual}% fase {pilar.faseActual}");
+                    Debug.Log("[Hud] R: forzando inicio de juego para test de fases");
+                    gameManager.IniciarJuego();
                 }
-                else
-                {
-                    Debug.LogWarning("[TestHUD] R: pilar aún null (¿generación no completada?)");
-                }
+                pilar.AplicarDañoPrueba(10f);
+                Debug.Log($"[Hud] R: pilar dañado 10% -> {pilar.vidaActual}% fase {pilar.faseActual}");
+            }
+            else
+            {
+                Debug.LogWarning("[Hud] R: pilar aún null (¿generación no completada?)");
             }
         }
     }
 
+    void ReconstruirFilasJugadores()
+    {
+        textosFilaJugadores.Clear();
+        conteoFilas = 0;
+        if (filasJugadores == null || gameManager == null) return;
+        foreach (Transform hijo in filasJugadores)
+            Destroy(hijo.gameObject);
+        int i = 0;
+        foreach (var p in gameManager.Players)
+        {
+            if (p == null) continue;
+            textosFilaJugadores.Add(CrearTexto(filasJugadores, $"Fila{i}", new Vector2(Screen.width - 230, Screen.height - 130 - i * 26), 16));
+            i++;
+        }
+        conteoFilas = i;
+    }
+    
+    void ActualizarFilasJugadores()
+    {
+        if (gameManager == null) return;
+        if (gameManager.PlayerCount != conteoFilas)
+            ReconstruirFilasJugadores();
+        int i = 0;
+        foreach (var p in gameManager.Players)
+        {
+            if (p == null || i >= textosFilaJugadores.Count) continue;
+            var texto = textosFilaJugadores[i];
+            if (texto != null)
+            {
+                texto.text = p.estaDerribado
+                    ? $"P{i + 1} {p.name}: DERRIBADO"
+                    : $"P{i + 1} {p.name}: {p.vidaActual:F0}/{p.vidaMaxima:F0}";
+                texto.color = p.estaDerribado ? Color.red : Color.white;
+            }
+            i++;
+        }
+    }
+    
+    void ActualizarOverlays()
+    {
+        if (gameManager == null) return;
+        var estado = gameManager.EstadoActual;
+        bool terminal = estado == MatchState.Victory || estado == MatchState.Defeat;
+        if (textoMenu != null)
+        {
+            if (estado == MatchState.WaitingToStart)
+                textoMenu.text = "ÚLTIMO PILAR\nMovete o dispará para iniciar\nWASD + Mouse (P1) · Start en gamepad (P2-P4)";
+            else if (estado == MatchState.Paused)
+                textoMenu.text = "PAUSA\nEsc: continuar · Enter: reiniciar";
+            else
+                textoMenu.text = "";
+        }
+        if (textoResultado != null && textoPuntaje != null)
+        {
+            if (terminal)
+            {
+                var resultado = gameManager.CurrentResult;
+                int puntaje = resultado != null ? resultado.Score : 0;
+                textoResultado.text = estado == MatchState.Victory ? "¡VICTORIA!" : "DERROTA";
+                textoResultado.color = estado == MatchState.Victory ? Color.green : Color.red;
+                textoPuntaje.text = $"Puntaje: {puntaje}\nEnter: reiniciar";
+            }
+            else
+            {
+                textoResultado.text = "";
+                textoPuntaje.text = "";
+            }
+        }
+    }
+    
+    void ActualizarVariante()
+    {
+        if (textoVariante == null) return;
+        if (armas != null && armas.VarianteActiva)
+        {
+            textoVariante.text = $"¡x{armas.multiplicadorVariante:F0} {armas.tipoVariante}! {armas.tiempoVarianteRestante:F0}s";
+            textoVariante.color = new Color(1f, 0.55f, 0.1f);
+        }
+        else
+            textoVariante.text = "";
+    }
+    
+    void ActualizarCrosshair()
+    {
+        if (textoCrosshair == null) return;
+        if (crosshairTimer > 0f)
+        {
+            crosshairTimer -= Time.unscaledDeltaTime;
+            if (crosshairTimer <= 0f)
+                textoCrosshair.color = Color.white;
+        }
+    }
+    
+    void AtajosMenu()
+    {
+        if (gameManager == null || Keyboard.current == null) return;
+        var estado = gameManager.EstadoActual;
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            if (estado == MatchState.Playing) gameManager.PausarJuego();
+            else if (estado == MatchState.Paused) gameManager.ReanudarJuego();
+        }
+        if (Keyboard.current.enterKey.wasPressedThisFrame
+            && (estado == MatchState.Victory || estado == MatchState.Defeat || estado == MatchState.Paused))
+        {
+            gameManager.ReiniciarJuego();
+        }
+    }
+    
     Color ObtenerColorFase(int fase)
     {
         return fase switch
@@ -339,7 +477,7 @@ public class TestHUD : MonoBehaviour
             if (duracion > 0)
                 Invoke(nameof(LimpiarMensaje), duracion);
         }
-        Debug.Log($"[TestHUD] {mensaje}");
+        Debug.Log($"[Hud] {mensaje}");
     }
 
     public void MostrarAdvertencia(string mensaje, Color color, float duracion)
@@ -352,7 +490,7 @@ public class TestHUD : MonoBehaviour
             if (duracion > 0)
                 Invoke(nameof(LimpiarMensaje), duracion);
         }
-        Debug.Log($"[TestHUD] ADVERTENCIA: {mensaje}");
+        Debug.Log($"[Hud] ADVERTENCIA: {mensaje}");
     }
 
     void LimpiarMensaje()
@@ -370,7 +508,10 @@ public class TestHUD : MonoBehaviour
             managerSuscrito.OnOleadaIniciada -= ManejarOleadaIniciada;
             managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
             managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+            managerSuscrito.OnMatchResult -= ManejarResultado;
         }
+        
+        CombatFeedback.OnCombatHit -= FlashCrosshair;
 
         DesuscribirTodosLosJugadores();
         managerEventosSuscritos = false;
@@ -404,6 +545,24 @@ public class TestHUD : MonoBehaviour
         textoArma = CrearTexto(canvas.transform, "Arma", new Vector2(Screen.width - 200, Screen.height - 85), 18);
         textoMensaje = CrearTexto(canvas.transform, "Mensaje", new Vector2(Screen.width / 2 - 200, Screen.height / 2), 36);
         textoMensaje.alignment = TextAnchor.MiddleCenter;
+        
+        textoCrosshair = CrearTexto(canvas.transform, "Crosshair", new Vector2(Screen.width / 2 - 200, Screen.height / 2 + 60), 28);
+        textoCrosshair.alignment = TextAnchor.MiddleCenter;
+        textoCrosshair.text = "+";
+        
+        textoMenu = CrearTexto(canvas.transform, "Menu", new Vector2(Screen.width / 2 - 300, Screen.height - 220), 30);
+        textoMenu.alignment = TextAnchor.MiddleCenter;
+        textoResultado = CrearTexto(canvas.transform, "Resultado", new Vector2(Screen.width / 2 - 300, Screen.height - 300), 44);
+        textoResultado.alignment = TextAnchor.MiddleCenter;
+        textoPuntaje = CrearTexto(canvas.transform, "Puntaje", new Vector2(Screen.width / 2 - 300, Screen.height - 360), 26);
+        textoPuntaje.alignment = TextAnchor.MiddleCenter;
+        textoVariante = CrearTexto(canvas.transform, "Variante", new Vector2(Screen.width / 2 - 200, Screen.height - 70), 22);
+        textoVariante.alignment = TextAnchor.MiddleCenter;
+        
+        GameObject filasGO = new GameObject("FilasJugadores");
+        filasGO.transform.SetParent(canvas.transform);
+        filasJugadores = filasGO.transform;
+        ReconstruirFilasJugadores();
     }
 
     Text CrearTexto(Transform parent, string nombre, Vector2 pos, int tamaño)

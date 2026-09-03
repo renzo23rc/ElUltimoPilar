@@ -1,7 +1,14 @@
 # Game Design Document (GDD)
 
 ## ÚLTIMO PILAR
+
 ### Un shooter arena cooperativo de asedio y defensa
+
+---
+
+## Fuente de verdad vigente
+
+Las reglas actuales de resultado están definidas en este documento y en `Documentacion/arquitectura-de-codigo.md`: la derrota ocurre cuando la vida del Pilar llega a 0 o todos los jugadores registrados están derribados; el puntaje es el porcentaje de vida restante del Pilar, limitado a 0–100 y redondeado al entero más cercano con los puntos medios hacia arriba. `gdd_extracted.txt` es una extracción histórica del PDF y no una especificación vigente; cualquier redacción anterior allí queda subordinada a estas decisiones documentadas.
 
 ---
 
@@ -48,7 +55,7 @@ Hace milenios, mucho antes de que el planeta fuera colonizado, el Enjambre ya vi
 
 Cuando la humanidad comenzó a expandirse y construir sus primeros asentamientos profundos —extrayendo recursos, buscando minerales, cavando para sobrevivir— el Enjambre se hizo presente. No en forma de invasión, sino en forma de contacto. Asustada, la humanidad no tardó en responder: la tecnología más avanzada de su época fue movilizada para construir los Pilares.
 
-Los Pilares no fueron simples fortalezas o refugios. Fueron **monumentos**: estructuras colosales que se alzaban como símbolos de la supremacía humana, torres de poder e ingeniería que emitían campos de contención capaces de mantener al Enjambre confinado en las profundidades. Cada Pilar era una obra maestra, construido en un punto crítico del planeta, cuidadosamente ubicado para formar una red de defensa impenetrable. 
+Los Pilares no fueron simples fortalezas o refugios. Fueron **monumentos**: estructuras colosales que se alzaban como símbolos de la supremacía humana, torres de poder e ingeniería que emitían campos de contención capaces de mantener al Enjambre confinado en las profundidades. Cada Pilar era una obra maestra, construido en un punto crítico del planeta, cuidadosamente ubicado para formar una red de defensa impenetrable.
 
 Fueron cuatro: el **Cristo Redentor**, que se erguía sobre Río de Janeiro protegiendo el continente americano del sur; el **Taj Mahal**, transformado en fortaleza en las llanuras de la India; la **Torre Eiffel**, reprogramada en París como centinela de Europa; y la **Estatua de la Libertad**, vigía en Nueva York que custodiaba el Atlántico Norte. Monumentos que la humanidad había reverenciado durante siglos como símbolos de belleza y libertad, ahora reencarnados como las últimas líneas de defensa contra lo que despertaba en las profundidades. Los Pilares se convirtieron en la gloria de la civilización: centros de investigación, santuarios tecnológicos, símbolos venerados donde la vieja humanidad reunía sus mejores mentes para estudiar el Enjambre y mantener el campo de contención intacto.
 
@@ -100,10 +107,12 @@ La paleta general de la arena es fría y neutra (grises, azules apagados, algo d
 **Enemigos:** siluetas simples y muy diferenciadas entre sí (el Corredor estilizado y filoso, el Artillero más compacto y anguloso, el Explosivo con una luz de advertencia visible antes de detonar), en una gama que contraste con el Pilar — pensamos en tonos oscuros/orgánicos que remitan al Enjambre como algo ajeno a la tecnología de la colonia, no metálico.
 
 **Referencias sugeridas para el moodboard:**
+
 1. Low-poly estilizado de arena y props — nave/estación industrial deteriorada, no futurista pulida.
 2. Diseño de "jefe" o estructura central para el Pilar en sus 4 estados de daño, con foco en silueta y lenguaje de luces.
 3. Paleta de color por fase (verde/azul → ámbar → naranja → rojo) aplicada tanto al Pilar como a la iluminación ambiental de la arena.
 4. Diseño de enemigos como presencia "ajena" (orgánico, oscuro) en contraste con la estética industrial de la colonia.
+
 ---
 
 # Desarrollo
@@ -127,11 +136,12 @@ Shooter arena / survival cooperativo (horde shooter). **Plataforma:** PC (Unity)
 - **Enemigos simples que el jugador convierte en su propia arma.** Corredor, Artillero y Explosivo tienen IA deliberadamente básica — pero el diseño invita a usarlos activamente contra el escenario y entre ellos: empujar un Explosivo a un pozo cerca de un grupo, cortarle línea de visión a un Artillero rotando la arena. La profundidad no está en enfrentarlos, está en instrumentalizarlos.
 
 - **Cooperativo sin depender de roles fijos.** Hasta 4 jugadores en local, sin clases ni especializaciones impuestas — cualquiera puede curarse o activar su habilidad en cualquier momento. La coordinación nace de la comunicación real en el momento, no de un rol asignado de antemano, lo que mantiene el juego accesible incluso para grupos que juegan por primera vez juntos.
+
 ---
 
 ## Audiencia y tecnologías soportadas
 
-**Audiencia:** Jugadores de shooters de oleadas y juegos cooperativos locales, que disfruten partidas cortas (12-20 minutos) con tensión creciente y un componente táctico-espacial. Por su estilo low-poly y violencia estilizada (no gráfica), apunta a un público adolescente y adulto. 
+**Audiencia:** Jugadores de shooters de oleadas y juegos cooperativos locales, que disfruten partidas cortas (12-20 minutos) con tensión creciente y un componente táctico-espacial. Por su estilo low-poly y violencia estilizada (no gráfica), apunta a un público adolescente y adulto.
 
 **Tecnología:** Desarrollado en Unity para PC, con soporte de hasta 4 mandos en modo local.
 
@@ -157,7 +167,7 @@ La música sigue la misma lógica que ya rige el resto del sistema: reacciona al
 | 50-25% | El pulso se vuelve irregular y más grave. La capa orgánica gana presencia, casi compitiendo con la tecnológica. |
 | 25-0% | El pulso del reactor se distorsiona (bitcrush / saturación), percusión más densa y arrítmica. El ambiente orgánico domina la mezcla — suena como si el Enjambre ya estuviera adentro. |
 
-### Aviso sonoro de transformación 
+### Aviso sonoro de transformación
 
 Cada transformación de arena dispara un **stinger** —un elemento sonoro corto y reconocible, distinto de todo lo demás en la mezcla— que suena 2-3 segundos antes de que la arena cambie físicamente. Este stinger debe ser el mismo en las tres primeras transformaciones para que el jugador lo aprenda rápido como señal de "algo va a cambiar", y solo la cuarta (protocolo de emergencia) tiene una variante más agresiva, marcando que es el punto de mayor tensión de la partida.
 
@@ -166,6 +176,7 @@ Cada transformación de arena dispara un **stinger** —un elemento sonoro corto
 - Priorizar **loops cortos con capas independientes** (ambiental, pulso, percusión) que se mezclan por código según la vida del Pilar, en vez de componer temas completos por fase — mismo principio que la munición por oleada: un dial de diseño simple de ajustar sin tocar audio de nuevo.
 - El stinger de transformación puede reutilizar el mismo asset de audio con variaciones de pitch/reverb entre fases.
 - Bibliotecas de samples libres de industrial/drone (freesound, o packs de Unity Asset Store) son un punto de partida realista si el rol de sonido no tiene tiempo de componer todo desde cero
+
 ---
 
 ## Core value
@@ -182,7 +193,7 @@ Esto define de qué está hecha la dificultad del juego: no de enemigos más lis
 
 **Que pegarle a algo se sienta contundente es lo que hace o rompe este shooter.**
 
-Un horde shooter no se sostiene por su historia ni por su sistema de recursos: se sostiene por cómo se siente cada disparo. Si acertarle a un Corredor no da una sensación clara e inmediata de impacto, ninguna otra mecánica del juego —ni la arena transformándose, ni el Pilar reaccionando— va a compensar esa falta de contundencia. 
+Un horde shooter no se sostiene por su historia ni por su sistema de recursos: se sostiene por cómo se siente cada disparo. Si acertarle a un Corredor no da una sensación clara e inmediata de impacto, ninguna otra mecánica del juego —ni la arena transformándose, ni el Pilar reaccionando— va a compensar esa falta de contundencia.
 
 Esa contundencia se construye combinando varias capas de feedback que refuerzan el mismo instante:
 
@@ -205,9 +216,9 @@ La noche impone un solo objetivo real —que el Pilar siga en pie al amanecer—
 
 ## Condición de victoria y derrota
 
-**Victoria:** Sobrevivir hasta el amanecer, es decir, aguantar todas las oleadas de esa noche sin que la vida del Pilar llegue a 0. El daño final que quedó en el Pilar se muestra como puntaje, incentivando rejugar y mejorar — una partida "ganada" con el Pilar al 15% no se siente igual que una ganada al 80%, y el juego debe comunicar esa diferencia.
+**Victoria:** Sobrevivir hasta el amanecer, es decir, aguantar todas las oleadas de esa noche sin que se active una condición de derrota. El puntaje final es el porcentaje de vida restante del Pilar, limitado a 0–100 y redondeado al entero más cercano; los puntos medios (`.5`) se redondean hacia arriba.
 
-**Derrota:** La vida del Pilar llega a 0 — es game over aunque el jugador siga con vida propia. Este desacople es intencional: la derrota no depende de los reflejos individuales del jugador, sino de qué tan bien administró la defensa de algo que no es él mismo. Es la misma lógica que sostiene el core value del juego, aplicada a la condición de fin de partida.
+**Derrota:** Ocurre si la vida del Pilar llega a 0 o si todos los jugadores registrados están derribados. En ambos casos es game over, incluso si la otra condición todavía no se cumple; no se agrega una causa de derrota al resultado.
 
 ---
 
@@ -263,7 +274,7 @@ La noche impone un solo objetivo real —que el Pilar siga en pie al amanecer—
 
 ## Reglas
 
-- La vida del Pilar y la vida del jugador son recursos independientes; el juego termina solo cuando la del Pilar llega a 0, sin importar el estado del jugador.
+- La vida del Pilar y la vida de los jugadores son recursos independientes; el juego termina si la del Pilar llega a 0 o si todos los jugadores registrados están derribados.
 - La munición de las armas de disparo y de área es limitada y se repone parcialmente al final de cada oleada, no en tiempo real — nunca se puede "farmear" munición en medio del combate.
 - Toda transformación de arena debe estar precedida por un aviso visible y sonoro; nunca ocurre sin margen de reacción para el jugador. Esta regla es no negociable y prevalece sobre cualquier ajuste de dificultad futuro.
 - La energía dropeada por enemigos se gasta en tiempo real y de forma exclusiva: cada unidad se asigna a un solo uso (curarse o activar su habilidad); no se puede fraccionar entre dos usos a la vez, ni usarla para reforzar al Pilar. Cada 20 puntos de energía recuperan 1% de vida del jugador.
@@ -291,7 +302,7 @@ Para reforzar la identidad del grupo y el tono de supervivencia de la defensa, c
 2. **Combate y recursos:** Cada oleada dropea energía al eliminar enemigos; el jugador decide en tiempo real cómo repartirla entre curarse o activar su habilidad, mientras administra munición limitada. Los enemigos comunes dropean 2 de energía, la Incubadora 10 y el Coloso 20.
 3. **Transformación:** Al cruzar un umbral de vida del Pilar ocurre un evento de transformación de arena, siempre anunciado con antelación sonora y visual antes de ejecutarse.
 4. **Escalada:** Se repite el ciclo con oleadas cada vez más duras —sumando enemigos como el Tejedor, el Nido y eventualmente el Coloso— hasta la oleada final, que combina todos los tipos de enemigo a propósito sobre una arena ya transformada por las decisiones previas del grupo.
-5. **Amanecer:** Sobrevivir hasta el amanecer significa victoria de esa noche; el daño final que quedó en el Pilar se muestra como puntaje, incentivando rejugar y mejorar la próxima corrida.
+5. **Amanecer:** Sobrevivir hasta el amanecer significa victoria de esa noche; la vida restante del Pilar se convierte en el puntaje final de 0 a 100 mediante redondeo al entero más cercano con midpoint hacia arriba.
 
 ---
 
@@ -303,7 +314,8 @@ Boceto conceptual de la arena circular y sus 4 fases de transformación, atadas 
 
 **Fig. 1 — Arena en sus 4 fases:** base, pozo central, zona de gravedad alterada y protocolo de emergencia con torretas.
 
-### Fases:
+### Fases
+
 - **100% - 75%** — Arena base
 - **75% - 50%** — Un transformación: pozo central
 - **50% - 25%** — 2da transformación: zona de gravedad alterada
@@ -315,7 +327,8 @@ Boceto conceptual de la arena circular y sus 4 fases de transformación, atadas 
 
 Boceto conceptual del HUD durante una partida, priorizando que la vida del Pilar y el aviso de próxima transformación sean lo más legible de la pantalla, tal como pide el requisito de diseño.
 
-**Fig. 2 — HUD:** 
+**Fig. 2 — HUD:**
+
 - Vida del Pilar (arriba)
 - Vida/energía del jugador y acciones de energía (abajo izq.)
 - Munición (abajo der.)

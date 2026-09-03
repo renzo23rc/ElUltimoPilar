@@ -7,7 +7,6 @@
  */
 using UnityEngine;
 using System;
-using UnityEngine.InputSystem;
 
 public class WeaponSystem : MonoBehaviour
 {
@@ -72,6 +71,12 @@ public class WeaponSystem : MonoBehaviour
     public TipoArma armaEquipada = TipoArma.Directa;
     public float cooldownDisparo = 0f;
     
+    [Header("Variante temporal")]
+    public TipoArma tipoVariante = TipoArma.Directa;
+    public float multiplicadorVariante = 1f;
+    public float tiempoVarianteRestante = 0f;
+    public bool VarianteActiva => tiempoVarianteRestante > 0f;
+    
     [Header("Referencias")]
     public Transform puntoDisparo;
     public Camera camara;
@@ -81,6 +86,7 @@ public class WeaponSystem : MonoBehaviour
     public event Action<Arma> OnDisparo;
     public event Action OnSinMunicion;
     public event Action<TipoArma> OnCambioArma;
+    public event Action OnVarianteExpirada;
     
     private PlayerController player;
 
@@ -92,7 +98,7 @@ public class WeaponSystem : MonoBehaviour
     void Start()
     {
         player = GetComponent<PlayerController>();
-        // Preferir la camara del PlayerController (siempre es la correcta), fallback a hijos, luego Camera.main
+        // Preferir la camara del PlayerController y después una camara hija explícita.
         if (camara == null && player != null && player.camaraJugador != null)
         {
             camara = player.camaraJugador;
@@ -100,8 +106,6 @@ public class WeaponSystem : MonoBehaviour
         }
         if (camara == null)
             camara = GetComponentInChildren<Camera>();
-        if (camara == null)
-            camara = Camera.main;
         if (puntoDisparo == null && camara != null)
             puntoDisparo = camara.transform;
         if (camara != null)
@@ -122,17 +126,45 @@ public class WeaponSystem : MonoBehaviour
     {
         cooldownDisparo -= Time.deltaTime;
         
-        if (Keyboard.current == null || Mouse.current == null) return;
-        
-        // Cambio de arma con teclas 1, 2, 3
-        if (Keyboard.current.digit1Key.wasPressedThisFrame) CambiarArma(TipoArma.Directa);
-        if (Keyboard.current.digit2Key.wasPressedThisFrame) CambiarArma(TipoArma.Area);
-        if (Keyboard.current.digit3Key.wasPressedThisFrame) CambiarArma(TipoArma.CuerpoACuerpo);
-        
-        // Scroll para cambiar arma
-        float scroll = Mouse.current.scroll.ReadValue().y;
-        if (scroll > 0) CambiarArmaSiguiente();
-        if (scroll < 0) CambiarArmaAnterior();
+        if (tiempoVarianteRestante > 0f)
+        {
+            tiempoVarianteRestante -= Time.deltaTime;
+            if (tiempoVarianteRestante <= 0f)
+            {
+                tiempoVarianteRestante = 0f;
+                multiplicadorVariante = 1f;
+                OnVarianteExpirada?.Invoke();
+                Debug.Log("[WeaponSystem] Variante temporal expirada");
+            }
+        }
+    }
+
+    public void ConsumeCommand(PlayerCommand command)
+    {
+        if (command.WeaponSlot.HasValue)
+        {
+            switch (command.WeaponSlot.Value)
+            {
+                case 1:
+                    CambiarArma(TipoArma.Directa);
+                    break;
+                case 2:
+                    CambiarArma(TipoArma.Area);
+                    break;
+                case 3:
+                    CambiarArma(TipoArma.CuerpoACuerpo);
+                    break;
+            }
+        }
+
+        if (command.PreviousWeapon)
+            CambiarArmaAnterior();
+        if (command.NextWeapon)
+            CambiarArmaSiguiente();
+        if (command.Fire)
+            DispararActual();
+
+        // Mouse-wheel switching remains deferred to its dedicated input slice.
     }
 
     public void DispararActual()
@@ -171,6 +203,7 @@ public class WeaponSystem : MonoBehaviour
                 break;
         }
         
+        CombatFeedback.NotifyShot(actual.intensidadScreenShake);
         OnDisparo?.Invoke(actual);
         
         // Screen shake simple
@@ -179,6 +212,7 @@ public class WeaponSystem : MonoBehaviour
 
     void DispararDirecto(Arma arma)
     {
+        float daño = DañoEfectivo(arma);
         if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
         Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
         LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
@@ -187,8 +221,8 @@ public class WeaponSystem : MonoBehaviour
             var enemy = hit.collider.GetComponent<Enemy>();
             if (enemy != null)
             {
-                ApplyDamage(enemy, arma.daño);
-                Debug.Log($"[WeaponSystem] Impacto directo: {arma.daño} daño a {enemy.name}");
+                ApplyDamage(enemy, daño);
+                Debug.Log($"[WeaponSystem] Impacto directo: {daño} daño a {enemy.name}");
                 CrearImpactoVisual(hit.point, hit.normal, Color.red, 0.35f, true);
             }
             else
@@ -228,6 +262,7 @@ public class WeaponSystem : MonoBehaviour
 
     void DispararArea(Arma arma)
     {
+        float daño = DañoEfectivo(arma);
         if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
         Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
         LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
@@ -252,12 +287,12 @@ public class WeaponSystem : MonoBehaviour
             var enemy = col.GetComponent<Enemy>();
             if (enemy != null)
             {
-                ApplyDamage(enemy, arma.daño);
+                ApplyDamage(enemy, daño);
                 contador++;
             }
         }
         
-        Debug.Log($"[WeaponSystem] Explosión de área: {arma.daño} daño a {contador} enemigos");
+        Debug.Log($"[WeaponSystem] Explosión de área: {daño} daño a {contador} enemigos");
         
         // Efecto visual procedural SIEMPRE (aunque haya prefab)
         CrearExplosionArea(puntoImpacto, normal, arma.radioArea, contador > 0 ? Color.yellow : new Color(1,0.6f,0,0.8f));
@@ -272,6 +307,7 @@ public class WeaponSystem : MonoBehaviour
 
     void AtacarMelee(Arma arma)
     {
+        float daño = DañoEfectivo(arma);
         // Ataque en arco frontal
         Collider[] afectados = Physics.OverlapSphere(transform.position + transform.forward * 1.5f, arma.radioArea);
         int contador = 0;
@@ -280,7 +316,7 @@ public class WeaponSystem : MonoBehaviour
             var enemy = col.GetComponent<Enemy>();
             if (enemy != null)
             {
-                ApplyDamage(enemy, arma.daño);
+                ApplyDamage(enemy, daño);
                 
                 // Empujar enemigo (física)
                 Rigidbody rb = col.GetComponent<Rigidbody>();
@@ -295,7 +331,7 @@ public class WeaponSystem : MonoBehaviour
             }
         }
         
-        Debug.Log($"[WeaponSystem] Ataque melee: {arma.daño} daño a {contador} enemigos");
+        Debug.Log($"[WeaponSystem] Ataque melee: {daño} daño a {contador} enemigos");
     }
 
     public void CambiarArma(TipoArma tipo)
@@ -333,9 +369,52 @@ public class WeaponSystem : MonoBehaviour
 
     public void ReponerMunicion()
     {
-        armaDirecta.municionActual = armaDirecta.municionMaxima;
-        armaArea.municionActual = armaArea.municionMaxima;
+        if (armaDirecta != null) armaDirecta.municionActual = armaDirecta.municionMaxima;
+        if (armaArea != null) armaArea.municionActual = armaArea.municionMaxima;
+        SincronizarMunicionLegacy();
         Debug.Log("[WeaponSystem] Munición repuesta");
+    }
+
+    public void ApplyVariant(TipoArma tipo, float multiplicador, float duracion)
+    {
+        tipoVariante = tipo;
+        multiplicadorVariante = Mathf.Max(1f, multiplicador);
+        tiempoVarianteRestante = Mathf.Max(0f, duracion);
+        Debug.Log($"[WeaponSystem] ¡Variante temporal! x{multiplicadorVariante} {tipoVariante} por {tiempoVarianteRestante:F0}s");
+    }
+    
+    public float DañoEfectivo(Arma arma)
+    {
+        if (arma == null) return 0f;
+        if (VarianteActiva && arma.tipo == tipoVariante)
+            return arma.daño * multiplicadorVariante;
+        return arma.daño;
+    }
+    
+    public void ResetState()
+    {
+        if (player == null) player = GetComponent<PlayerController>();
+
+        bool weaponChanged = armaEquipada != TipoArma.Directa;
+        armaEquipada = TipoArma.Directa;
+
+        if (armaDirecta != null) armaDirecta.municionActual = armaDirecta.municionMaxima;
+        if (armaArea != null) armaArea.municionActual = armaArea.municionMaxima;
+        if (armaMelee != null) armaMelee.municionActual = armaMelee.municionMaxima;
+        cooldownDisparo = 0f;
+        tiempoVarianteRestante = 0f;
+        multiplicadorVariante = 1f;
+        tipoVariante = TipoArma.Directa;
+        SincronizarMunicionLegacy();
+
+        if (weaponChanged) OnCambioArma?.Invoke(armaEquipada);
+    }
+
+    void SincronizarMunicionLegacy()
+    {
+        if (player == null) return;
+        if (armaDirecta != null) player.municionDirecta = armaDirecta.municionActual;
+        if (armaArea != null) player.municionArea = armaArea.municionActual;
     }
 
     // ===== VISUAL FEEDBACK PROCEDURAL (sin prefabs) =====
