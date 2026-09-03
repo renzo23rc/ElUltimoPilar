@@ -15,6 +15,23 @@ using System;
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour, IPlayerRosterMember
 {
+    private const float MinimumHealth = 0f;
+    private const float MaximumHealth = 100f;
+    private const float MaximumLookAngleDegrees = 80f;
+    private const float GroundedVerticalSpeed = -2f;
+    private const float GravityZoneGroundedSpeed = -0.5f;
+    private const float GravityZoneMaximumFallSpeed = -3f;
+    private const float GroundHeightMeters = 1.2f;
+    private const float ZoneJumpMultiplier = 2.2f;
+    private const float DoubleJumpGuardSeconds = 999f;
+    private const float FallbackRaycastRangeMeters = 100f;
+    private const float FallbackDamage = 10f;
+    private const float FallDurationSeconds = 0.6f;
+    private const float FallCenterImpulseMeters = 2f;
+    private const float FallDistanceMeters = 6f;
+    private const float DefaultSlowFactor = 1f;
+    private const float UnsetOriginalSpeed = -1f;
+
     [Header("Movimiento")]
     public float velocidadMovimiento = 8f;
     public float gravedad = -20f;
@@ -30,8 +47,8 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     public float velocidadEnZona = 5f; // mas lento/flotante
     
     [Header("Vida")]
-    public float vidaMaxima = 100f;
-    public float vidaActual = 100f;
+    public float vidaMaxima = MaximumHealth;
+    public float vidaActual = MaximumHealth;
     
     [Header("Referencias")]
     public Camera camaraJugador;
@@ -55,8 +72,8 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
 
     [Header("Ralentización (Weaver)")]
     public bool estaRalentizado = false;
-    private float velocidadOriginal = -1f;
-    private float velocidadZonaOriginal = -1f;
+    private float velocidadOriginal = UnsetOriginalSpeed;
+    private float velocidadZonaOriginal = UnsetOriginalSpeed;
     private Coroutine coRalentizacion;
     private Coroutine fallCoroutine;
     private float factorRalentActual = 1f;
@@ -174,7 +191,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     {
         Vector2 lookDelta = new Vector2(command.LookX, command.LookY) * sensibilidadMouse;
         rotacionX -= lookDelta.y;
-        rotacionX = Mathf.Clamp(rotacionX, -80f, 80f);
+        rotacionX = Mathf.Clamp(rotacionX, -MaximumLookAngleDegrees, MaximumLookAngleDegrees);
 
         if (camaraJugador != null)
         {
@@ -276,7 +293,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     void IntentarSaltar()
     {
         bool enSuelo = controller.isGrounded;
-        bool puedeSaltar = enSuelo || tiempoEnAire < coyoteTime || transform.position.y <= 1.2f;
+        bool puedeSaltar = enSuelo || tiempoEnAire < coyoteTime || transform.position.y <= GroundHeightMeters;
         Debug.Log($"[Player] Intento salto: enSuelo={enSuelo} tiempoEnAire={tiempoEnAire:F2} puede={puedeSaltar} y={transform.position.y:F2} vY={velocidadVertical.y:F2} enZona={enZonaGravedad}");
         if (!puedeSaltar)
         {
@@ -312,10 +329,10 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         }
         
         // Fallback básico si no hay WeaponSystem
-        if (puntoDisparo != null && Physics.Raycast(puntoDisparo.position, puntoDisparo.forward, out RaycastHit hit, 100f, capaEnemigos))
+        if (puntoDisparo != null && Physics.Raycast(puntoDisparo.position, puntoDisparo.forward, out RaycastHit hit, FallbackRaycastRangeMeters, capaEnemigos))
         {
             var enemy = hit.collider.GetComponent<Enemy>();
-            enemy?.RecibirDaño(10f);
+            enemy?.RecibirDaño(FallbackDamage);
             
             Debug.DrawRay(puntoDisparo.position, puntoDisparo.forward * hit.distance, Color.red, 0.5f);
         }
@@ -324,7 +341,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     public void RecibirDaño(float cantidad)
     {
         if (estaDerribado) return;
-        vidaActual = Mathf.Max(0, vidaActual - cantidad);
+        vidaActual = Mathf.Max(MinimumHealth, vidaActual - cantidad);
         Debug.Log($"[Player] Daño recibido: {cantidad}. Vida: {vidaActual}/{vidaMaxima}");
         
         if (vidaActual <= 0)
@@ -377,20 +394,20 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     {
         // Desactivar movimiento por 0.6s y animar caída vertical
         float t = 0f;
-        float dur = 0.6f;
+        float dur = FallDurationSeconds;
         Vector3 ini = transform.position;
         // Bloquear input durante caída
         estaDerribado = true; // temporal para bloquear LeerInput
         // Pequeño impulso hacia centro del pozo
         Vector3 dirCentro = (pozoPos - transform.position);
         dirCentro.y = 0;
-        dirCentro = dirCentro.normalized * 2f;
+        dirCentro = dirCentro.normalized * FallCenterImpulseMeters;
         // Si CharacterController está activo, mover con Move
         while (t < dur)
         {
             t += Time.deltaTime;
             float p = t / dur;
-            Vector3 caida = Vector3.Lerp(ini, ini + dirCentro + Vector3.down * 6f, p);
+            Vector3 caida = Vector3.Lerp(ini, ini + dirCentro + Vector3.down * FallDistanceMeters, p);
             if (controller != null && controller.enabled)
             {
                 Vector3 delta = caida - transform.position;
@@ -562,9 +579,9 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             velocidadMovimiento = velocidadOriginal;
             velocidadEnZona = velocidadZonaOriginal;
             estaRalentizado = false;
-            factorRalentActual = 1f;
-            velocidadOriginal = -1f;
-            velocidadZonaOriginal = -1f;
+            factorRalentActual = DefaultSlowFactor;
+            velocidadOriginal = UnsetOriginalSpeed;
+            velocidadZonaOriginal = UnsetOriginalSpeed;
             coRalentizacion = null;
             Debug.Log("[Player] Ralentización expirada");
         }

@@ -6,12 +6,17 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMember
 {
+    /// <summary>Minimum supported player capacity.</summary>
     public const int MinimumCapacity = 1;
+    /// <summary>Maximum supported player capacity.</summary>
     public const int MaximumCapacity = 4;
 
     private readonly List<TPlayer> players;
     private readonly IReadOnlyList<TPlayer> readOnlyPlayers;
 
+    /// <summary>
+    /// Creates a roster with the specified capacity.
+    /// </summary>
     public PlayerRoster(int capacity)
     {
         if (capacity < MinimumCapacity || capacity > MaximumCapacity)
@@ -27,13 +32,20 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
         readOnlyPlayers = players.AsReadOnly();
     }
 
+    /// <summary>Gets the roster capacity.</summary>
     public int Capacity { get; }
+    /// <summary>Gets registered players in insertion order.</summary>
     public IReadOnlyList<TPlayer> Players => readOnlyPlayers;
+    /// <summary>Gets the number of registered players.</summary>
     public int Count => players.Count;
+    /// <summary>Gets the number of downed players.</summary>
     public int DownedCount => CountPlayers(isDowned: true);
+    /// <summary>Gets the number of standing players.</summary>
     public int StandingCount => CountPlayers(isDowned: false);
+    /// <summary>Gets whether every registered player is downed.</summary>
     public bool AreAllDowned => Count > 0 && DownedCount == Count;
 
+    /// <summary>Registers a player when capacity and uniqueness permit it.</summary>
     public bool Register(TPlayer player)
     {
         if (player == null || players.Contains(player) || Count >= Capacity)
@@ -43,11 +55,13 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
         return true;
     }
 
+    /// <summary>Removes a registered player.</summary>
     public bool Unregister(TPlayer player)
     {
         return player != null && players.Remove(player);
     }
 
+    /// <summary>Restores ammunition for every registered player.</summary>
     public void ReplenishWaveAmmo()
     {
         foreach (var player in players)

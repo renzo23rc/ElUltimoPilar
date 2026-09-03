@@ -21,12 +21,24 @@ using UnityEngine;
 using System;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Builds the runtime test scene and its required gameplay composition.
+/// </summary>
 public class TestSceneSetup : MonoBehaviour
 {
+    private const int TurretPointCount = 4;
+    private const int FloatingParticleCount = 15;
+    private const int EnergyPoolInitialSize = 15;
+    private const int EnergyPoolMaximumSize = 50;
+    private const int ProjectilePoolInitialSize = 20;
+    private const int ProjectilePoolMaximumSize = 80;
+
     [Header("Configuración Rápida")]
+    /// <summary>Gets or sets whether generation runs on start.</summary>
     public bool generarAlIniciar = true;
+    /// <summary>Gets or sets whether this setup object is destroyed after generation.</summary>
     public bool destruirDespuésDeGenerar = true;
-    
+
     [Header("Materiales de Prueba")]
     public Material matPilar;
     public Material matSuelo;
@@ -45,6 +57,7 @@ public class TestSceneSetup : MonoBehaviour
         }
     }
 
+    /// <summary>Generates the complete runtime test scene.</summary>
     [ContextMenu("Generar Escena de Prueba")]
     public void GenerarEscenaDePrueba()
     {
@@ -63,8 +76,8 @@ public class TestSceneSetup : MonoBehaviour
         if (matPilar != null) pilarGO.GetComponent<Renderer>().material = matPilar;
         
         // Puntos para torretas (fase 4) - FUERA del pozo (radio 5) => local 1.6 => mundo 6.4, y -0.45 => mundo 1.1 visible por encima del pozo
-        Transform[] torretas = new Transform[4];
-        for (int i = 0; i < 4; i++)
+        Transform[] torretas = new Transform[TurretPointCount];
+        for (int i = 0; i < TurretPointCount; i++)
         {
             GameObject t = new GameObject($"PuntoTorreta_{i}");
             t.transform.SetParent(pilarGO.transform);
@@ -185,7 +198,7 @@ public class TestSceneSetup : MonoBehaviour
         zonaScript.fuerzaAscenso = 18f;
         zonaScript.radioEfecto = 5f;
         // Particulas flotantes visuales
-        for (int p=0;p<15;p++)
+        for (int p = 0; p < FloatingParticleCount; p++)
         {
             GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
             part.name = "ParticulaFlotante";
@@ -302,7 +315,7 @@ public class TestSceneSetup : MonoBehaviour
         }
         else Debug.Log("[TestSceneSetup] Usando prefab real EnergiaPickup");
         // Registrar pool para pickups (mínimo 15)
-        poolMgr.RegisterPool("EnergyPickup", energia, 15, 50);
+        poolMgr.RegisterPool("EnergyPickup", energia, EnergyPoolInitialSize, EnergyPoolMaximumSize);
 
         // Prefab proyectil base (intenta cargar real)
         GameObject projPrefab = Resources.Load<GameObject>("Prefabs/ProyectilBase");
@@ -349,7 +362,7 @@ public class TestSceneSetup : MonoBehaviour
         // Asegurar PooledObject y estado inactivo para pool
         if (projPrefab.GetComponent<PooledObject>() == null) projPrefab.AddComponent<PooledObject>().poolKey = "Proyectil";
         if (projPrefab.activeSelf) projPrefab.SetActive(false);
-        poolMgr.RegisterPool("Proyectil", projPrefab, 20, 80);
+        poolMgr.RegisterPool("Proyectil", projPrefab, ProjectilePoolInitialSize, ProjectilePoolMaximumSize);
         // Asignar a torreta prefab
         var torretaComp = prefabTorreta.GetComponent<Torreta>();
         if (torretaComp != null) torretaComp.prefabProyectil = projPrefab;

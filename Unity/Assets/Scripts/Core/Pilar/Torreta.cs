@@ -12,6 +12,26 @@ using UnityEngine;
 
 public class Torreta : MonoBehaviour
 {
+    private const float ZeroSeconds = 0f;
+    private const float PointFiveSeconds = 0.5f;
+    private const float RotationSmoothing = 8f;
+    private const float GroundedVerticalSpeed = -2f;
+    private const float ReloadLightBaseIntensity = 0.5f;
+    private const float ReloadLightPulseRange = 0.5f;
+    private const float FullPulseCycleSeconds = 1f;
+    private const float SpawnPointForwardMeters = 0.8f;
+    private const float SpawnPointHeightMeters = 0.5f;
+    private const float ProjectileLifetimeSeconds = 4f;
+    private const float ProjectileScale = 0.6f;
+    private const float ProjectileColliderRadiusMeters = 0.5f;
+    private const float ProjectileLightRangeMeters = 4f;
+    private const float ProjectileLightIntensity = 2f;
+    private const float DamageFlashSeconds = 0.07f;
+    private const float DestroyDelaySeconds = 2f;
+    private const string ProjectilePoolKey = "Proyectil";
+    private const string SpawnPointName = "PuntoDisparo";
+    private const string FallbackProjectileName = "ProyectilTorreta";
+
     [Header("Torreta - Configuración")]
     public float rango = 22f;
     public float cadencia = 0.9f; // disparos por segundo configurable (intervalo)
@@ -49,13 +69,13 @@ public class Torreta : MonoBehaviour
         if (puntoDisparo == null)
         {
             // Buscar hijo o crear punto al frente
-            var existing = transform.Find("PuntoDisparo");
+            var existing = transform.Find(SpawnPointName);
             if (existing != null) puntoDisparo = existing;
             else
             {
-                var go = new GameObject("PuntoDisparo");
+                var go = new GameObject(SpawnPointName);
                 go.transform.SetParent(transform);
-                go.transform.localPosition = Vector3.forward * 0.8f + Vector3.up * 0.5f;
+                go.transform.localPosition = Vector3.forward * SpawnPointForwardMeters + Vector3.up * SpawnPointHeightMeters;
                 go.transform.localRotation = Quaternion.identity;
                 go.transform.localScale = Vector3.one;
                 puntoDisparo = go.transform;
@@ -66,7 +86,7 @@ public class Torreta : MonoBehaviour
         // Vida y munición iniciales
         vidaActual = vidaMaxima;
         municionActual = municionMaxima;
-        timerRecarga = 0f;
+        timerRecarga = ZeroSeconds;
         recargando = false;
 
         // Asegurar collider para recibir daño (antes se destruía)
@@ -113,14 +133,14 @@ public class Torreta : MonoBehaviour
             // Parpadeo visual durante recarga
             if (rendCache != null)
             {
-                float pulse = Mathf.PingPong(Time.time * 3f, 1f);
+                float pulse = Mathf.PingPong(Time.time * 3f, FullPulseCycleSeconds);
                 Color c = Color.Lerp(colorBase * 0.3f, colorBase, pulse);
                 if (rendCache.material.HasProperty("_BaseColor")) rendCache.material.SetColor("_BaseColor", c);
                 else rendCache.material.color = c;
             }
             if (lightCache != null)
             {
-                lightCache.intensity = 0.5f + Mathf.PingPong(Time.time * 2f, 0.5f);
+                lightCache.intensity = ReloadLightBaseIntensity + Mathf.PingPong(Time.time * 2f, ReloadLightPulseRange);
             }
 
             if (timerRecarga <= 0f)
@@ -245,7 +265,7 @@ public class Torreta : MonoBehaviour
         GameObject proj = null;
         if (prefabProyectil != null && PoolManager.Instance != null)
         {
-            proj = PoolManager.Instance.Get("Proyectil", puntoDisparo.position, puntoDisparo.rotation);
+            proj = PoolManager.Instance.Get(ProjectilePoolKey, puntoDisparo.position, puntoDisparo.rotation);
             if (proj != null)
             {
                 proj.transform.SetPositionAndRotation(puntoDisparo.position, puntoDisparo.rotation);
@@ -293,7 +313,7 @@ public class Torreta : MonoBehaviour
     GameObject CrearProyectilFallback()
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.name = "ProyectilTorreta";
+        go.name = FallbackProjectileName;
         go.transform.position = puntoDisparo.position;
         go.transform.rotation = puntoDisparo.rotation;
         go.transform.localScale = Vector3.one * 0.6f;
@@ -301,7 +321,7 @@ public class Torreta : MonoBehaviour
         Destroy(go.GetComponent<SphereCollider>());
         var col = go.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 0.5f;
+        col.radius = ProjectileColliderRadiusMeters;
         var rend = go.GetComponent<Renderer>();
         // Material emisivo naranja brillante con trail
         Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
@@ -329,15 +349,15 @@ public class Torreta : MonoBehaviour
 
         var proj = go.AddComponent<Projectile>();
         proj.daño = daño;
-        proj.tiempoVida = 4f;
+        proj.tiempoVida = ProjectileLifetimeSeconds;
         proj.destruirAlImpactar = true;
 
         // Luz más grande para ver tiro
         var light = go.AddComponent<Light>();
         light.type = LightType.Point;
         light.color = colMat;
-        light.range = 4f;
-        light.intensity = 2f;
+        light.range = ProjectileLightRangeMeters;
+        light.intensity = ProjectileLightIntensity;
 
         return go;
     }
@@ -362,7 +382,7 @@ public class Torreta : MonoBehaviour
         Color flash = Color.white;
         if (rendCache.material.HasProperty("_BaseColor")) rendCache.material.SetColor("_BaseColor", flash);
         else rendCache.material.color = flash;
-        yield return new WaitForSeconds(0.07f);
+        yield return new WaitForSeconds(DamageFlashSeconds);
         if (rendCache != null)
         {
             if (rendCache.material.HasProperty("_BaseColor")) rendCache.material.SetColor("_BaseColor", orig);
@@ -387,7 +407,7 @@ public class Torreta : MonoBehaviour
         if (lightCache != null) lightCache.enabled = false;
         if (colCache != null) colCache.enabled = false;
         // Destruir tras delay para que se vea
-        Destroy(gameObject, 2f);
+        Destroy(gameObject, DestroyDelaySeconds);
     }
 
     public void Desactivar()

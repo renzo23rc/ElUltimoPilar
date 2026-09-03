@@ -12,12 +12,19 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class PozoKill : MonoBehaviour
 {
+    private const float PlayerFallBelowWorldY = -5f;
+    private const float TriggerFallBelowWorldY = -2f;
+    private const float InstakillDamage = 9999f;
+    private const float ColossusBypassDamage = 5000f;
+    private const float GizmoFillAlpha = 0.2f;
+    private const float GizmoHeightOffset = 1f;
+
     [Header("Configuración")]
     public float radioMortal = 4.5f; // Radio en XZ (pozo escala 3 => radio 1.5, ampliado para caída)
     public float alturaMortal = 2f; // Y relativo al centro del pozo, si entity y < centro.y + altura => muere
     public bool mataJugador = true;
     public bool mataEnemigos = true;
-    public float dañoInstakill = 9999f;
+    public float dañoInstakill = InstakillDamage;
 
     private Collider col;
 
@@ -62,7 +69,7 @@ public class PozoKill : MonoBehaviour
             bool dentroRadio = distXZ <= radioMortal;
             bool bajoAltura = p.transform.position.y <= transform.position.y + alturaMortal;
             // También si cae por debajo del mundo
-            bool caidaLibre = p.transform.position.y < -5f;
+            bool caidaLibre = p.transform.position.y < PlayerFallBelowWorldY;
             if ((dentroRadio && bajoAltura) || caidaLibre)
             {
                 if (mataJugador)
@@ -93,7 +100,7 @@ public class PozoKill : MonoBehaviour
         if (player != null && mataJugador)
         {
             // Verificar altura también para evitar kill si player pasa por encima (puentes)
-            if (player.transform.position.y <= transform.position.y + alturaMortal || player.transform.position.y < -2f)
+            if (player.transform.position.y <= transform.position.y + alturaMortal || player.transform.position.y < TriggerFallBelowWorldY)
             {
                 MatarJugador(player);
                 return;
@@ -129,20 +136,14 @@ public class PozoKill : MonoBehaviour
     {
         if (enemy == null) return;
         // Evitar doble kill si ya muerto
-        var campo = enemy.GetType().GetField("estaMuerto", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-        // Si ya está muerto, ignorar
-        try
+        if (enemy is Colossus colossus)
         {
-            if (enemy is Colossus col)
-            {
-                Debug.Log($"[PozoKill] ¡Coloso cayó al pozo! Muerte instantánea + recompensa {col.energiaDrop}");
-            }
-            else
-            {
-                Debug.Log($"[PozoKill] {enemy.name} cayó al pozo");
-            }
+            Debug.Log($"[PozoKill] ¡Coloso cayó al pozo! Muerte instantánea + recompensa {colossus.energiaDrop}");
         }
-        catch { }
+        else
+        {
+            Debug.Log($"[PozoKill] {enemy.name} cayó al pozo");
+        }
 
         // Daño instakill que ignora resistencias (para Coloso que reduce 80%)
         // Usamos 9999 directo via RecibirDaño, pero Coloso lo reduce; añadimos bypass llamando a método interno si existe
@@ -152,7 +153,7 @@ public class PozoKill : MonoBehaviour
             enemy.vidaActual = 0;
             // Invocar Morir protegido via reflection o via daño masivo que supere resistencia
             // Damos 5000*5 para asegurar muerte aun con 0.2 factor
-            enemy.RecibirDaño(5000f);
+            enemy.RecibirDaño(ColossusBypassDamage);
             if (enemy.vidaActual > 0)
             {
                 // Fallback: destruir directo y notificar spawner
@@ -173,7 +174,7 @@ public class PozoKill : MonoBehaviour
         // Cilindro wire: radio y altura mortal
         Gizmos.DrawWireSphere(transform.position, radioMortal);
         Gizmos.DrawLine(transform.position + Vector3.up * alturaMortal, transform.position + Vector3.up * alturaMortal + Vector3.forward * radioMortal);
-        Gizmos.color = new Color(1, 0, 0, 0.2f);
-        Gizmos.DrawCube(transform.position + Vector3.up * (alturaMortal * 0.5f - 1f), new Vector3(radioMortal * 2, alturaMortal + 2f, radioMortal * 2));
+        Gizmos.color = new Color(1f, 0f, 0f, GizmoFillAlpha);
+        Gizmos.DrawCube(transform.position + Vector3.up * (alturaMortal * 0.5f - GizmoHeightOffset), new Vector3(radioMortal * 2, alturaMortal + 2f, radioMortal * 2));
     }
 }

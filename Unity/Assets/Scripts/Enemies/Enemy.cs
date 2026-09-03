@@ -11,6 +11,15 @@ using System;
 [RequireComponent(typeof(Collider))]
 public class Enemy : MonoBehaviour, IDamageable
 {
+    private const float TurretDiversionDistanceMeters = 8f;
+    private const float TurretSearchDistanceMeters = 15f;
+    private const float RotationSharpness = 10f;
+    private const float DropHeightMeters = 0.5f;
+    private const float DamageFlashDurationSeconds = 0.05f;
+    private const float DestroyDelaySeconds = 0.1f;
+    private const float DefaultSlowFactor = 1f;
+    private const float NoOriginalSpeed = -1f;
+
     [Header("Estadísticas Base")]
     public float vidaMaxima = 30f;
     public float vidaActual = 30f;
@@ -44,9 +53,9 @@ public class Enemy : MonoBehaviour, IDamageable
 
     [Header("Ralentización (Weaver)")]
     public bool estaRalentizado = false;
-    private float velocidadOriginal = -1f;
+private float velocidadOriginal = NoOriginalSpeed;
     private Coroutine coRalentizacion;
-    private float factorRalentActual = 1f;
+    private float factorRalentActual = DefaultSlowFactor;
 
     protected virtual void Start()
     {
@@ -89,7 +98,7 @@ public class Enemy : MonoBehaviour, IDamageable
                 return;
             }
             // Si torreta está a mitad de camino hacia pilar y cerca, desviarse
-            if (distTorreta < 8f && distTorreta < Vector3.Distance(transform.position, pilarObjetivo.transform.position))
+            if (distTorreta < TurretDiversionDistanceMeters && distTorreta < Vector3.Distance(transform.position, pilarObjetivo.transform.position))
             {
                 MoverHacia(dirTorreta.normalized);
                 return;
@@ -122,7 +131,7 @@ public class Enemy : MonoBehaviour, IDamageable
         {
             if (t == null) continue;
             float d = Vector3.Distance(transform.position, t.transform.position);
-            if (d < minDist && d < 15f) // solo considerar cercanas
+            if (d < minDist && d < TurretSearchDistanceMeters) // solo considerar cercanas
             {
                 minDist = d;
                 cercana = t;
@@ -131,9 +140,9 @@ public class Enemy : MonoBehaviour, IDamageable
         return cercana;
     }
 
-    protected virtual void AtacarTorreta(Torreta torreta)
+protected virtual void AtacarTorreta(Torreta torreta)
     {
-        if (timerAtaque > 0) return;
+        if (timerAtaque > 0f) return;
         torreta.RecibirDaño(dañoAlPilar);
         timerAtaque = cooldownAtaque;
         Debug.Log($"[{GetType().Name}] Atacó a Torreta {torreta.name} por {dañoAlPilar} daño");
@@ -154,13 +163,13 @@ public class Enemy : MonoBehaviour, IDamageable
         if (direccion != Vector3.zero)
         {
             transform.rotation = Quaternion.Slerp(transform.rotation, 
-                Quaternion.LookRotation(direccion), Time.deltaTime * 10f);
+                Quaternion.LookRotation(direccion), Time.deltaTime * RotationSharpness);
         }
     }
 
-    protected virtual void AtacarPilar()
+protected virtual void AtacarPilar()
     {
-        if (timerAtaque > 0) return;
+        if (timerAtaque > 0f) return;
         
         pilarObjetivo?.RecibirDaño(dañoAlPilar);
         timerAtaque = cooldownAtaque;
@@ -209,7 +218,7 @@ public class Enemy : MonoBehaviour, IDamageable
         // Notificar al spawner
         EnemySpawner.Instance?.EnemigoEliminado(this);
         
-        Destroy(gameObject, 0.1f);
+        Destroy(gameObject, DestroyDelaySeconds);
     }
 
     protected void ResolverJugadorCercano()
@@ -253,22 +262,21 @@ public class Enemy : MonoBehaviour, IDamageable
                 // Si falta, fallback a Instantiate
                 try
                 {
-                    go = PoolManager.Instance.Get(key, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+                    go = PoolManager.Instance.Get(key, transform.position + Vector3.up * DropHeightMeters, Quaternion.identity);
                     if (go == null) throw new System.Exception("Pool Get null");
                     // Resetear pickup estado
-                    var pp = go.GetComponent<EnergyPickup>();
-                    // Reactivar collider/scale que pudo quedar desactivado
-                    go.transform.localScale = Vector3.one * 0.5f;
+// Reactivar collider/scale que pudo quedar desactivado
+                    go.transform.localScale = Vector3.one * DropHeightMeters;
                     go.SetActive(true);
                 }
-                catch
+catch
                 {
-                    go = Instantiate(prefabEnergia, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+                    go = Instantiate(prefabEnergia, transform.position + Vector3.up * DropHeightMeters, Quaternion.identity);
                 }
             }
             else
             {
-                go = Instantiate(prefabEnergia, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+                go = Instantiate(prefabEnergia, transform.position + Vector3.up * DropHeightMeters, Quaternion.identity);
             }
             var pickup = go.GetComponent<EnergyPickup>();
             if (pickup != null)
@@ -280,7 +288,7 @@ public class Enemy : MonoBehaviour, IDamageable
     {
         if (prefabVariante == null) return;
         if (UnityEngine.Random.value > chanceDropVariante) return;
-        var drop = Instantiate(prefabVariante, transform.position + Vector3.up * 0.5f, Quaternion.identity);
+        var drop = Instantiate(prefabVariante, transform.position + Vector3.up * DropHeightMeters, Quaternion.identity);
         drop.SetActive(true);
     }
 
@@ -300,7 +308,7 @@ public class Enemy : MonoBehaviour, IDamageable
             // Usar material instanciado sin leak grave para flash corto
             Color original = rend.material.color;
             rend.material.color = Color.white;
-            yield return new WaitForSeconds(0.05f);
+            yield return new WaitForSeconds(DamageFlashDurationSeconds);
             // Puede haberse destruido mientras esperaba
             if (rend != null)
                 rend.material.color = original;
@@ -312,7 +320,7 @@ public class Enemy : MonoBehaviour, IDamageable
         if (collision.gameObject.CompareTag("Player"))
         {
             var player = collision.gameObject.GetComponent<PlayerController>();
-            if (player != null && timerAtaque <= 0)
+            if (player != null && timerAtaque <= 0f)
             {
                 player.RecibirDaño(dañoAlJugador);
                 timerAtaque = cooldownAtaque;
@@ -368,8 +376,8 @@ public class Enemy : MonoBehaviour, IDamageable
         {
             velocidadMovimiento = velocidadOriginal;
             estaRalentizado = false;
-            factorRalentActual = 1f;
-            velocidadOriginal = -1f;
+            factorRalentActual = DefaultSlowFactor;
+            velocidadOriginal = NoOriginalSpeed;
             coRalentizacion = null;
             Debug.Log($"[{GetType().Name}] Ralentización expirada");
         }

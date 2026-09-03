@@ -7,6 +7,10 @@ using UnityEngine;
 
 public class Runner : Enemy
 {
+private const float MovementSpeedMetersPerSecond = 3.5f;
+private const float MaximumHealth = 20f;
+private const float PilarDamage = 8f;
+private const int EnergyDropAmount = 2;
     [Header("Runner Específico")]
     public float velocidadSprint = 5f;
     public float distanciaSprint = 15f;
@@ -15,11 +19,11 @@ public class Runner : Enemy
     {
         base.Start();
         atacaJugador = false;
-        velocidadMovimiento = 3.5f;
-        vidaMaxima = 20f;
+        velocidadMovimiento = MovementSpeedMetersPerSecond;
+        vidaMaxima = MaximumHealth;
         vidaActual = vidaMaxima;
-        dañoAlPilar = 8f;
-        energiaDrop = 2;
+        dañoAlPilar = PilarDamage;
+        energiaDrop = EnergyDropAmount;
     }
 
     protected override void Comportamiento()

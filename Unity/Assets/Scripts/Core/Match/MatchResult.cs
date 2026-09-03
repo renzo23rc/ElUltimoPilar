@@ -5,10 +5,26 @@ using System;
 /// </summary>
 public sealed class MatchResult
 {
+    /// <summary>
+    /// Gets the terminal match outcome.
+    /// </summary>
     public MatchState Outcome { get; }
+
+    /// <summary>
+    /// Gets the factual Pilar health snapshot.
+    /// </summary>
     public PilarHealthSnapshot PilarHealth { get; }
+
+    /// <summary>
+    /// Gets the score calculated from the Pilar health snapshot.
+    /// </summary>
     public int Score { get; }
 
+    /// <summary>
+    /// Initializes a terminal match result.
+    /// </summary>
+    /// <param name="outcome">The terminal outcome.</param>
+    /// <param name="pilarHealth">The factual Pilar health snapshot.</param>
     public MatchResult(MatchState outcome, PilarHealthSnapshot pilarHealth)
     {
         if (outcome != MatchState.Victory && outcome != MatchState.Defeat)

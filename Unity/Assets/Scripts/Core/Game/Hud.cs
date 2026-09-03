@@ -12,35 +12,66 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
+/// <summary>
+/// Displays match, Pilar, player, weapon, and result information.
+/// </summary>
 public class Hud : MonoBehaviour
 {
+    private const float PercentageScale = 100f;
+    private const float VictoryMessageDurationSeconds = 5f;
+    private const float WaveMessageDurationSeconds = 2f;
+    private const float DownedMessageDurationSeconds = 3f;
+    private const float KillCrosshairDurationSeconds = 0.35f;
+    private const float HitCrosshairDurationSeconds = 0.15f;
+
     [Header("Referencias")]
+    /// <summary>Gets or sets the Pilar reference.</summary>
     public Pilar pilar;
+    /// <summary>Gets or sets the primary player reference.</summary>
     public PlayerController jugador;
+    /// <summary>Gets or sets the primary player's energy system.</summary>
     public EnergySystem energia;
+    /// <summary>Gets or sets the primary player's weapon system.</summary>
     public WeaponSystem armas;
+    /// <summary>Gets or sets the match manager reference.</summary>
     public GameManager gameManager;
     
     [Header("UI Elements")]
+    /// <summary>Gets or sets the Pilar health label.</summary>
     public Text textoVidaPilar;
+    /// <summary>Gets or sets the player health label.</summary>
     public Text textoVidaJugador;
+    /// <summary>Gets or sets the energy label.</summary>
     public Text textoEnergia;
+    /// <summary>Gets or sets the wave label.</summary>
     public Text textoOleada;
+    /// <summary>Gets or sets the ammunition label.</summary>
     public Text textoMunicion;
+    /// <summary>Gets or sets the weapon label.</summary>
     public Text textoArma;
+    /// <summary>Gets or sets the message label.</summary>
     public Text textoMensaje;
-    
+
     [Header("Co-op y resultado")]
+    /// <summary>Gets or sets the menu label.</summary>
     public Text textoMenu;
+    /// <summary>Gets or sets the result label.</summary>
     public Text textoResultado;
+    /// <summary>Gets or sets the score label.</summary>
     public Text textoPuntaje;
+    /// <summary>Gets or sets the weapon variant label.</summary>
     public Text textoVariante;
+    /// <summary>Gets or sets the crosshair label.</summary>
     public Text textoCrosshair;
+    /// <summary>Gets or sets the player rows container.</summary>
     public Transform filasJugadores;
-    
+
     [Header("Barras")]
+    /// <summary>Gets or sets the Pilar health bar.</summary>
     public Image barraVidaPilar;
+    /// <summary>Gets or sets the player health bar.</summary>
     public Image barraVidaJugador;
+    /// <summary>Gets or sets the energy bar.</summary>
     public Image barraEnergia;
     
     [Header("Colores por fase del Pilar")]
@@ -194,17 +225,17 @@ public class Hud : MonoBehaviour
 
     void ManejarOleadaIniciada(int oleada)
     {
-        MostrarMensaje($"Oleada {oleada}", 2f);
+        MostrarMensaje($"Oleada {oleada}", WaveMessageDurationSeconds);
     }
 
     void ManejarJugadorDerribado(PlayerController jugador)
     {
-        MostrarMensaje($"¡{jugador.name} DERRIBADO! - Reanima con [E]", 3f);
+        MostrarMensaje($"¡{jugador.name} DERRIBADO! - Reanima con [E]", DownedMessageDurationSeconds);
     }
 
     void ManejarJugadorReanimado(PlayerController jugador)
     {
-        MostrarMensaje($"{jugador.name} reanimado!", 2f);
+        MostrarMensaje($"{jugador.name} reanimado!", WaveMessageDurationSeconds);
     }
     
     void ManejarResultado(MatchResult resultado)
@@ -213,12 +244,14 @@ public class Hud : MonoBehaviour
         string texto = resultado.Outcome == MatchState.Victory
             ? $"¡VICTORIA! Puntaje: {resultado.Score}"
             : $"DERROTA — Puntaje: {resultado.Score}";
-        MostrarMensaje(texto, 5f);
+        MostrarMensaje(texto, VictoryMessageDurationSeconds);
     }
     
+    /// <summary>Flashes the crosshair for a hit or kill.</summary>
+    /// <param name="mato">Whether the hit killed its target.</param>
     public void FlashCrosshair(bool mato)
     {
-        crosshairTimer = mato ? 0.35f : 0.15f;
+        crosshairTimer = mato ? KillCrosshairDurationSeconds : HitCrosshairDurationSeconds;
         if (textoCrosshair != null)
             textoCrosshair.color = mato ? Color.red : Color.yellow;
     }
@@ -239,7 +272,7 @@ public class Hud : MonoBehaviour
 
         if (pilar != null)
         {
-            float pct = pilar.PorcentajeVida / 100f;
+            float pct = pilar.PorcentajeVida / PercentageScale;
             if (textoVidaPilar != null)
                 textoVidaPilar.text = $"Pilar: {pilar.VidaActual:F0}%";
             if (barraVidaPilar != null)
@@ -468,6 +501,9 @@ public class Hud : MonoBehaviour
         };
     }
 
+    /// <summary>Displays a message for an optional duration.</summary>
+    /// <param name="mensaje">The message to display.</param>
+    /// <param name="duracion">The display duration in seconds.</param>
     public void MostrarMensaje(string mensaje, float duracion = 0)
     {
         if (textoMensaje != null)
@@ -480,6 +516,10 @@ public class Hud : MonoBehaviour
         Debug.Log($"[Hud] {mensaje}");
     }
 
+    /// <summary>Displays a colored warning for an optional duration.</summary>
+    /// <param name="mensaje">The warning to display.</param>
+    /// <param name="color">The warning color.</param>
+    /// <param name="duracion">The display duration in seconds.</param>
     public void MostrarAdvertencia(string mensaje, Color color, float duracion)
     {
         if (textoMensaje != null)

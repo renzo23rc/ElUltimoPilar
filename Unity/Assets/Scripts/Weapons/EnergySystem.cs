@@ -11,6 +11,9 @@ using System;
 
 public class EnergySystem : MonoBehaviour
 {
+private const float AreaRadiusMultiplier = 1.5f;
+
+private const float WaveExpansionDurationSeconds = 0.5f;
     [Header("Configuración")]
     public float energiaMaxima = 100f;
     public float energiaActual = 0f;
@@ -120,7 +123,7 @@ public class EnergySystem : MonoBehaviour
     void RalentizacionArea()
     {
         // Ralentización temporal (stack prohibido) afecta a enemigos y jugadores en área
-        Collider[] colisiones = Physics.OverlapSphere(transform.position, radioPulso * 1.5f);
+        Collider[] colisiones = Physics.OverlapSphere(transform.position, radioPulso * AreaRadiusMultiplier);
         int countE = 0, countP = 0;
         foreach (var col in colisiones)
         {
@@ -150,7 +153,7 @@ public class EnergySystem : MonoBehaviour
         {
             if (p.gameObject == this.gameObject) continue;
             float d = Vector3.Distance(p.transform.position, transform.position);
-            if (d <= radioPulso * 1.5f && !System.Array.Exists(colisiones, c => c.GetComponentInParent<PlayerController>() == p))
+            if (d <= radioPulso * AreaRadiusMultiplier && !System.Array.Exists(colisiones, c => c.GetComponentInParent<PlayerController>() == p))
             {
                 p.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
                 countP++;
@@ -158,7 +161,7 @@ public class EnergySystem : MonoBehaviour
         }
         
         Debug.Log($"[EnergySystem] ¡Ralentización área! Enemigos {countE}, Jugadores {countP} x{factorRalentizacion} por {duracionRalentizacion}s");
-        CrearOndaVisual(Color.cyan, radioPulso * 1.5f);
+        CrearOndaVisual(Color.cyan, radioPulso * AreaRadiusMultiplier);
     }
 
     void CrearOndaVisual(Color color, float radio)
@@ -174,7 +177,7 @@ public class EnergySystem : MonoBehaviour
         rend.material.SetFloat("_Mode", 3);
         
         // Animación simple de expansión
-        onda.AddComponent<OndaExpansion>().Iniciar(radio, 0.5f);
+        onda.AddComponent<OndaExpansion>().Iniciar(radio, WaveExpansionDurationSeconds);
     }
 }
 

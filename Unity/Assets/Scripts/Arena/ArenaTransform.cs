@@ -18,6 +18,35 @@ using System.Collections.Generic;
 
 public class ArenaTransform : MonoBehaviour
 {
+    private const int FirstArenaPhase = 1;
+    private const int LastArenaPhase = 4;
+    private const int PhaseArrayLength = 5;
+    private const float AudioVolume = 0.7f;
+    private const float PozoWarningHeightMeters = 0.5f;
+    private const float WarningMarkerHeight = 0.2f;
+    private const float WarningRingHeight = 0.05f;
+    private const float WarningMarkerScale = 1.2f;
+    private const float WarningRingScale = 1.5f;
+    private const float WarningPulseSpeed = 4f;
+    private const float WarningPulseAmount = 0.4f;
+    private const float WarningRingSpeed = 6f;
+    private const float WarningRingAmount = 0.3f;
+    private const float WarningAlphaBase = 0.4f;
+    private const float WarningAlphaAmount = 0.4f;
+    private const float GravityLightRangeMeters = 18f;
+    private const float GravityLightIntensity = 4f;
+    private const float DebrisSpawnRadiusMeters = 15f;
+    private const float DebrisSpawnHeightMeters = 10f;
+    private const int DebrisCount = 10;
+    private const float DebrisMinimumScale = 0.3f;
+    private const float DebrisMaximumScale = 1f;
+    private const float DebrisMass = 0.1f;
+    private const float DebrisLifetimeSeconds = 3f;
+    private const float DebrisSpawnIntervalSeconds = 0.2f;
+    private const float ArenaGizmoRadiusMeters = 20f;
+    private static readonly Color GravityZoneColor = new Color(0.6f, 0.2f, 1f);
+    private static readonly Color WarningMarkerColor = new Color(1f, 0f, 0f, 0.5f);
+
     [Header("Referencias")]
     public Pilar pilar;
     public GameObject sueloBase;
@@ -34,14 +63,14 @@ public class ArenaTransform : MonoBehaviour
     public AudioClip sonidoTransformacion;
     
     [Header("Estado")]
-    public int faseActual = 1;
+    public int faseActual = FirstArenaPhase;
     public bool transformacionEnProgreso = false;
     
     // Eventos
     public event Action<int> OnTransformacionIniciada;
     public event Action<int> OnTransformacionCompletada;
     
-    private bool[] fasesActivadas = new bool[5]; // Índice 0 no usado, 1-4
+    private bool[] fasesActivadas = new bool[PhaseArrayLength]; // Índice 0 no usado, 1-4
     private readonly System.Collections.Generic.Queue<int> colaFases = new System.Collections.Generic.Queue<int>();
     private bool procesandoCola = false;
 
@@ -87,11 +116,15 @@ public class ArenaTransform : MonoBehaviour
         colaFases.Clear();
         procesandoCola = false;
         transformacionEnProgreso = false;
-        faseActual = 1;
-        if (fasesActivadas == null || fasesActivadas.Length != 5)
-fasesActivadas = new bool[5];
+        faseActual = FirstArenaPhase;
+        if (fasesActivadas == null || fasesActivadas.Length != PhaseArrayLength)
+        {
+fasesActivadas = new bool[PhaseArrayLength];
+        }
         else
+        {
 Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
+        }
     
         ClearGeneratedArenaObjects();
         InicializarEstado();
@@ -188,11 +221,12 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
     {
         if (nuevaFase <= faseActual) return; // Solo avanza, nunca retrocede
         // Encolar todas las fases intermedias no activadas, con aviso visual/sonoro por fase
-        for (int f = faseActual + 1; f <= nuevaFase; f++)
+        for (int phase = faseActual + 1; phase <= nuevaFase; phase++)
         {
-            if (f < fasesActivadas.Length && !fasesActivadas[f] && !colaFases.Contains(f))
+            if ((fasesActivadas != null) && (phase >= FirstArenaPhase) && (phase < fasesActivadas.Length)
+                && !fasesActivadas[phase] && !colaFases.Contains(phase))
             {
-                colaFases.Enqueue(f);
+                colaFases.Enqueue(phase);
             }
         }
         faseActual = nuevaFase;
@@ -229,7 +263,7 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
                 Vector3 posAudio = primaryCamera != null
                     ? primaryCamera.transform.position
                     : transform.position;
-                AudioSource.PlayClipAtPoint(sonidoTransformacion, posAudio, 0.7f);
+                AudioSource.PlayClipAtPoint(sonidoTransformacion, posAudio, AudioVolume);
             }
 
         // Advertencia específica del pozo (Fase 2): visual + HUD 3s previo
@@ -243,7 +277,7 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
         else if (fase == 3)
         {
             var hud = FindFirstObjectByType<Hud>();
-            if (hud != null) hud.MostrarAdvertencia("¡ALERTA: Zona gravedad alterada!", new Color(0.6f,0.2f,1f), tiempoAvisoPrevio);
+            if (hud != null) hud.MostrarAdvertencia("¡ALERTA: Zona gravedad alterada!", GravityZoneColor, tiempoAvisoPrevio);
         }
         else if (fase == 4)
         {
@@ -304,7 +338,7 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
     IEnumerator AdvertenciaPozoVisual(float duracion)
     {
         if (pozoCentral == null) yield break;
-        Vector3 pos = pozoCentral.transform.position + Vector3.up * 0.5f;
+        Vector3 pos = pozoCentral.transform.position + Vector3.up * PozoWarningHeightMeters;
         Vector3 escalaBase = pozoCentral.transform.localScale;
         // Cilindro rojo pulsante
         warningMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -312,14 +346,14 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
         adv.name = "AdvertenciaPozo";
         Destroy(adv.GetComponent<Collider>());
         adv.transform.position = pos;
-        adv.transform.localScale = new Vector3(escalaBase.x * 1.2f, 0.2f, escalaBase.z * 1.2f);
+        adv.transform.localScale = new Vector3(escalaBase.x * WarningMarkerScale, WarningMarkerHeight, escalaBase.z * WarningMarkerScale);
         var rend = adv.GetComponent<Renderer>();
         Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
         var mat = new Material(s);
-        Color baseCol = new Color(1, 0, 0, 0.5f);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", baseCol);
-        else mat.color = baseCol;
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", baseCol);
+        Color baseColor = WarningMarkerColor;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", baseColor);
+        else mat.color = baseColor;
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", baseColor);
         mat.renderQueue = 3000;
         rend.material = mat;
 
@@ -328,7 +362,7 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
         anillo.name = "AnilloAdvertenciaPozo";
         Destroy(anillo.GetComponent<Collider>());
         anillo.transform.position = pos + Vector3.up * 0.3f;
-        anillo.transform.localScale = new Vector3(escalaBase.x * 1.5f, 0.05f, escalaBase.z * 1.5f);
+        anillo.transform.localScale = new Vector3(escalaBase.x * WarningRingScale, WarningRingHeight, escalaBase.z * WarningRingScale);
         var rend2 = anillo.GetComponent<Renderer>();
         var mat2 = new Material(s);
         if (mat2.HasProperty("_BaseColor")) mat2.SetColor("_BaseColor", Color.yellow);
@@ -340,13 +374,14 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
         while (timer < duracion)
         {
             timer += Time.deltaTime;
-            float pulse = 1f + Mathf.PingPong(Time.time * 4f, 0.4f);
-            adv.transform.localScale = new Vector3(escalaBase.x * 1.2f * pulse, 0.2f, escalaBase.z * 1.2f * pulse);
-            anillo.transform.localScale = new Vector3(escalaBase.x * (1.5f + Mathf.Sin(Time.time * 6f) * 0.3f), 0.05f, escalaBase.z * (1.5f + Mathf.Sin(Time.time * 6f) * 0.3f));
-            float a = 0.4f + Mathf.PingPong(Time.time * 5f, 0.4f);
-            Color c = new Color(1, 0, 0, a);
-            if (rend != null && rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", c);
-            else if (rend != null) rend.material.color = c;
+            float pulse = 1f + Mathf.PingPong(Time.time * WarningPulseSpeed, WarningPulseAmount);
+            adv.transform.localScale = new Vector3(escalaBase.x * WarningMarkerScale * pulse, WarningMarkerHeight, escalaBase.z * WarningMarkerScale * pulse);
+            float ringScale = WarningRingScale + Mathf.Sin(Time.time * WarningRingSpeed) * WarningRingAmount;
+            anillo.transform.localScale = new Vector3(escalaBase.x * ringScale, WarningRingHeight, escalaBase.z * ringScale);
+            float alpha = WarningAlphaBase + Mathf.PingPong(Time.time * 5f, WarningAlphaAmount);
+            Color color = new Color(1f, 0f, 0f, alpha);
+            if (rend != null && rend.material.HasProperty("_BaseColor")) rend.material.SetColor("_BaseColor", color);
+            else if (rend != null) rend.material.color = color;
             yield return null;
         }
         Destroy(adv);
@@ -384,9 +419,9 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
                 goLuz.transform.localPosition = Vector3.zero;
                 luz = goLuz.AddComponent<Light>();
                 luz.type = LightType.Point;
-                luz.range = 18f;
-                luz.intensity = 4f;
-                luz.color = new Color(0.7f,0.2f,1f);
+                luz.range = GravityLightRangeMeters;
+                luz.intensity = GravityLightIntensity;
+                luz.color = GravityZoneColor;
             }
             // Efecto visual de distorsión
             var particulas = zonaGravedad.GetComponentInChildren<ParticleSystem>();
@@ -437,25 +472,25 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
     IEnumerator CaidaEscombros()
     {
         // Simular caída de escombros pequeños
-        for (int i = 0; i < 10; i++)
+        for (int index = 0; index < DebrisCount; index++)
         {
-            Vector3 pos = UnityEngine.Random.insideUnitSphere * 15f;
-            pos.y = 10f;
+            Vector3 pos = UnityEngine.Random.insideUnitSphere * DebrisSpawnRadiusMeters;
+            pos.y = DebrisSpawnHeightMeters;
             
             GameObject escombro = GameObject.CreatePrimitive(PrimitiveType.Cube);
             activeDebris.Add(escombro);
             escombro.transform.position = pos;
-            escombro.transform.localScale = Vector3.one * UnityEngine.Random.Range(0.3f, 1f);
+            escombro.transform.localScale = Vector3.one * UnityEngine.Random.Range(DebrisMinimumScale, DebrisMaximumScale);
             escombro.GetComponent<Renderer>().material.color = Color.gray;
             
             Destroy(escombro.GetComponent<Collider>());
             
             Rigidbody rb = escombro.AddComponent<Rigidbody>();
-            rb.mass = 0.1f;
+            rb.mass = DebrisMass;
             
-            Destroy(escombro, 3f);
+            Destroy(escombro, DebrisLifetimeSeconds);
             
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(DebrisSpawnIntervalSeconds);
         }
     }
 
@@ -463,7 +498,7 @@ Array.Clear(fasesActivadas, 0, fasesActivadas.Length);
     {
         // Dibujar radio de la arena
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, 20f);
+        Gizmos.DrawWireSphere(transform.position, ArenaGizmoRadiusMeters);
         
         // Dibujar zonas de transformación
         if (pozoCentral != null)
@@ -481,6 +516,20 @@ public class ZonaGravedadEffect : MonoBehaviour
     public float fuerzaAscenso = 18f;
     public float radioEfecto = 5f;
     public float fuerzaTornado = 4f;
+
+    private const float EnemyDamping = 2.5f;
+    private const float EnemyUpwardAcceleration = 9f;
+    private const float EnemyHorizontalVelocityRetention = 0.92f;
+    private const float ExitDamping = 0.1f;
+    private const float VisualPulseBase = 1f;
+    private const float VisualPulseSpeed = 1.8f;
+    private const float VisualPulseAmount = 0.07f;
+    private const float VisualAlphaBase = 0.35f;
+    private const float VisualAlphaSpeed = 2.2f;
+    private const float VisualAlphaAmount = 0.12f;
+    private const float VisualWidthMeters = 10f;
+    private const float VisualHeightMeters = 4f;
+    private static readonly Color VisualColor = new Color(0.6f, 0.1f, 1f, VisualAlphaBase);
     
     void OnTriggerEnter(Collider other)
     {
@@ -494,7 +543,7 @@ public class ZonaGravedadEffect : MonoBehaviour
         if (rb != null && other.GetComponent<Enemy>() != null)
         {
             rb.AddForce(Vector3.up * fuerzaAscenso, ForceMode.VelocityChange);
-            rb.linearDamping = 2.5f; // flotacion
+            rb.linearDamping = EnemyDamping; // flotacion
         }
     }
     void OnTriggerStay(Collider other)
@@ -503,10 +552,10 @@ public class ZonaGravedadEffect : MonoBehaviour
         if (rb != null && other.GetComponent<Enemy>() != null)
         {
             // Flotacion continua exagerada + tornado leve
-            rb.AddForce(Vector3.up * 9f, ForceMode.Acceleration);
+            rb.AddForce(Vector3.up * EnemyUpwardAcceleration, ForceMode.Acceleration);
             rb.AddForce(new Vector3(Mathf.Sin(Time.time*2f)*fuerzaTornado, 0, Mathf.Cos(Time.time*2f)*fuerzaTornado), ForceMode.Acceleration);
             // Enemigos casi no avanzan en zona
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x*0.92f, rb.linearVelocity.y, rb.linearVelocity.z*0.92f);
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x * EnemyHorizontalVelocityRetention, rb.linearVelocity.y, rb.linearVelocity.z * EnemyHorizontalVelocityRetention);
         }
     }
     void OnTriggerExit(Collider other)
@@ -518,30 +567,50 @@ public class ZonaGravedadEffect : MonoBehaviour
             Debug.Log("[ZonaGravedad] Player EXIT");
         }
         var rb = other.GetComponent<Rigidbody>();
-        if (rb != null) rb.linearDamping = 0.1f;
+        if (rb != null) rb.linearDamping = ExitDamping;
     }
     void Update()
     {
         // Pulso visual exagerado
-        float s = 1f + Mathf.Sin(Time.time*1.8f)*0.07f;
-        transform.localScale = new Vector3(10f*s, 4f, 10f*s);
+        float scale = VisualPulseBase + Mathf.Sin(Time.time * VisualPulseSpeed) * VisualPulseAmount;
+        transform.localScale = new Vector3(VisualWidthMeters * scale, VisualHeightMeters, VisualWidthMeters * scale);
         var rend = GetComponent<Renderer>();
         if (rend != null)
         {
-            Color baseC = new Color(0.6f,0.1f,1f,0.35f);
-            float a = 0.35f + Mathf.Sin(Time.time*2.2f)*0.12f;
-            rend.material.color = new Color(baseC.r, baseC.g, baseC.b, a);
+            Color baseColor = VisualColor;
+            float alpha = VisualAlphaBase + Mathf.Sin(Time.time * VisualAlphaSpeed) * VisualAlphaAmount;
+            rend.material.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
         }
     }
 }
 
 public class ParticulaFlotante : MonoBehaviour
 {
-    Vector3 ini; float spd, amp; float off;
-    void Start(){ ini=transform.localPosition; spd=UnityEngine.Random.Range(0.8f,1.8f); amp=UnityEngine.Random.Range(0.15f,0.35f); off=UnityEngine.Random.Range(0,6.28f); }
-    void Update(){
-        transform.localPosition = ini + Vector3.up * Mathf.Sin(Time.time*spd+off)*amp;
-        transform.Rotate(Vector3.up, 45*Time.deltaTime);
-        transform.Rotate(Vector3.right, 30*Time.deltaTime);
+    private const float MinimumSpeed = 0.8f;
+    private const float MaximumSpeed = 1.8f;
+    private const float MinimumAmplitude = 0.15f;
+    private const float MaximumAmplitude = 0.35f;
+    private const float RandomOffsetMaximum = 6.28f;
+    private const float YRotationDegreesPerSecond = 45f;
+    private const float XRotationDegreesPerSecond = 30f;
+
+    private Vector3 initialPosition;
+    private float speed;
+    private float amplitude;
+    private float offset;
+
+    private void Start()
+    {
+        initialPosition = transform.localPosition;
+        speed = UnityEngine.Random.Range(MinimumSpeed, MaximumSpeed);
+        amplitude = UnityEngine.Random.Range(MinimumAmplitude, MaximumAmplitude);
+        offset = UnityEngine.Random.Range(0f, RandomOffsetMaximum);
+    }
+
+    private void Update()
+    {
+        transform.localPosition = initialPosition + Vector3.up * Mathf.Sin(Time.time * speed + offset) * amplitude;
+        transform.Rotate(Vector3.up, YRotationDegreesPerSecond * Time.deltaTime);
+        transform.Rotate(Vector3.right, XRotationDegreesPerSecond * Time.deltaTime);
     }
 }

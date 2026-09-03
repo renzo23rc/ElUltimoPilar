@@ -11,6 +11,10 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     private const string JoinActionName = "Join";
     private const string PlayerActionMapName = "Player";
     private const string GamepadControlSchemeName = "Gamepad";
+    private const int MinimumPlayerCapacity = 1;
+    private const int MaximumPlayerCapacity = 4;
+    private const float SpawnHeightMeters = 1f;
+    private const float SpawnRadiusMeters = 8f;
 
     [Header("References")]
     [SerializeField] private InputActionAsset inputActionAsset;
@@ -26,6 +30,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     private readonly Dictionary<Gamepad, PlayerController> trackedAssignments =
         new Dictionary<Gamepad, PlayerController>();
 
+    /// <summary>Configures the input asset, player template, and match manager.</summary>
     public void Configure(InputActionAsset actions, PlayerController template, GameManager manager)
     {
         inputActionAsset = actions;
@@ -127,7 +132,10 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
         if (playerTemplate.gameObject == null || playerTemplate.gameObject.activeSelf)
             return false;
 
-        int capacity = Mathf.Clamp(Mathf.Min(maxPlayers, gameManager.maxPlayers), 1, 4);
+            int capacity = Mathf.Clamp(
+                Mathf.Min(maxPlayers, gameManager.maxPlayers),
+                MinimumPlayerCapacity,
+                MaximumPlayerCapacity);
         if (gameManager.PlayerCount >= capacity || IsGamepadAssigned(gamepad))
             return false;
 
@@ -221,10 +229,10 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     {
         switch (slot)
         {
-            case 0: return new Vector3(0f, 1f, -8f);
-            case 1: return new Vector3(8f, 1f, 0f);
-            case 2: return new Vector3(0f, 1f, 8f);
-            case 3: return new Vector3(-8f, 1f, 0f);
+            case 0: return new Vector3(0f, SpawnHeightMeters, -SpawnRadiusMeters);
+            case 1: return new Vector3(SpawnRadiusMeters, SpawnHeightMeters, 0f);
+            case 2: return new Vector3(0f, SpawnHeightMeters, SpawnRadiusMeters);
+            case 3: return new Vector3(-SpawnRadiusMeters, SpawnHeightMeters, 0f);
             default: return Vector3.zero;
         }
     }

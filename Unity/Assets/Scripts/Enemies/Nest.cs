@@ -8,6 +8,12 @@ using System.Collections.Generic;
 
 public class Nest : Enemy
 {
+private const float StationaryMovementSpeedMetersPerSecond = 0f;
+private const float MaximumHealth = 80f;
+private const float NoPilarDamage = 0f;
+private const int EnergyDropAmount = 10;
+private const float RunnerHealth = 10f;
+private const float RunnerSpeedMetersPerSecond = 2.5f;
     [Header("Nido Específico")]
     public GameObject prefabCorredor;
     public float intervaloGeneracion = 6f;
@@ -22,11 +28,11 @@ public class Nest : Enemy
     {
         base.Start();
         atacaJugador = false;
-        velocidadMovimiento = 0f; // Estacionario
-        vidaMaxima = 80f;
+        velocidadMovimiento = StationaryMovementSpeedMetersPerSecond; // Estacionario
+        vidaMaxima = MaximumHealth;
         vidaActual = vidaMaxima;
-        dañoAlPilar = 0f;
-        energiaDrop = 10;
+        dañoAlPilar = NoPilarDamage;
+        energiaDrop = EnergyDropAmount;
         
         // No se mueve
         if (rb != null)
@@ -67,9 +73,9 @@ public class Nest : Enemy
         var runner = corredor.GetComponent<Runner>();
         if (runner != null)
         {
-            runner.vidaMaxima = 10f;
-            runner.vidaActual = 10f;
-            runner.velocidadMovimiento = 2.5f;
+runner.vidaMaxima = RunnerHealth;
+            runner.vidaActual = RunnerHealth;
+            runner.velocidadMovimiento = RunnerSpeedMetersPerSecond;
         }
 
         var enemy = corredor.GetComponent<Enemy>();

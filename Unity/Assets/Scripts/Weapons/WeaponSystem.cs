@@ -10,6 +10,19 @@ using System;
 
 public class WeaponSystem : MonoBehaviour
 {
+private const int WeaponSlotCount = 3;
+private const float ProjectileSpeedMetersPerSecond = 50f;
+private const float TracerStartWidthMeters = 0.025f;
+private const float TracerEndWidthMeters = 0.015f;
+private const float TracerLifetimeSeconds = 0.12f;
+private const float ImpactOffsetMeters = 0.05f;
+private const float ImpactMissSizeMeters = 0.2f;
+private const float ImpactHitSizeMeters = 0.35f;
+private const float ImpactLifetimeSeconds = 0.25f;
+private const float MuzzleFlashOffsetMeters = 0.3f;
+private const float MuzzleFlashSizeMeters = 0.18f;
+private const float MuzzleFlashLifetimeSeconds = 0.06f;
+private const float MeleeForwardOffsetMeters = 1.5f;
     public enum TipoArma { Directa, Area, CuerpoACuerpo }
     
     [System.Serializable]
@@ -251,7 +264,7 @@ public class WeaponSystem : MonoBehaviour
             GameObject proj = Instantiate(arma.prefabProyectil, puntoDisparo.position, puntoDisparo.rotation);
             var rb = proj.GetComponent<Rigidbody>();
             if (rb != null)
-                rb.linearVelocity = puntoDisparo.forward * 50f;
+                rb.linearVelocity = puntoDisparo.forward * ProjectileSpeedMetersPerSecond;
         }
         else
         {
@@ -309,7 +322,7 @@ public class WeaponSystem : MonoBehaviour
     {
         float daño = DañoEfectivo(arma);
         // Ataque en arco frontal
-        Collider[] afectados = Physics.OverlapSphere(transform.position + transform.forward * 1.5f, arma.radioArea);
+        Collider[] afectados = Physics.OverlapSphere(transform.position + transform.forward * MeleeForwardOffsetMeters, arma.radioArea);
         int contador = 0;
         foreach (var col in afectados)
         {
@@ -345,14 +358,14 @@ public class WeaponSystem : MonoBehaviour
     void CambiarArmaSiguiente()
     {
         int actual = (int)armaEquipada;
-        int siguiente = (actual + 1) % 3;
+        int siguiente = (actual + 1) % WeaponSlotCount;
         CambiarArma((TipoArma)siguiente);
     }
 
     void CambiarArmaAnterior()
     {
         int actual = (int)armaEquipada;
-        int anterior = (actual - 1 + 3) % 3;
+        int anterior = (actual - 1 + WeaponSlotCount) % WeaponSlotCount;
         CambiarArma((TipoArma)anterior);
     }
 
@@ -424,8 +437,8 @@ public class WeaponSystem : MonoBehaviour
         var lr = go.AddComponent<LineRenderer>();
         lr.positionCount = 2;
         lr.SetPositions(new Vector3[]{ inicio, fin });
-        lr.startWidth = 0.025f;
-        lr.endWidth = 0.015f;
+        lr.startWidth = TracerStartWidthMeters;
+        lr.endWidth = TracerEndWidthMeters;
         lr.numCapVertices = 4;
         lr.numCornerVertices = 2;
         // Material URP simple, fallback a Sprites/Default
@@ -435,14 +448,14 @@ public class WeaponSystem : MonoBehaviour
         // Sin sombras, billboard
         lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         lr.receiveShadows = false;
-        Destroy(go, 0.12f);
+        Destroy(go, TracerLifetimeSeconds);
     }
 
     void CrearImpactoVisual(Vector3 pos, Vector3 normal, Color color, float size, bool esHit)
     {
         GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         esfera.name = esHit ? "Impacto_HIT" : "Impacto_MISS";
-        esfera.transform.position = pos + normal * 0.05f;
+        esfera.transform.position = pos + normal * ImpactOffsetMeters;
         esfera.transform.localScale = Vector3.one * size;
         // Quitar collider para no bloquear
         Destroy(esfera.GetComponent<Collider>());
@@ -456,7 +469,7 @@ public class WeaponSystem : MonoBehaviour
         if (m.HasProperty("_EmissiveColor")) m.SetColor("_EmissiveColor", color * 1.5f);
         rend.material = m;
         // Animar escala y desvanecer
-        esfera.AddComponent<ImpactoAnim>().Init(esHit ? 0.35f : 0.2f, esHit);
+        esfera.AddComponent<ImpactoAnim>().Init(esHit ? ImpactHitSizeMeters : ImpactMissSizeMeters, esHit);
         // Anillo extra si es hit
         if (esHit)
         {
@@ -471,7 +484,7 @@ public class WeaponSystem : MonoBehaviour
             m2.SetColor("_BaseColor", Color.white);
             m2.SetColor("_Color", Color.white);
             r2.material = m2;
-            Destroy(anillo, 0.25f);
+            Destroy(anillo, ImpactLifetimeSeconds);
         }
     }
 
@@ -513,15 +526,15 @@ public class WeaponSystem : MonoBehaviour
         GameObject flash = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         flash.name = "FlashBoca";
         Destroy(flash.GetComponent<Collider>());
-        flash.transform.position = puntoDisparo.position + puntoDisparo.forward * 0.3f;
-        flash.transform.localScale = Vector3.one * 0.18f;
+        flash.transform.position = puntoDisparo.position + puntoDisparo.forward * MuzzleFlashOffsetMeters;
+        flash.transform.localScale = Vector3.one * MuzzleFlashSizeMeters;
         var rend = flash.GetComponent<Renderer>();
         Material m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
         m.SetColor("_BaseColor", color);
         m.SetColor("_Color", color);
         if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", color * 2f);
         rend.material = m;
-        Destroy(flash, 0.06f);
+        Destroy(flash, MuzzleFlashLifetimeSeconds);
     }
 
     void OnDrawGizmosSelected()
@@ -529,7 +542,7 @@ public class WeaponSystem : MonoBehaviour
         if (armaEquipada == TipoArma.CuerpoACuerpo)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position + transform.forward * 1.5f, armaMelee.radioArea);
+            Gizmos.DrawWireSphere(transform.position + transform.forward * MeleeForwardOffsetMeters, armaMelee.radioArea);
         }
     }
 }

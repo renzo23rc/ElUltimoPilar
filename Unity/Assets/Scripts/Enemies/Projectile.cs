@@ -7,6 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class Projectile : MonoBehaviour
 {
+private const float ImpactVfxDurationSeconds = 1f;
     [Header("Configuración")]
     public float daño = 10f;
     public float dañoJugador = 10f;
@@ -80,7 +81,7 @@ public class Projectile : MonoBehaviour
         if (prefabImpacto != null)
         {
             if (PoolManager.Instance != null)
-                PoolManager.Instance.GetVFX("Impacto", transform.position, Quaternion.identity, 1f);
+                PoolManager.Instance.GetVFX("Impacto", transform.position, Quaternion.identity, ImpactVfxDurationSeconds);
             else
                 Instantiate(prefabImpacto, transform.position, Quaternion.identity);
         }

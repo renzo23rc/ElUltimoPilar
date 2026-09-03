@@ -6,8 +6,11 @@ using System;
 public readonly struct PilarHealthSnapshot : IEquatable<PilarHealthSnapshot>
 {
     private const float PercentageUnit = 100f;
+    private const float MinimumHealth = 0f;
 
+    /// <summary>Gets the remaining health.</summary>
     public float Remaining { get; }
+    /// <summary>Gets the maximum health.</summary>
     public float Maximum { get; }
 
     /// <summary>
@@ -26,6 +29,9 @@ public readonly struct PilarHealthSnapshot : IEquatable<PilarHealthSnapshot>
     /// </summary>
     public float RemainingPercentage => RemainingRatio * PercentageUnit;
 
+    /// <summary>
+    /// Creates a validated immutable health snapshot.
+    /// </summary>
     public PilarHealthSnapshot(float remaining, float maximum)
     {
         if (!IsValidHealth(remaining, maximum))
@@ -50,16 +56,19 @@ public readonly struct PilarHealthSnapshot : IEquatable<PilarHealthSnapshot>
         return true;
     }
 
+    /// <summary>Determines whether this snapshot equals another snapshot.</summary>
     public bool Equals(PilarHealthSnapshot other)
     {
         return Remaining.Equals(other.Remaining) && Maximum.Equals(other.Maximum);
     }
 
+    /// <summary>Determines whether this snapshot equals another object.</summary>
     public override bool Equals(object obj)
     {
         return obj is PilarHealthSnapshot other && Equals(other);
     }
 
+    /// <summary>Returns the hash code for this snapshot.</summary>
     public override int GetHashCode()
     {
         unchecked
@@ -68,11 +77,13 @@ public readonly struct PilarHealthSnapshot : IEquatable<PilarHealthSnapshot>
         }
     }
 
+    /// <summary>Determines whether two snapshots are equal.</summary>
     public static bool operator ==(PilarHealthSnapshot left, PilarHealthSnapshot right)
     {
         return left.Equals(right);
     }
 
+    /// <summary>Determines whether two snapshots are different.</summary>
     public static bool operator !=(PilarHealthSnapshot left, PilarHealthSnapshot right)
     {
         return !left.Equals(right);
@@ -82,8 +93,8 @@ public readonly struct PilarHealthSnapshot : IEquatable<PilarHealthSnapshot>
     {
         return IsFinite(remaining) &&
             IsFinite(maximum) &&
-            maximum > 0f &&
-            remaining >= 0f &&
+            maximum > MinimumHealth &&
+            remaining >= MinimumHealth &&
             remaining <= maximum;
     }
 

@@ -4,6 +4,45 @@ using System;
 
 public class GeneratePrefabs
 {
+    private const float PickupColliderRadiusMeters = 0.5f;
+    private const float PickupScale = 0.5f;
+    private const float ProjectileScale = 0.6f;
+    private const float ProjectileTrailDurationSeconds = 0.4f;
+    private const float ProjectileTrailStartWidthMeters = 0.25f;
+    private const float ProjectileTrailEndWidthMeters = 0.05f;
+    private const float ProjectileTrailAlpha = 0.2f;
+    private const float ProjectileLightRangeMeters = 4f;
+    private const float ProjectileLightIntensity = 2f;
+    private const float ProjectileEmissionIntensity = 1.2f;
+    private const float ProjectileDamage = 10f;
+    private const float ProjectileLifetimeSeconds = 5f;
+    private const float TurretLightRangeMeters = 6f;
+    private const float TurretLightIntensity = 2f;
+    private const float TurretScaleX = 1.4f;
+    private const float TurretScaleY = 2.2f;
+    private const float TurretScaleZ = 1.4f;
+    private const float TurretEmissionIntensity = 0.6f;
+    private const float TurretRangeMeters = 22f;
+    private const float TurretFireRateSeconds = 0.9f;
+    private const float TurretDamage = 6f;
+    private const float TurretProjectileSpeed = 28f;
+    private const float TurretMaximumHealth = 120f;
+    private const int TurretMaximumAmmo = 15;
+    private const float TurretReloadSeconds = 10f;
+    private const float ProjectileSpawnForwardMeters = 0.8f;
+    private const float ProjectileSpawnUpMeters = 0.6f;
+    private const float RunnerMovementSpeedMetersPerSecond = 3.5f;
+    private const float ArtilleryRangeMeters = 20f;
+    private const float ArtilleryProjectileSpeedMetersPerSecond = 15f;
+    private const float ArtilleryFireRateSeconds = 2f;
+    private const float ExplosiveRadiusMeters = 5f;
+    private const float WeaverFieldRadiusMeters = 6f;
+    private const float NestSpawnIntervalSeconds = 6f;
+    private const int NestMaximumConcurrentRunners = 3;
+    private const float ColossusShotResistance = 0.8f;
+    private static readonly Color ProjectileColor = new Color(1f, 0.5f, 0f);
+    private static readonly Color TurretColor = new Color(1f, 0.85f, 0.1f);
+
     [MenuItem("Tools/Generate Real Prefabs (B1)")]
     public static void Generate()
     {
@@ -41,8 +80,8 @@ public class GeneratePrefabs
 
         var explosivo = CreateEnemigoPrefab("Explosivo", Color.yellow, typeof(Explosive), energiaPrefab, new Vector3(1,1,1));
         var tejedor = CreateEnemigoPrefab("Tejedor", Color.magenta, typeof(Weaver), energiaPrefab, new Vector3(1,1,1));
-        var nido = CreateEnemigoPrefab("Nido", Color.gray, typeof(Nest), energiaPrefab, new Vector3(2,1,2));
-        var coloso = CreateEnemigoPrefab("Coloso", new Color(0.5f,0,0), typeof(Colossus), energiaPrefab, new Vector3(2.5f,3f,2.5f));
+        var nido = CreateEnemigoPrefab("Nido", Color.gray, typeof(Nest), energiaPrefab, new Vector3(2f, 1f, 2f));
+        var coloso = CreateEnemigoPrefab("Coloso", ColossusColor, typeof(Colossus), energiaPrefab, new Vector3(2.5f, 3f, 2.5f));
 
         // Nido necesita prefabCorredor - se asigna tras crear corredor (temporal, se corregirá reasignando asset tras guardar)
         var nidoComp = nido.GetComponent<Nest>();
@@ -125,8 +164,8 @@ public class GeneratePrefabs
         UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());
         var sc = go.AddComponent<SphereCollider>();
         sc.isTrigger = true;
-        sc.radius = 0.5f;
-        go.transform.localScale = Vector3.one * 0.5f;
+        sc.radius = PickupColliderRadiusMeters;
+        go.transform.localScale = Vector3.one * PickupScale;
         var rend = go.GetComponent<Renderer>();
         // Material cyan
         Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
@@ -148,39 +187,39 @@ public class GeneratePrefabs
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "ProyectilBase";
-        go.transform.localScale = Vector3.one * 0.6f;
+        go.transform.localScale = Vector3.one * ProjectileScale;
         UnityEngine.Object.DestroyImmediate(go.GetComponent<SphereCollider>());
         var col = go.AddComponent<SphereCollider>();
         col.isTrigger = true;
-        col.radius = 0.5f;
+        col.radius = PickupColliderRadiusMeters;
         var rend = go.GetComponent<Renderer>();
         Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
         var mat = new Material(s);
-        Color c = new Color(1f, 0.5f, 0f);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
-        else mat.color = c;
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
-        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", c * 1.2f);
+        Color color = ProjectileColor;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        else mat.color = color;
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", color * ProjectileEmissionIntensity);
         mat.EnableKeyword("_EMISSION");
         rend.material = mat;
         var rb = go.AddComponent<Rigidbody>();
         rb.useGravity = false;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
         var trail = go.AddComponent<TrailRenderer>();
-        trail.time = 0.4f;
-        trail.startWidth = 0.25f;
-        trail.endWidth = 0.05f;
+        trail.time = ProjectileTrailDurationSeconds;
+        trail.startWidth = ProjectileTrailStartWidthMeters;
+        trail.endWidth = ProjectileTrailEndWidthMeters;
         trail.material = mat;
-        trail.startColor = c;
-        trail.endColor = new Color(1, 0.5f, 0, 0.2f);
+        trail.startColor = color;
+        trail.endColor = new Color(color.r, color.g, color.b, ProjectileTrailAlpha);
         var light = go.AddComponent<Light>();
         light.type = LightType.Point;
-        light.color = c;
-        light.range = 4f;
-        light.intensity = 2f;
-        var proj = go.AddComponent<Projectile>();
-        proj.daño = 10f;
-        proj.tiempoVida = 5f;
+        light.color = color;
+        light.range = ProjectileLightRangeMeters;
+        light.intensity = ProjectileLightIntensity;
+        var projectile = go.AddComponent<Projectile>();
+        projectile.daño = ProjectileDamage;
+        projectile.tiempoVida = ProjectileLifetimeSeconds;
         var pooled = go.AddComponent<PooledObject>();
         pooled.poolKey = "Proyectil";
         return go;
@@ -211,35 +250,35 @@ public class GeneratePrefabs
         if (tipoScript == typeof(Runner))
         {
             var r = go.GetComponent<Runner>();
-            r.velocidadMovimiento = 3.5f;
+            r.velocidadMovimiento = RunnerMovementSpeedMetersPerSecond;
         }
         else if (tipoScript == typeof(Artillery))
         {
             var a = go.GetComponent<Artillery>();
-            a.rangoDisparo = 20f;
-            a.velocidadProyectil = 15f;
-            a.cadenciaDisparo = 2f;
+            a.rangoDisparo = ArtilleryRangeMeters;
+            a.velocidadProyectil = ArtilleryProjectileSpeedMetersPerSecond;
+            a.cadenciaDisparo = ArtilleryFireRateSeconds;
         }
         else if (tipoScript == typeof(Explosive))
         {
             var e = go.GetComponent<Explosive>();
-            e.radioExplosion = 5f;
+            e.radioExplosion = ExplosiveRadiusMeters;
         }
         else if (tipoScript == typeof(Weaver))
         {
             var w = go.GetComponent<Weaver>();
-            w.radioCampo = 6f;
+            w.radioCampo = WeaverFieldRadiusMeters;
         }
         else if (tipoScript == typeof(Nest))
         {
             var n = go.GetComponent<Nest>();
-            n.intervaloGeneracion = 6f;
-            n.maxCorredoresSimultaneos = 3;
+            n.intervaloGeneracion = NestSpawnIntervalSeconds;
+            n.maxCorredoresSimultaneos = NestMaximumConcurrentRunners;
         }
         else if (tipoScript == typeof(Colossus))
         {
             var c = go.GetComponent<Colossus>();
-            c.resistenciaDisparos = 0.8f;
+            c.resistenciaDisparos = ColossusShotResistance;
         }
 
         var rb = go.AddComponent<Rigidbody>();
@@ -253,15 +292,15 @@ public class GeneratePrefabs
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
         go.name = "Torreta";
-        go.transform.localScale = new Vector3(1.4f, 2.2f, 1.4f);
+        go.transform.localScale = new Vector3(TurretScaleX, TurretScaleY, TurretScaleZ);
         var rend = go.GetComponent<Renderer>();
         Shader s = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
         var mat = new Material(s);
-        Color col = new Color(1f, 0.85f, 0.1f);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", col);
-        else mat.color = col;
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
-        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", col * 0.6f);
+        Color color = TurretColor;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+        else mat.color = color;
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+        if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", color * TurretEmissionIntensity);
         mat.EnableKeyword("_EMISSION");
         rend.material = mat;
         // Mantener collider para que sea dañable (antes se destruía y no recibía daño)
@@ -272,22 +311,22 @@ public class GeneratePrefabs
         box.size = Vector3.one;
         var light = go.AddComponent<Light>();
         light.type = LightType.Point;
-        light.color = col;
-        light.range = 6f;
-        light.intensity = 2f;
+        light.color = color;
+        light.range = TurretLightRangeMeters;
+        light.intensity = TurretLightIntensity;
         var torreta = go.AddComponent<Torreta>();
-        torreta.rango = 22f;
-        torreta.cadencia = 0.9f;
-        torreta.daño = 6f;
-        torreta.velocidadProyectil = 28f;
-        torreta.vidaMaxima = 120f;
-        torreta.vidaActual = 120f;
-        torreta.municionMaxima = 15;
-        torreta.municionActual = 15;
-        torreta.tiempoRecarga = 10f;
+        torreta.rango = TurretRangeMeters;
+        torreta.cadencia = TurretFireRateSeconds;
+        torreta.daño = TurretDamage;
+        torreta.velocidadProyectil = TurretProjectileSpeed;
+        torreta.vidaMaxima = TurretMaximumHealth;
+        torreta.vidaActual = TurretMaximumHealth;
+        torreta.municionMaxima = TurretMaximumAmmo;
+        torreta.municionActual = TurretMaximumAmmo;
+        torreta.tiempoRecarga = TurretReloadSeconds;
         var pd = new GameObject("PuntoDisparo");
         pd.transform.SetParent(go.transform);
-        pd.transform.localPosition = Vector3.forward * 0.8f + Vector3.up * 0.6f;
+        pd.transform.localPosition = Vector3.forward * ProjectileSpawnForwardMeters + Vector3.up * ProjectileSpawnUpMeters;
         pd.transform.localRotation = Quaternion.identity;
         pd.transform.localScale = Vector3.one; // fix: antes 0.714/0.454 por herencia de escala padre
         torreta.puntoDisparo = pd.transform;

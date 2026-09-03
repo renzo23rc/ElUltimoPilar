@@ -7,6 +7,13 @@ using UnityEngine;
 
 public class Artillery : Enemy
 {
+private const float DefaultMovementSpeedMetersPerSecond = 1f;
+private const float DefaultHealth = 40f;
+private const float PilarDamage = 15f;
+private const float PlayerDamage = 10f;
+private const int EnergyDropAmount = 3;
+private const float PlayerTargetRangeMultiplier = 1.5f;
+private const float RotationSharpness = 5f;
     [Header("Artillero Específico")]
     public GameObject prefabProyectil;
     public Transform puntoDisparo;
@@ -21,12 +28,12 @@ public class Artillery : Enemy
     {
         base.Start();
         atacaJugador = true; // Puede atacar al jugador o al Pilar
-        velocidadMovimiento = 1f;
-        vidaMaxima = 40f;
+        velocidadMovimiento = DefaultMovementSpeedMetersPerSecond;
+        vidaMaxima = DefaultHealth;
         vidaActual = vidaMaxima;
-        dañoAlPilar = 15f;
-        dañoAlJugador = 10f;
-        energiaDrop = 3;
+        dañoAlPilar = PilarDamage;
+        dañoAlJugador = PlayerDamage;
+        energiaDrop = EnergyDropAmount;
         rangoAtaque = rangoDisparo;
         
         if (puntoDisparo == null)
@@ -59,7 +66,7 @@ public class Artillery : Enemy
         dir.y = 0;
         if (dir != Vector3.zero)
             transform.rotation = Quaternion.Slerp(transform.rotation, 
-                Quaternion.LookRotation(dir), Time.deltaTime * 5f);
+                Quaternion.LookRotation(dir), Time.deltaTime * RotationSharpness);
         
         if (distancia <= rangoDisparo)
         {
@@ -100,7 +107,7 @@ public class Artillery : Enemy
             float distJugador = Vector3.Distance(transform.position, jugadorObjetivo.transform.position);
             float distPilar = Vector3.Distance(transform.position, pilarObjetivo.transform.position);
             
-            if (distJugador < distPilar && distJugador < rangoDisparo * 1.5f)
+            if (distJugador < distPilar && distJugador < rangoDisparo * PlayerTargetRangeMultiplier)
                 return jugadorObjetivo.transform;
         }
         return pilarObjetivo.transform;

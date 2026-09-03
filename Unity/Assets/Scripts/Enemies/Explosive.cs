@@ -7,6 +7,11 @@ using UnityEngine;
 
 public class Explosive : Enemy
 {
+private const float MovementSpeedMetersPerSecond = 2f;
+private const float MaximumHealth = 25f;
+private const float PilarDamage = 30f;
+private const float AttackRangeMeters = 3.5f;
+private const float PlayerDamageMultiplier = 0.5f;
     [Header("Explosivo Específico")]
     public float radioExplosion = 5f;
     public float dañoExplosion = 40f;
@@ -21,12 +26,12 @@ public class Explosive : Enemy
     {
         base.Start();
         atacaJugador = false;
-        velocidadMovimiento = 2f;
-        vidaMaxima = 25f;
+        velocidadMovimiento = MovementSpeedMetersPerSecond;
+        vidaMaxima = MaximumHealth;
         vidaActual = vidaMaxima;
-        dañoAlPilar = 30f; // Daño directo si llega
+        dañoAlPilar = PilarDamage; // Daño directo si llega
         energiaDrop = 5;
-        rangoAtaque = 3.5f; // Aumentado de 2 -> 3.5 para que detone al tocar pilar (radio pilar 2 + half 0.5)
+        rangoAtaque = AttackRangeMeters; // Aumentado de 2 -> 3.5 para que detone al tocar pilar (radio pilar 2 + half 0.5)
         
         // Fix UnassignedReference: chequeo explicito (?. no funciona con fake-null de Unity)
         if (modeloVisual != null) rend = modeloVisual.GetComponent<Renderer>();
@@ -83,7 +88,7 @@ public class Explosive : Enemy
             var player = col.GetComponent<PlayerController>();
             if (player != null)
             {
-                player.RecibirDaño(dañoExplosion * 0.5f);
+                player.RecibirDaño(dañoExplosion * PlayerDamageMultiplier);
             }
             
             var enemy = col.GetComponent<Enemy>();

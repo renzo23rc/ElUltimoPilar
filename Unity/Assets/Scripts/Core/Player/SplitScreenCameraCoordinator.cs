@@ -9,14 +9,23 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
     [Header("References")]
     [SerializeField] private GameManager gameManager;
 
-    private GameManager subscribedGameManager;
-        private readonly HashSet<Camera> managedCameras = new HashSet<Camera>();
+    private const int SinglePlayerCount = 1;
+    private const int TwoPlayerCount = 2;
+    private const int ThreePlayerCount = 3;
+    private const int FourPlayerCount = 4;
+    private const float FullViewport = 1f;
+    private const float HalfViewport = 0.5f;
+    private const string UntaggedCameraTag = "Untagged";
 
-        public void Configure(GameManager manager)
-        {
-            gameManager = manager;
-            SubscribeToGameManager();
-        }
+    private GameManager subscribedGameManager;
+    private readonly HashSet<Camera> managedCameras = new HashSet<Camera>();
+
+    /// <summary>Configures the manager used to obtain registered players.</summary>
+    public void Configure(GameManager manager)
+    {
+        gameManager = manager;
+        SubscribeToGameManager();
+    }
 
         private void OnEnable()
     {
@@ -131,7 +140,7 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
 
         managedCameras.Add(camera);
         camera.rect = viewport;
-        camera.tag = "Untagged";
+        camera.tag = UntaggedCameraTag;
         camera.enabled = true;
 
         var audioListener = camera.GetComponent<AudioListener>();
@@ -145,7 +154,7 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
             return;
 
         camera.enabled = false;
-        camera.tag = "Untagged";
+        camera.tag = UntaggedCameraTag;
 
         var audioListener = camera.GetComponent<AudioListener>();
         if (audioListener != null)
@@ -156,18 +165,22 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
     {
         switch (playerCount)
         {
-            case 1:
-                return new Rect(0f, 0f, 1f, 1f);
-            case 2:
-                return new Rect(playerIndex * 0.5f, 0f, 0.5f, 1f);
-            case 3:
-                if (playerIndex == 2)
-                    return new Rect(0f, 0f, 1f, 0.5f);
-                return new Rect(playerIndex * 0.5f, 0.5f, 0.5f, 0.5f);
-            case 4:
-                return new Rect((playerIndex % 2) * 0.5f, (playerIndex / 2) * 0.5f, 0.5f, 0.5f);
+            case SinglePlayerCount:
+                return new Rect(0f, 0f, FullViewport, FullViewport);
+            case TwoPlayerCount:
+                return new Rect(playerIndex * HalfViewport, 0f, HalfViewport, FullViewport);
+            case ThreePlayerCount:
+                if (playerIndex == TwoPlayerCount)
+                    return new Rect(0f, 0f, FullViewport, HalfViewport);
+                return new Rect(playerIndex * HalfViewport, HalfViewport, HalfViewport, HalfViewport);
+            case FourPlayerCount:
+                return new Rect(
+                    (playerIndex % TwoPlayerCount) * HalfViewport,
+                    (playerIndex / TwoPlayerCount) * HalfViewport,
+                    HalfViewport,
+                    HalfViewport);
             default:
-                return new Rect(0f, 0f, 1f, 1f);
+                return new Rect(0f, 0f, FullViewport, FullViewport);
         }
     }
 }

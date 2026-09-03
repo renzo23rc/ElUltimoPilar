@@ -9,6 +9,13 @@ using System.Collections.Generic;
 
 public class Weaver : Enemy
 {
+private const float MovementSpeedMetersPerSecond = 1.2f;
+private const float MaximumHealth = 35f;
+private const int EnergyDropAmount = 4;
+private const float NoDamage = 0f;
+private const float RetreatRangeMultiplier = 0.6f;
+private const float RotationSharpness = 3f;
+private const float FieldHeightMeters = 0.1f;
     [Header("Tejedor Específico")]
     public GameObject prefabCampo;
     public float rangoLanzamiento = 18f;
@@ -24,15 +31,15 @@ public class Weaver : Enemy
     {
         base.Start();
         atacaJugador = true;
-        velocidadMovimiento = 1.2f;
-        vidaMaxima = 35f;
+        velocidadMovimiento = MovementSpeedMetersPerSecond;
+        vidaMaxima = MaximumHealth;
         vidaActual = vidaMaxima;
-        energiaDrop = 4;
+        energiaDrop = EnergyDropAmount;
         rangoAtaque = rangoLanzamiento;
         
         // No tiene daño directo
-        dañoAlPilar = 0f;
-        dañoAlJugador = 0f;
+        dañoAlPilar = NoDamage;
+        dañoAlJugador = NoDamage;
     }
 
     protected override void Comportamiento()
@@ -50,7 +57,7 @@ public class Weaver : Enemy
             dir.y = 0;
             MoverHacia(dir.normalized);
         }
-        else if (distanciaPilar < rangoLanzamiento * 0.6f)
+        else if (distanciaPilar < rangoLanzamiento * RetreatRangeMultiplier)
         {
             // Alejarse si está muy cerca
             Vector3 dir = transform.position - pilarObjetivo.transform.position;
@@ -72,7 +79,7 @@ public class Weaver : Enemy
         lookDir.y = 0;
         if (lookDir != Vector3.zero)
             transform.rotation = Quaternion.Slerp(transform.rotation, 
-                Quaternion.LookRotation(lookDir), Time.deltaTime * 3f);
+                Quaternion.LookRotation(lookDir), Time.deltaTime * RotationSharpness);
     }
 
     void LanzarCampo()
@@ -96,7 +103,7 @@ public class Weaver : Enemy
         GameObject campo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         campo.name = "CampoTejedor";
         Destroy(campo.GetComponent<Collider>()); // No necesitamos collider físico
-        campo.transform.position = posicion + Vector3.up * 0.1f;
+        campo.transform.position = posicion + Vector3.up * FieldHeightMeters;
         campo.transform.localScale = new Vector3(radioCampo * 2f, 0.1f, radioCampo * 2f);
         
         Renderer rend = campo.GetComponent<Renderer>();

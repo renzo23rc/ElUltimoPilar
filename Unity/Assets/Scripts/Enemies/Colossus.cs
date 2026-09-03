@@ -7,6 +7,11 @@ using UnityEngine;
 
 public class Colossus : Enemy
 {
+private const float MovementSpeedMetersPerSecond = 0.9f;
+private const float MaximumHealth = 300f;
+private const float PilarDamage = 25f;
+private const float PlayerDamage = 20f;
+private const int EnergyDropAmount = 20;
     [Header("Coloso Específico")]
     public float resistenciaDisparos = 0.8f; // Reduce 80% del daño de disparos
     public float dañoEmpuje = 30f;
@@ -19,12 +24,12 @@ public class Colossus : Enemy
     {
         base.Start();
         atacaJugador = true;
-        velocidadMovimiento = 0.9f;
-        vidaMaxima = 300f;
+        velocidadMovimiento = MovementSpeedMetersPerSecond;
+        vidaMaxima = MaximumHealth;
         vidaActual = vidaMaxima;
-        dañoAlPilar = 25f;
-        dañoAlJugador = 20f;
-        energiaDrop = 20;
+        dañoAlPilar = PilarDamage;
+        dañoAlJugador = PlayerDamage;
+        energiaDrop = EnergyDropAmount;
         rangoAtaque = radioAtaque;
     }
 

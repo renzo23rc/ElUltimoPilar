@@ -10,6 +10,14 @@ using System.Collections.Generic;
 
 public class EnemySpawner : MonoBehaviour
 {
+    private const float DefaultSpawnIntervalSeconds = 1.5f;
+    private const float MinimumAutomaticSpawnIntervalSeconds = 0.7f;
+    private const float AutomaticSpawnIntervalSeconds = 1.8f;
+    private const float AutomaticSpawnIntervalReductionSeconds = 0.08f;
+    private const float SpawnHeightMeters = 1f;
+    private const int AutomaticSpawnBonusThreshold = 5;
+    private const int AutomaticSpawnLateThreshold = 8;
+    private const int AutomaticSpawnPointCount = 8;
     public static EnemySpawner Instance { get; private set; }
     
     [System.Serializable]
@@ -31,7 +39,7 @@ public class EnemySpawner : MonoBehaviour
         [Tooltip("Cantidad de Colosos (oleadas tardías)")]
         public int colosos;
         [Tooltip("Segundos entre spawns dentro de la oleada")]
-        public float intervaloSpawn = 1.5f;
+        public float intervaloSpawn = DefaultSpawnIntervalSeconds;
     }
     
     [Header("Configuración de Oleadas")]
@@ -91,7 +99,7 @@ public class EnemySpawner : MonoBehaviour
         if (timerSpawn <= 0 && enemigosPorSpawnear > 0)
         {
             SpawnearSiguienteEnemigo();
-            timerSpawn = (configActualCache ?? ConfigActual())?.intervaloSpawn ?? 1.5f;
+            timerSpawn = (configActualCache ?? ConfigActual())?.intervaloSpawn ?? DefaultSpawnIntervalSeconds;
         }
         
         // Limpiar enemigos muertos de la lista
@@ -233,7 +241,7 @@ public class EnemySpawner : MonoBehaviour
         float angulo = Random.Range(0f, Mathf.PI * 2f);
         float x = Mathf.Cos(angulo) * radioSpawn;
         float z = Mathf.Sin(angulo) * radioSpawn;
-        return new Vector3(x, 1f, z);
+        return new Vector3(x, SpawnHeightMeters, z);
     }
 
     ConfigOleada ConfigActual()
@@ -249,14 +257,14 @@ public class EnemySpawner : MonoBehaviour
         var config = new ConfigOleada
         {
             numeroOleada = oleada,
-            cantidadTotal = 6 + oleada * 2 + (oleada >= 5 ? 2 : 0) + (oleada >= 8 ? 4 : 0), // 8,10,12..28 para 10
+            cantidadTotal = 6 + oleada * 2 + (oleada >= AutomaticSpawnBonusThreshold ? 2 : 0) + (oleada >= AutomaticSpawnLateThreshold ? 4 : 0), // 8,10,12..28 para 10
             corredores = 3 + oleada * 1 + (oleada >= 4 ? 1 : 0),
             artilleros = Mathf.Max(0, oleada - 1),
             explosivos = Mathf.Max(0, oleada >= 3 ? (oleada - 2) / 2 + 1 : 0), // menos spam explosivo
             tejedores = Mathf.Max(0, oleada >= 4 ? 1 : 0) + (oleada >= 7 ? 1 : 0),
             nidos = oleada >= 5 ? 1 : 0,
             colosos = oleada >= 7 ? 1 : 0,
-            intervaloSpawn = Mathf.Max(0.7f, 1.8f - oleada * 0.08f) // 1.7s -> 1.0s, evita masacre instant
+            intervaloSpawn = Mathf.Max(MinimumAutomaticSpawnIntervalSeconds, AutomaticSpawnIntervalSeconds - oleada * AutomaticSpawnIntervalReductionSeconds) // 1.7s -> 1.0s, evita masacre instant
         };
         // Clamp para que suma de tipos no supere cantidadTotal (prioridad en SeleccionarPrefab maneja fallback)
         int suma = config.corredores + config.artilleros + config.explosivos + config.tejedores + config.nidos + config.colosos;
@@ -272,12 +280,12 @@ public class EnemySpawner : MonoBehaviour
     {
         // Crear 8 puntos de spawn en círculo
         List<Transform> puntos = new List<Transform>();
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < AutomaticSpawnPointCount; i++)
         {
             GameObject go = new GameObject($"SpawnPoint_{i}");
             go.transform.SetParent(transform);
-            float angulo = (i / 8f) * Mathf.PI * 2f;
-            go.transform.position = new Vector3(Mathf.Cos(angulo) * radioSpawn, 1f, Mathf.Sin(angulo) * radioSpawn);
+            float angulo = (i / (float)AutomaticSpawnPointCount) * Mathf.PI * 2f;
+            go.transform.position = new Vector3(Mathf.Cos(angulo) * radioSpawn, SpawnHeightMeters, Mathf.Sin(angulo) * radioSpawn);
             puntos.Add(go.transform);
         }
         puntosSpawn = puntos.ToArray();

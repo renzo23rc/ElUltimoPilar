@@ -9,29 +9,49 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 
+/// <summary>
+/// Coordinates match flow, wave progression, players, and terminal results.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
+    private const float InitialTimeScale = 1f;
+    private const float NoInputLookThreshold = 2f;
+
+    /// <summary>
+    /// Gets the active game manager instance.
+    /// </summary>
     public static GameManager Instance { get; private set; }
 
     [Header("Referencias")]
+    /// <summary>Gets or sets the Pilar controlled by the match.</summary>
     public Pilar pilar;
+    /// <summary>Gets or sets the enemy wave spawner.</summary>
     public EnemySpawner spawner;
+    /// <summary>Gets or sets the primary player.</summary>
     public PlayerController player;
 
     [Header("Configuración de Oleadas")]
-    public int totalOleadas = 10; // B1: 10 oleadas escalables 12-20min
-    public float tiempoEntreOleadas = 7f; // Balanceo: 5->7s para respiro táctico y decisión energía/munición
+    /// <summary>Gets or sets the total number of waves.</summary>
+    public int totalOleadas = 10;
+    /// <summary>Gets or sets the delay between waves in seconds.</summary>
+    public float tiempoEntreOleadas = 7f;
 
     [Header("Configuración de Jugadores")]
     [Range(PlayerRoster<PlayerController>.MinimumCapacity, PlayerRoster<PlayerController>.MaximumCapacity)]
+    /// <summary>Gets or sets the maximum number of players.</summary>
     public int maxPlayers = PlayerRoster<PlayerController>.MaximumCapacity;
 
     [Header("Estado Actual")]
+    /// <summary>Gets the current wave number.</summary>
     public int oleadaActual => matchFlow?.CurrentWave ?? 0;
+    /// <summary>Gets whether the match is active or paused.</summary>
     public bool juegoActivo => matchFlow != null &&
         (matchFlow.State == MatchState.Playing || matchFlow.State == MatchState.Paused);
+    /// <summary>Gets whether the match is paused.</summary>
     public bool juegoPausado => matchFlow?.State == MatchState.Paused;
+    /// <summary>Gets the current match state.</summary>
     public MatchState EstadoActual => matchFlow?.State ?? MatchState.WaitingToStart;
+    /// <summary>Gets the current terminal result, or <see langword="null"/>.</summary>
     public MatchResult CurrentResult { get; private set; }
 
     private MatchFlow matchFlow;
@@ -39,18 +59,27 @@ public class GameManager : MonoBehaviour
     private ArenaTransform arenaTransform;
     private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
 
+    /// <summary>Gets the registered players.</summary>
     public IReadOnlyList<PlayerController> Players =>
         playerRoster?.Players ?? Array.Empty<PlayerController>();
+    /// <summary>Gets the number of registered players.</summary>
     public int PlayerCount => playerRoster?.Count ?? 0;
 
-    // Eventos para que otros sistemas se suscriban
+    /// <summary>Raised when a wave starts.</summary>
     public event Action<int> OnOleadaIniciada;
+    /// <summary>Raised when a wave completes.</summary>
     public event Action<int> OnOleadaCompletada;
+    /// <summary>Raised when the match is won.</summary>
     public event Action OnVictoria;
+    /// <summary>Raised when the match is lost.</summary>
     public event Action OnDerrota;
+    /// <summary>Raised when a valid terminal result is published.</summary>
     public event Action<MatchResult> OnMatchResult;
+    /// <summary>Raised when the match starts.</summary>
     public event Action OnJuegoIniciado;
+    /// <summary>Raised when a player is registered.</summary>
     public event Action<PlayerController> OnPlayerRegistered;
+    /// <summary>Raised when a player is unregistered.</summary>
     public event Action<PlayerController> OnPlayerUnregistered;
 
     private float timerEntreOleadas = 0f;
@@ -86,6 +115,7 @@ public class GameManager : MonoBehaviour
     }
 
     [Header("Inicio")]
+    /// <summary>Gets or sets whether player input starts the match.</summary>
     public bool iniciarAlMover = true;
     private bool esperandoInputInicial = true;
 
@@ -154,6 +184,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>Starts or restarts the match.</summary>
     public void IniciarJuego()
     {
         // El arranque inicial ya fue preparado por Start. Los reinicios y
@@ -200,18 +231,21 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>Pauses the active match.</summary>
     public void PausarJuego()
     {
         if (!matchFlow.Pause()) return;
         Time.timeScale = 0f;
     }
 
+    /// <summary>Resumes the paused match.</summary>
     public void ReanudarJuego()
     {
         if (!matchFlow.Resume()) return;
         Time.timeScale = 1f;
     }
 
+    /// <summary>Restarts the match.</summary>
     public void ReiniciarJuego()
     {
         IniciarJuego();
@@ -252,16 +286,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>Publishes a victory result.</summary>
     public void Victoria()
     {
         PublishTerminalResult(MatchState.Victory);
     }
 
+    /// <summary>Publishes a defeat result.</summary>
     public void Derrota()
     {
         PublishTerminalResult(MatchState.Defeat);
     }
 
+    /// <summary>Publishes defeat caused by all players being downed.</summary>
     public void DerrotaPorJugadores()
     {
         PublishTerminalResult(MatchState.Defeat);
@@ -329,16 +366,23 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>Notifies the manager that a player was downed.</summary>
+    /// <param name="p">The downed player.</param>
     public void NotificarJugadorDerribado(PlayerController p)
     {
         VerificarDerrotaCoop();
     }
 
+    /// <summary>Notifies the manager that a player was revived.</summary>
+    /// <param name="p">The revived player.</param>
     public void NotificarJugadorReanimado(PlayerController p)
     {
         // No hace falta acción, solo log
     }
 
+    /// <summary>Registers a player.</summary>
+    /// <param name="jugador">The player to register.</param>
+    /// <returns><see langword="true"/> when registration succeeds.</returns>
     public bool RegisterPlayer(PlayerController jugador)
     {
         if (jugador == null) return false;
@@ -351,6 +395,9 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    /// <summary>Unregisters a player.</summary>
+    /// <param name="jugador">The player to unregister.</param>
+    /// <returns><see langword="true"/> when unregistration succeeds.</returns>
     public bool UnregisterPlayer(PlayerController jugador)
     {
         if (jugador == null || playerRoster == null || !playerRoster.Unregister(jugador))
@@ -421,7 +468,7 @@ public class GameManager : MonoBehaviour
     {
         if (command.MoveX != 0f || command.MoveY != 0f)
             return true;
-        if (new Vector2(command.LookX, command.LookY).magnitude > 2f)
+        if (new Vector2(command.LookX, command.LookY).magnitude > NoInputLookThreshold)
             return true;
         return command.Jump || command.Fire;
     }
@@ -439,7 +486,7 @@ public class GameManager : MonoBehaviour
 
         if (Instance == this)
         {
-            Time.timeScale = 1f;
+            Time.timeScale = InitialTimeScale;
             Instance = null;
         }
     }

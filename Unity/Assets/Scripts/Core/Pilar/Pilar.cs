@@ -11,11 +11,26 @@ using System.Collections.Generic;
 
 public class Pilar : MonoBehaviour
 {
+    private const float MinimumHealth = 0f;
+    private const float PercentageScale = 100f;
+    private const float MaximumHealth = 100f;
+    private const int InitialPhase = 1;
+    private const int EmergencyPhase = 4;
+    private const float TurretSpawnHeightMeters = 1.1f;
+    private const float TurretRangeMeters = 22f;
+    private const float TurretFireRatePerSecond = 0.9f;
+    private const float TurretDamage = 6f;
+    private const float TurretHealth = 120f;
+    private const int TurretAmmo = 15;
+    private const float TurretReloadSeconds = 10f;
+    private const float TurretLightRangeMeters = 6f;
+    private const float TurretLightIntensity = 2f;
+
     [Header("Vida")]
     [Range(0, 100)]
-    public float vidaMaxima = 100f;
+    public float vidaMaxima = MaximumHealth;
     [Range(0, 100)]
-    public float vidaActual = 100f;
+    public float vidaActual = MaximumHealth;
     
     [Header("Umbrales de Transformación")]
     public float umbralFase2 = 75f; // Pozo central
@@ -40,7 +55,7 @@ public class Pilar : MonoBehaviour
     public event Action<float> OnDañoRecibido;
     
     private Renderer rend;
-    private int faseAnterior = 1;
+    private int faseAnterior = InitialPhase;
     private readonly List<GameObject> spawnedTurrets = new List<GameObject>();
 
     void Start()
@@ -92,7 +107,7 @@ public class Pilar : MonoBehaviour
         OnFaseCambiada?.Invoke(faseActual);
         
         // Activar torretas en fase 4
-        if (faseActual == 4 && !torretasActivas)
+        if (faseActual == EmergencyPhase && !torretasActivas)
         {
             ActivarTorretas();
         }
@@ -114,6 +129,7 @@ public class Pilar : MonoBehaviour
         rend.material.color = Color.Lerp(rend.material.color, targetColor, Time.deltaTime * 2f);
     }
 
+    /// <summary>Applies damage when the match is active.</summary>
     public void RecibirDaño(float cantidad)
     {
         if (GameManager.Instance != null && !GameManager.Instance.juegoActivo) return;
@@ -144,13 +160,14 @@ public class Pilar : MonoBehaviour
         }
     }
 
+    /// <summary>Restores health and visual state to the initial phase.</summary>
     public void RestaurarVida()
     {
         if (rend == null) rend = GetComponent<Renderer>();
         ClearSpawnedTurrets();
         vidaActual = vidaMaxima;
-        faseActual = 1;
-        faseAnterior = 1;
+        faseActual = InitialPhase;
+        faseAnterior = InitialPhase;
         torretasActivas = false;
         OnVidaCambiada?.Invoke(vidaActual);
             
@@ -192,19 +209,19 @@ public class Pilar : MonoBehaviour
             spawnedTurrets.Add(torretaGO);
             torretaGO.name = $"Torreta_{punto.name}";
             // Asegurar que quede a ras de suelo y visible (no dentro del pilar ni del pozo) - y 1.1 = base por encima de pozo top 0.3
-            torretaGO.transform.position = new Vector3(punto.position.x, 1.1f, punto.position.z);
+            torretaGO.transform.position = new Vector3(punto.position.x, TurretSpawnHeightMeters, punto.position.z);
             // Rebalanceo aplicado en runtime para prefabs viejos serializados con daño 15
             var tComp = torretaGO.GetComponent<Torreta>();
             if (tComp != null)
             {
-                tComp.daño = 6f;
-                tComp.rango = 22f;
-                tComp.cadencia = 0.9f;
-                tComp.vidaMaxima = 120f;
-                tComp.vidaActual = 120f;
-                tComp.municionMaxima = 15;
-                tComp.municionActual = 15;
-                tComp.tiempoRecarga = 10f;
+                tComp.daño = TurretDamage;
+                tComp.rango = TurretRangeMeters;
+                tComp.cadencia = TurretFireRatePerSecond;
+                tComp.vidaMaxima = TurretHealth;
+                tComp.vidaActual = TurretHealth;
+                tComp.municionMaxima = TurretAmmo;
+                tComp.municionActual = TurretAmmo;
+                tComp.tiempoRecarga = TurretReloadSeconds;
             }
             Debug.Log($"[Pilar] Torreta spawneada en {torretaGO.transform.position} desde punto {punto.name}");
         }
@@ -214,7 +231,7 @@ public class Pilar : MonoBehaviour
     {
         // Fallback procedural si no hay prefab asignado - CUBO VISIBLE GRANDE
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.transform.position = new Vector3(punto.position.x, 1.1f, punto.position.z);
+        go.transform.position = new Vector3(punto.position.x, TurretSpawnHeightMeters, punto.position.z);
         go.transform.rotation = punto.rotation;
         go.transform.localScale = new Vector3(1.4f, 2.2f, 1.4f);
         var rend = go.GetComponent<Renderer>();
@@ -231,8 +248,8 @@ public class Pilar : MonoBehaviour
         var light = go.AddComponent<Light>();
         light.type = LightType.Point;
         light.color = col;
-        light.range = 6f;
-        light.intensity = 2f;
+        light.range = TurretLightRangeMeters;
+        light.intensity = TurretLightIntensity;
         // Collider para que sea dañable
         var box = go.GetComponent<BoxCollider>();
         if (box == null) box = go.AddComponent<BoxCollider>();
@@ -240,15 +257,15 @@ public class Pilar : MonoBehaviour
         box.center = Vector3.zero;
         box.size = Vector3.one;
         var t = go.AddComponent<Torreta>();
-        t.rango = 22f;
-        t.cadencia = 0.9f;
-        t.daño = 6f;
+        t.rango = TurretRangeMeters;
+        t.cadencia = TurretFireRatePerSecond;
+        t.daño = TurretDamage;
         t.velocidadProyectil = 28f;
-        t.vidaMaxima = 120f;
-        t.vidaActual = 120f;
-        t.municionMaxima = 15;
-        t.municionActual = 15;
-        t.tiempoRecarga = 10f;
+        t.vidaMaxima = TurretHealth;
+        t.vidaActual = TurretHealth;
+        t.municionMaxima = TurretAmmo;
+        t.municionActual = TurretAmmo;
+        t.tiempoRecarga = TurretReloadSeconds;
         var pd = new GameObject("PuntoDisparo");
         pd.transform.SetParent(go.transform);
         pd.transform.localPosition = Vector3.forward * 0.8f + Vector3.up * 0.6f;
@@ -258,10 +275,12 @@ public class Pilar : MonoBehaviour
         return go;
     }
 
-    // Getters
+    /// <summary>Gets the current Pilar health.</summary>
     public float VidaActual => vidaActual;
-    public float PorcentajeVida => (vidaActual / vidaMaxima) * 100f;
-    public bool EstaVivo => vidaActual > 0;
+    /// <summary>Gets the current health as a percentage.</summary>
+    public float PorcentajeVida => (vidaActual / vidaMaxima) * PercentageScale;
+    /// <summary>Gets whether the Pilar has positive health.</summary>
+    public bool EstaVivo => vidaActual > MinimumHealth;
 
     void OnDrawGizmosSelected()
     {

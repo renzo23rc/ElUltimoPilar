@@ -8,11 +8,26 @@ public sealed class MatchFlow
 {
     private readonly int totalWaves;
 
+    /// <summary>
+    /// Gets the current match state.
+    /// </summary>
     public MatchState State { get; private set; }
     public MatchState CurrentState => State;
+
+    /// <summary>
+    /// Gets the current wave number.
+    /// </summary>
     public int CurrentWave { get; private set; }
+
+    /// <summary>
+    /// Gets the configured total number of waves.
+    /// </summary>
     public int TotalWaves => totalWaves;
 
+    /// <summary>
+    /// Initializes a match flow with the configured wave count.
+    /// </summary>
+    /// <param name="totalWaves">The total number of waves.</param>
     public MatchFlow(int totalWaves)
     {
         if (totalWaves < 0)
@@ -22,6 +37,10 @@ public sealed class MatchFlow
         Reset();
     }
 
+    /// <summary>
+    /// Starts the match.
+    /// </summary>
+    /// <returns><see langword="true"/> when the transition succeeds.</returns>
     public bool Start()
     {
         if (State != MatchState.WaitingToStart)
@@ -31,6 +50,10 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Pauses a playing match.
+    /// </summary>
+    /// <returns><see langword="true"/> when the transition succeeds.</returns>
     public bool Pause()
     {
         if (State != MatchState.Playing)
@@ -40,6 +63,10 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Resumes a paused match.
+    /// </summary>
+    /// <returns><see langword="true"/> when the transition succeeds.</returns>
     public bool Resume()
     {
         if (State != MatchState.Paused)
@@ -49,6 +76,10 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Attempts to advance to the next wave.
+    /// </summary>
+    /// <returns><see langword="true"/> when a wave starts.</returns>
     public bool TryStartNextWave()
     {
         if (State != MatchState.Playing)
@@ -64,6 +95,10 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Transitions the match to victory.
+    /// </summary>
+    /// <returns><see langword="true"/> when the transition succeeds.</returns>
     public bool SetVictory()
     {
         if (!CanFinish())
@@ -73,6 +108,10 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Transitions the match to defeat.
+    /// </summary>
+    /// <returns><see langword="true"/> when the transition succeeds.</returns>
     public bool SetDefeat()
     {
         if (!CanFinish())
@@ -82,6 +121,9 @@ public sealed class MatchFlow
         return true;
     }
 
+    /// <summary>
+    /// Resets the flow to its initial state.
+    /// </summary>
     public void Reset()
     {
         State = MatchState.WaitingToStart;

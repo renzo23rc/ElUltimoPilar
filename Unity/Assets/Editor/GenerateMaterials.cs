@@ -4,6 +4,19 @@ using System.Collections.Generic;
 
 public class GenerateMaterials
 {
+    private const float NoEmissionIntensity = 0f;
+    private const float ExplosiveEmissionIntensity = 0.4f;
+    private const float WeaverEmissionIntensity = 0.3f;
+    private const float ColossusEmissionIntensity = 0.2f;
+    private const float TurretEmissionIntensity = 0.6f;
+    private const float ProjectileEmissionIntensity = 1.2f;
+    private const float EnergyEmissionIntensity = 0.8f;
+
+    private static readonly Color WeaverColor = new Color(1f, 0f, 1f);
+    private static readonly Color ColossusColor = new Color(0.5f, 0f, 0f);
+    private static readonly Color TurretColor = new Color(1f, 0.85f, 0.1f);
+    private static readonly Color ProjectileColor = new Color(1f, 0.5f, 0f);
+
     [MenuItem("Tools/Generate Materials For Prefabs")]
     public static void Generate()
     {
@@ -19,12 +32,12 @@ public class GenerateMaterials
             ("Assets/Resources/Prefabs/Corredor.prefab", "Mat_Corredor", Color.red, false, 0f),
             ("Assets/Resources/Prefabs/Artillero.prefab", "Mat_Artillero", Color.blue, false, 0f),
             ("Assets/Resources/Prefabs/Explosivo.prefab", "Mat_Explosivo", Color.yellow, true, 0.4f),
-            ("Assets/Resources/Prefabs/Tejedor.prefab", "Mat_Tejedor", new Color(1f,0f,1f), true, 0.3f), // magenta
-            ("Assets/Resources/Prefabs/Nido.prefab", "Mat_Nido", Color.gray, false, 0f),
-            ("Assets/Resources/Prefabs/Coloso.prefab", "Mat_Coloso", new Color(0.5f,0f,0f), true, 0.2f),
-            ("Assets/Resources/Prefabs/Torreta.prefab", "Mat_Torreta", new Color(1f,0.85f,0.1f), true, 0.6f),
-            ("Assets/Resources/Prefabs/ProyectilBase.prefab", "Mat_Proyectil", new Color(1f,0.5f,0f), true, 1.2f),
-            ("Assets/Resources/Prefabs/EnergiaPickup.prefab", "Mat_Energia", Color.cyan, true, 0.8f),
+                ("Assets/Resources/Prefabs/Tejedor.prefab", "Mat_Tejedor", WeaverColor, true, WeaverEmissionIntensity),
+            ("Assets/Resources/Prefabs/Nido.prefab", "Mat_Nido", Color.gray, false, NoEmissionIntensity),
+            ("Assets/Resources/Prefabs/Coloso.prefab", "Mat_Coloso", ColossusColor, true, ColossusEmissionIntensity),
+            ("Assets/Resources/Prefabs/Torreta.prefab", "Mat_Torreta", TurretColor, true, TurretEmissionIntensity),
+            ("Assets/Resources/Prefabs/ProyectilBase.prefab", "Mat_Proyectil", ProjectileColor, true, ProjectileEmissionIntensity),
+            ("Assets/Resources/Prefabs/EnergiaPickup.prefab", "Mat_Energia", Color.cyan, true, EnergyEmissionIntensity),
         };
 
         Shader urpLit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
@@ -36,8 +49,8 @@ public class GenerateMaterials
 
         foreach (var def in defs)
         {
-            string matPath = $"Assets/Materials/{def.matName}.mat";
-            string matResPath = $"Assets/Resources/Materials/{def.matName}.mat";
+            string materialPath = $"Assets/Materials/{def.matName}.mat";
+            string resourceMaterialPath = $"Assets/Resources/Materials/{def.matName}.mat";
 
             // Crear material asset
             var mat = new Material(urpLit);
@@ -55,14 +68,14 @@ public class GenerateMaterials
 
             // Para URP transparente en energía/proyectil si necesita alpha, no necesario para sólido
             // Guardar en ambas ubicaciones
-            SaveMaterial(mat, matPath);
-            SaveMaterial(new Material(mat), matResPath);
+            SaveMaterial(mat, materialPath);
+            SaveMaterial(new Material(mat), resourceMaterialPath);
 
             // Asignar a prefab
-            AssignMaterialToPrefab(def.prefabPath, matPath);
+            AssignMaterialToPrefab(def.prefabPath, materialPath);
             // También asignar a duplicate en Tests/Prefabs
             string testsPath = def.prefabPath.Replace("Assets/Resources/Prefabs/", "Assets/Tests/Prefabs/");
-            AssignMaterialToPrefab(testsPath, matPath);
+            AssignMaterialToPrefab(testsPath, materialPath);
         }
 
         AssetDatabase.SaveAssets();

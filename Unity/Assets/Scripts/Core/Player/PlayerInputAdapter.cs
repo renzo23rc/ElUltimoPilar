@@ -10,6 +10,18 @@ public sealed class PlayerInputAdapter : IInputAdapter
     private const string PlayerActionMapName = "Player";
     private const string JoinActionMapName = "Join";
     private const string JoinActionName = "Join";
+    private const string MoveActionName = "Move";
+    private const string LookActionName = "Look";
+    private const string JumpActionName = "Jump";
+    private const string FireActionName = "Attack";
+    private const string InteractActionName = "Interact";
+    private const string HealActionName = "Heal";
+    private const string AbilityActionName = "Ability";
+    private const string PreviousWeaponActionName = "Previous";
+    private const string NextWeaponActionName = "Next";
+    private const string WeaponSlot1ActionName = "WeaponSlot1";
+    private const string WeaponSlot2ActionName = "WeaponSlot2";
+    private const string WeaponSlot3ActionName = "WeaponSlot3";
 
     private readonly PlayerInput playerInput;
     private InputActionMap playerActionMap;
@@ -27,17 +39,23 @@ public sealed class PlayerInputAdapter : IInputAdapter
     private InputAction weaponSlot3Action;
     private bool playerActionsConfigured;
 
+    /// <summary>Creates an adapter for the supplied PlayerInput component.</summary>
     public PlayerInputAdapter(PlayerInput playerInput)
     {
         this.playerInput = playerInput;
         ResolveActions();
     }
 
+    /// <summary>Gets the input component assigned to this adapter.</summary>
     public PlayerInput AssignedPlayerInput => playerInput;
+    /// <summary>Gets the join action, when configured.</summary>
     public InputAction JoinAction { get; private set; }
+    /// <summary>Gets whether the player action map is enabled.</summary>
     public bool IsEnabled { get; private set; }
+    /// <summary>Gets the current command snapshot.</summary>
     public PlayerCommand CurrentCommand => ReadCurrentCommand();
 
+    /// <summary>Enables the configured player action map.</summary>
     public void Enable()
     {
         ResolveActions();
@@ -51,6 +69,7 @@ public sealed class PlayerInputAdapter : IInputAdapter
         IsEnabled = true;
     }
 
+    /// <summary>Disables the configured player action map.</summary>
     public void Disable()
     {
         if (playerActionMap != null)
@@ -126,18 +145,18 @@ public sealed class PlayerInputAdapter : IInputAdapter
         playerActionMap = actions.FindActionMap(PlayerActionMapName, false);
         if (playerActionMap != null)
         {
-            moveAction = playerActionMap.FindAction("Move", false);
-            lookAction = playerActionMap.FindAction("Look", false);
-            jumpAction = playerActionMap.FindAction("Jump", false);
-            fireAction = playerActionMap.FindAction("Attack", false);
-            interactAction = playerActionMap.FindAction("Interact", false);
-            healAction = playerActionMap.FindAction("Heal", false);
-            abilityAction = playerActionMap.FindAction("Ability", false);
-            previousWeaponAction = playerActionMap.FindAction("Previous", false);
-            nextWeaponAction = playerActionMap.FindAction("Next", false);
-            weaponSlot1Action = playerActionMap.FindAction("WeaponSlot1", false);
-            weaponSlot2Action = playerActionMap.FindAction("WeaponSlot2", false);
-            weaponSlot3Action = playerActionMap.FindAction("WeaponSlot3", false);
+            moveAction = playerActionMap.FindAction(MoveActionName, false);
+            lookAction = playerActionMap.FindAction(LookActionName, false);
+            jumpAction = playerActionMap.FindAction(JumpActionName, false);
+            fireAction = playerActionMap.FindAction(FireActionName, false);
+            interactAction = playerActionMap.FindAction(InteractActionName, false);
+            healAction = playerActionMap.FindAction(HealActionName, false);
+            abilityAction = playerActionMap.FindAction(AbilityActionName, false);
+            previousWeaponAction = playerActionMap.FindAction(PreviousWeaponActionName, false);
+            nextWeaponAction = playerActionMap.FindAction(NextWeaponActionName, false);
+            weaponSlot1Action = playerActionMap.FindAction(WeaponSlot1ActionName, false);
+            weaponSlot2Action = playerActionMap.FindAction(WeaponSlot2ActionName, false);
+            weaponSlot3Action = playerActionMap.FindAction(WeaponSlot3ActionName, false);
             playerActionsConfigured = moveAction != null &&
                 lookAction != null &&
                 jumpAction != null &&

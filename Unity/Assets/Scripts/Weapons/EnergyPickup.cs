@@ -9,6 +9,7 @@ using UnityEngine;
 
 public class EnergyPickup : MonoBehaviour
 {
+private static readonly float FullCircleRadians = Mathf.PI * 2f;
     [Header("Configuración")]
     public float cantidad = 2f;
     public float velocidadRotacion = 100f;
@@ -23,7 +24,7 @@ public class EnergyPickup : MonoBehaviour
     void Start()
     {
         posicionInicial = transform.position;
-        tiempo = Random.Range(0f, Mathf.PI * 2f);
+        tiempo = Random.Range(0f, FullCircleRadians);
     }
 
     void Update()

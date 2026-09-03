@@ -8,6 +8,7 @@ using System;
 
 public class WeaponVariantPickup : MonoBehaviour
 {
+private static readonly float FullCircleRadians = Mathf.PI * 2f;
     [Header("Variante")]
     public WeaponSystem.TipoArma tipoPotenciado = WeaponSystem.TipoArma.Directa;
     public float multiplicadorDaño = 2f;
@@ -26,7 +27,7 @@ public class WeaponVariantPickup : MonoBehaviour
     void Start()
     {
         posicionInicial = transform.position;
-        tiempo = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        tiempo = UnityEngine.Random.Range(0f, FullCircleRadians);
         var rend = GetComponent<Renderer>();
         if (rend != null)
         {
