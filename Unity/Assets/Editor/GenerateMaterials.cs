@@ -1,136 +1,311 @@
-using UnityEngine;
-using UnityEditor;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
 
+/// <summary>
+/// Provides the Unity Editor command that creates and assigns prefab materials.
+/// </summary>
 public class GenerateMaterials
 {
-    private const float NoEmissionIntensity = 0f;
-    private const float ExplosiveEmissionIntensity = 0.4f;
-    private const float WeaverEmissionIntensity = 0.3f;
-    private const float ColossusEmissionIntensity = 0.2f;
-    private const float TurretEmissionIntensity = 0.6f;
-    private const float ProjectileEmissionIntensity = 1.2f;
-    private const float EnergyEmissionIntensity = 0.8f;
-
-    private static readonly Color WeaverColor = new Color(1f, 0f, 1f);
-    private static readonly Color ColossusColor = new Color(0.5f, 0f, 0f);
-    private static readonly Color TurretColor = new Color(1f, 0.85f, 0.1f);
-    private static readonly Color ProjectileColor = new Color(1f, 0.5f, 0f);
-
     [MenuItem("Tools/Generate Materials For Prefabs")]
     public static void Generate()
     {
         Debug.Log("[GenerateMaterials] Creando materiales...");
 
-        EnsureFolder("Assets/Materials");
-        EnsureFolder("Assets/Resources");
-        EnsureFolder("Assets/Resources/Materials");
-
-        // Definir materiales por prefab
-        var defs = new List<(string prefabPath, string matName, Color color, bool emissive, float emissionIntensity)>
+        try
         {
-            ("Assets/Resources/Prefabs/Corredor.prefab", "Mat_Corredor", Color.red, false, 0f),
-            ("Assets/Resources/Prefabs/Artillero.prefab", "Mat_Artillero", Color.blue, false, 0f),
-            ("Assets/Resources/Prefabs/Explosivo.prefab", "Mat_Explosivo", Color.yellow, true, 0.4f),
-                ("Assets/Resources/Prefabs/Tejedor.prefab", "Mat_Tejedor", WeaverColor, true, WeaverEmissionIntensity),
-            ("Assets/Resources/Prefabs/Nido.prefab", "Mat_Nido", Color.gray, false, NoEmissionIntensity),
-            ("Assets/Resources/Prefabs/Coloso.prefab", "Mat_Coloso", ColossusColor, true, ColossusEmissionIntensity),
-            ("Assets/Resources/Prefabs/Torreta.prefab", "Mat_Torreta", TurretColor, true, TurretEmissionIntensity),
-            ("Assets/Resources/Prefabs/ProyectilBase.prefab", "Mat_Proyectil", ProjectileColor, true, ProjectileEmissionIntensity),
-            ("Assets/Resources/Prefabs/EnergiaPickup.prefab", "Mat_Energia", Color.cyan, true, EnergyEmissionIntensity),
-        };
-
-        Shader urpLit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
-        if (urpLit == null)
+            EnsureFolder(PrefabAssetConventions.MaterialsFolder);
+            EnsureFolder(PrefabAssetConventions.ResourcesFolder);
+            EnsureFolder(PrefabAssetConventions.ResourcesMaterialsFolder);
+        }
+        catch (InvalidOperationException exception)
         {
-            Debug.LogError("[GenerateMaterials] No se encontró shader URP/Lit ni Standard");
+            Debug.LogError($"[GenerateMaterials] {exception.Message}");
             return;
         }
 
-        foreach (var def in defs)
-        {
-            string materialPath = $"Assets/Materials/{def.matName}.mat";
-            string resourceMaterialPath = $"Assets/Resources/Materials/{def.matName}.mat";
-
-            // Crear material asset
-            var mat = new Material(urpLit);
-            mat.name = def.matName;
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", def.color);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", def.color);
-            mat.color = def.color;
-
-            if (def.emissive && mat.HasProperty("_EmissionColor"))
+        List<(string prefabName, string materialName, Color color, bool emissive, float emissionIntensity)> definitions =
+            new List<(string prefabName, string materialName, Color color, bool emissive, float emissionIntensity)>
             {
-                mat.SetColor("_EmissionColor", def.color * def.emissionIntensity);
-                mat.EnableKeyword("_EMISSION");
-                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.BakedEmissive;
+                (
+                    PrefabAssetConventions.RunnerPrefabName,
+                    PrefabAssetConventions.RunnerMaterialName,
+                    PrefabAssetConventions.RunnerColor,
+                    false,
+                    PrefabAssetConventions.NoEmissionIntensity),
+                (
+                    PrefabAssetConventions.ArtilleryPrefabName,
+                    PrefabAssetConventions.ArtilleryMaterialName,
+                    PrefabAssetConventions.ArtilleryColor,
+                    false,
+                    PrefabAssetConventions.NoEmissionIntensity),
+                (
+                    PrefabAssetConventions.ExplosivePrefabName,
+                    PrefabAssetConventions.ExplosiveMaterialName,
+                    PrefabAssetConventions.ExplosiveColor,
+                    true,
+                    PrefabAssetConventions.ExplosiveEmissionIntensity),
+                (
+                    PrefabAssetConventions.WeaverPrefabName,
+                    PrefabAssetConventions.WeaverMaterialName,
+                    PrefabAssetConventions.WeaverColor,
+                    true,
+                    PrefabAssetConventions.WeaverEmissionIntensity),
+                (
+                    PrefabAssetConventions.NestPrefabName,
+                    PrefabAssetConventions.NestMaterialName,
+                    PrefabAssetConventions.NestColor,
+                    false,
+                    PrefabAssetConventions.NoEmissionIntensity),
+                (
+                    PrefabAssetConventions.ColossusPrefabName,
+                    PrefabAssetConventions.ColossusMaterialName,
+                    PrefabAssetConventions.ColossusColor,
+                    true,
+                    PrefabAssetConventions.ColossusEmissionIntensity),
+                (
+                    PrefabAssetConventions.TurretPrefabName,
+                    PrefabAssetConventions.TurretMaterialName,
+                    PrefabAssetConventions.TurretColor,
+                    true,
+                    PrefabAssetConventions.TurretEmissionIntensity),
+                (
+                    PrefabAssetConventions.ProjectilePrefabName,
+                    PrefabAssetConventions.ProjectileMaterialName,
+                    PrefabAssetConventions.ProjectileColor,
+                    true,
+                    PrefabAssetConventions.ProjectileEmissionIntensity),
+                (
+                    PrefabAssetConventions.EnergyPickupPrefabName,
+                    PrefabAssetConventions.EnergyPickupMaterialName,
+                    PrefabAssetConventions.EnergyPickupColor,
+                    true,
+                    PrefabAssetConventions.EnergyPickupEmissionIntensity)
+            };
+
+        bool generationSucceeded = true;
+        foreach ((string prefabName, string materialName, Color color, bool emissive, float emissionIntensity) definition in definitions)
+        {
+            bool materialSucceeded = GenerateMaterial(definition);
+            if (!materialSucceeded)
+            {
+                generationSucceeded = false;
             }
-
-            // Para URP transparente en energía/proyectil si necesita alpha, no necesario para sólido
-            // Guardar en ambas ubicaciones
-            SaveMaterial(mat, materialPath);
-            SaveMaterial(new Material(mat), resourceMaterialPath);
-
-            // Asignar a prefab
-            AssignMaterialToPrefab(def.prefabPath, materialPath);
-            // También asignar a duplicate en Tests/Prefabs
-            string testsPath = def.prefabPath.Replace("Assets/Resources/Prefabs/", "Assets/Tests/Prefabs/");
-            AssignMaterialToPrefab(testsPath, materialPath);
         }
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("[GenerateMaterials] Materiales creados y asignados en Assets/Materials y prefabs actualizados");
+        if (generationSucceeded)
+        {
+            Debug.Log(
+                "[GenerateMaterials] Materiales creados y asignados en Assets/Materials "
+                + "y prefabs actualizados.");
+        }
+        else
+        {
+            Debug.LogError("[GenerateMaterials] La generación terminó con errores.");
+        }
     }
 
-    static void EnsureFolder(string path)
+    private static bool GenerateMaterial(
+        (string prefabName, string materialName, Color color, bool emissive, float emissionIntensity) definition)
     {
-        if (AssetDatabase.IsValidFolder(path)) return;
-        var parent = System.IO.Path.GetDirectoryName(path);
-        var name = System.IO.Path.GetFileName(path);
-        if (!AssetDatabase.IsValidFolder(parent))
-            EnsureFolder(parent);
-        AssetDatabase.CreateFolder(parent, name);
+        string materialPath = PrefabAssetConventions.GetMaterialPath(definition.materialName);
+        string resourceMaterialPath = PrefabAssetConventions.GetResourceMaterialPath(
+            definition.materialName);
+        string resourcesPrefabPath = PrefabAssetConventions.GetResourcePrefabPath(
+            definition.prefabName);
+        string testsPrefabPath = PrefabAssetConventions.GetTestsPrefabPath(definition.prefabName);
+        Material material = null;
+        Material resourceMaterial = null;
+
+        try
+        {
+            material = PrefabMaterialUtility.CreateConfiguredMaterial(
+                definition.color,
+                definition.emissionIntensity,
+                definition.emissive);
+            if (!SaveMaterial(material, materialPath))
+            {
+                return false;
+            }
+
+            resourceMaterial = new Material(material);
+            resourceMaterial.name = definition.materialName;
+            if (!SaveMaterial(resourceMaterial, resourceMaterialPath))
+            {
+                return false;
+            }
+
+            bool resourcesAssigned = AssignMaterialToPrefab(resourcesPrefabPath, materialPath);
+            bool testsAssigned = AssignMaterialToPrefab(testsPrefabPath, materialPath);
+            return resourcesAssigned && testsAssigned;
+        }
+        catch (InvalidOperationException exception)
+        {
+            Debug.LogError(
+                $"[GenerateMaterials] No se pudo generar {definition.materialName}: "
+                + exception.Message);
+            return false;
+        }
+        catch (ArgumentException exception)
+        {
+            Debug.LogError(
+                $"[GenerateMaterials] Argumento inválido al generar {definition.materialName}: "
+                + exception.Message);
+            return false;
+        }
+        finally
+        {
+            PrefabMaterialUtility.DestroyTemporaryMaterial(material);
+            PrefabMaterialUtility.DestroyTemporaryMaterial(resourceMaterial);
+        }
     }
 
-    static void SaveMaterial(Material mat, string path)
+    private static void EnsureFolder(string path)
     {
-        var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (existing != null) AssetDatabase.DeleteAsset(path);
-        AssetDatabase.CreateAsset(mat, path);
+        if (AssetDatabase.IsValidFolder(path))
+        {
+            return;
+        }
+
+        string parent = Path.GetDirectoryName(path);
+        string name = Path.GetFileName(path);
+        if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException($"La ruta de carpeta no es válida: {path}");
+        }
+
+        parent = parent.Replace('\\', '/');
+        EnsureFolder(parent);
+        if (AssetDatabase.IsValidFolder(path))
+        {
+            return;
+        }
+
+        string folderGuid = AssetDatabase.CreateFolder(parent, name);
+        if (string.IsNullOrEmpty(folderGuid) && !AssetDatabase.IsValidFolder(path))
+        {
+            throw new InvalidOperationException($"No se pudo crear la carpeta: {path}");
+        }
+    }
+
+    private static bool SaveMaterial(Material material, string path)
+    {
+        if (material == null)
+        {
+            Debug.LogError($"[GenerateMaterials] No se puede guardar material nulo en {path}.");
+            return false;
+        }
+
+        UnityEngine.Object existingAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
+        if (existingAsset != null && !AssetDatabase.DeleteAsset(path))
+        {
+            Debug.LogError($"[GenerateMaterials] No se pudo reemplazar el material: {path}");
+            return false;
+        }
+
+        try
+        {
+            AssetDatabase.CreateAsset(material, path);
+        }
+        catch (ArgumentException exception)
+        {
+            Debug.LogError(
+                $"[GenerateMaterials] No se pudo crear el material {path}: {exception.Message}");
+            return false;
+        }
+
+        Material savedMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (savedMaterial == null)
+        {
+            Debug.LogError($"[GenerateMaterials] El material no quedó guardado en {path}");
+            return false;
+        }
+
         Debug.Log($"[GenerateMaterials] Material guardado {path}");
+        return true;
     }
 
-    static void AssignMaterialToPrefab(string prefabPath, string matPath)
+    private static bool AssignMaterialToPrefab(string prefabPath, string materialPath)
     {
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
-        if (prefab == null || mat == null)
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (prefab == null)
         {
-            Debug.LogWarning($"[GenerateMaterials] No se pudo asignar {matPath} a {prefabPath}");
-            return;
+            Debug.LogError($"[GenerateMaterials] Falta el prefab requerido: {prefabPath}");
+            return false;
         }
 
-        // Cargar contenido del prefab para editar
-        var root = PrefabUtility.LoadPrefabContents(prefabPath);
-        if (root == null)
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        if (material == null)
         {
-            Debug.LogWarning($"[GenerateMaterials] LoadPrefabContents falló para {prefabPath}");
-            return;
+            Debug.LogError($"[GenerateMaterials] Falta el material requerido: {materialPath}");
+            return false;
         }
 
-        var renderer = root.GetComponent<Renderer>();
-        if (renderer == null) renderer = root.GetComponentInChildren<Renderer>();
-        if (renderer != null)
+        GameObject root = null;
+        try
         {
-            renderer.sharedMaterial = mat;
-            // Para TrailRenderer en Proyectil, también asignar mismo material
-            var trail = root.GetComponent<TrailRenderer>();
-            if (trail != null) trail.sharedMaterial = mat;
-        }
+            root = PrefabUtility.LoadPrefabContents(prefabPath);
+            if (root == null)
+            {
+                Debug.LogError(
+                    $"[GenerateMaterials] LoadPrefabContents devolvió null para {prefabPath}");
+                return false;
+            }
 
-        PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-        PrefabUtility.UnloadPrefabContents(root);
-        Debug.Log($"[GenerateMaterials] Asignado {matPath} a {prefabPath}");
+            Renderer renderer = root.GetComponent<Renderer>();
+            if (renderer == null)
+            {
+                renderer = root.GetComponentInChildren<Renderer>();
+            }
+            if (renderer == null)
+            {
+                Debug.LogError(
+                    $"[GenerateMaterials] No se encontró Renderer en {prefabPath}");
+                return false;
+            }
+
+            PrefabMaterialUtility.AssignSharedMaterial(renderer, material, prefabPath);
+            TrailRenderer trail = root.GetComponent<TrailRenderer>();
+            if (trail != null)
+            {
+                trail.sharedMaterial = material;
+            }
+
+            GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            if (savedPrefab == null)
+            {
+                Debug.LogError(
+                    $"[GenerateMaterials] SaveAsPrefabAsset devolvió null para {prefabPath}");
+                return false;
+            }
+
+            Debug.Log($"[GenerateMaterials] Asignado {materialPath} a {prefabPath}");
+            return true;
+        }
+        catch (InvalidOperationException exception)
+        {
+            Debug.LogError(
+                $"[GenerateMaterials] No se pudo asignar {materialPath} a {prefabPath}: "
+                + exception.Message);
+            return false;
+        }
+        catch (ArgumentException exception)
+        {
+            Debug.LogError(
+                $"[GenerateMaterials] Argumento inválido al asignar {materialPath} a {prefabPath}: "
+                + exception.Message);
+            return false;
+        }
+        finally
+        {
+            if (root != null)
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
     }
 }

@@ -9,33 +9,8 @@ using UnityEngine;
 /// </summary>
 public class GeneratePrefabs
 {
-    private const string ResourcesFolder = "Assets/Resources";
-    private const string TestsFolder = "Assets/Tests";
-    private const string ResourcesPrefabFolder = ResourcesFolder + "/Prefabs";
-    private const string TestsPrefabFolder = TestsFolder + "/Prefabs";
-    private const string PrefabExtension = ".prefab";
     private const string MenuItemPath = "Tools/Generate Real Prefabs (B1)";
-    private const string LitShaderName = "Universal Render Pipeline/Lit";
-    private const string StandardShaderName = "Standard";
-    private const string SpriteShaderName = "Sprites/Default";
-    private const string BaseColorPropertyName = "_BaseColor";
-    private const string ColorPropertyName = "_Color";
-    private const string EmissionColorPropertyName = "_EmissionColor";
-    private const string EmissionKeyword = "_EMISSION";
-    private const string EnergyPickupPoolKey = "EnergyPickup";
-    private const string ProjectilePoolKey = "Proyectil";
-    private const string EnergyPickupPrefabName = "EnergiaPickup";
-    private const string ProjectilePrefabName = "ProyectilBase";
-    private const string RunnerPrefabName = "Corredor";
-    private const string ArtilleryPrefabName = "Artillero";
-    private const string ExplosivePrefabName = "Explosivo";
-    private const string WeaverPrefabName = "Tejedor";
-    private const string NestPrefabName = "Nido";
-    private const string ColossusPrefabName = "Coloso";
-    private const string TurretPrefabName = "Torreta";
-    private const string TurretMuzzleName = "PuntoDisparo";
 
-    private const float NoEmissionIntensity = 0f;
     private const float PickupColliderRadiusMeters = 0.5f;
     private const float EnergyPickupScale = 0.5f;
     private const float ProjectileScale = 0.6f;
@@ -46,12 +21,10 @@ public class GeneratePrefabs
     private const float ProjectileTrailAlpha = 0.2f;
     private const float ProjectileLightRangeMeters = 4f;
     private const float ProjectileLightIntensity = 2f;
-    private const float ProjectileEmissionIntensity = 1.2f;
     private const float ProjectileDamage = 10f;
     private const float ProjectileLifetimeSeconds = 5f;
     private const float TurretLightRangeMeters = 6f;
     private const float TurretLightIntensity = 2f;
-    private const float TurretEmissionIntensity = 0.6f;
     private const float TurretRangeMeters = 22f;
     private const float TurretFireIntervalSeconds = 0.9f;
     private const float TurretDamage = 6f;
@@ -71,9 +44,6 @@ public class GeneratePrefabs
     private const int NestMaximumConcurrentRunners = 3;
     private const float ColossusShotResistance = 0.8f;
 
-    private static readonly Color ProjectileColor = new Color(1f, 0.5f, 0f);
-    private static readonly Color TurretColor = new Color(1f, 0.85f, 0.1f);
-    private static readonly Color ColossusColor = new Color(0.5f, 0f, 0f);
     private static readonly Vector3 NestScale = new Vector3(2f, 1f, 2f);
     private static readonly Vector3 ColossusScale = new Vector3(2.5f, 3f, 2.5f);
     private static readonly Vector3 TurretScale = new Vector3(1.4f, 2.2f, 1.4f);
@@ -99,20 +69,30 @@ public class GeneratePrefabs
             AssetDatabase.Refresh();
 
             GameObject energyPrefab = LoadPrefabAsset(
-                GetPrefabPath(ResourcesPrefabFolder, EnergyPickupPrefabName));
+                PrefabAssetConventions.GetResourcePrefabPath(
+                    PrefabAssetConventions.EnergyPickupPrefabName));
             GameObject projectilePrefab = LoadPrefabAsset(
-                GetPrefabPath(ResourcesPrefabFolder, ProjectilePrefabName));
+                PrefabAssetConventions.GetResourcePrefabPath(
+                    PrefabAssetConventions.ProjectilePrefabName));
 
             CreateAndSaveEnemyPrefabs(energyPrefab, projectilePrefab, temporaryObjects);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log(
-                $"[GeneratePrefabs] Prefabs reales generados en {ResourcesPrefabFolder} y "
-                + $"{TestsPrefabFolder}.");
+
+            bool validationPassed = GeneratedPrefabValidator.ValidateGeneratedPrefabs();
+            if (validationPassed)
+            {
+                Debug.Log(
+                    "[GeneratePrefabs] Prefabs reales generados en "
+                    + PrefabAssetConventions.ResourcesPrefabFolder
+                    + " y "
+                    + PrefabAssetConventions.TestsPrefabFolder
+                    + ".");
+            }
         }
         catch (InvalidOperationException exception)
         {
-            Debug.LogError($"[GeneratePrefabs] {exception.Message}");
+            Debug.LogError("[GeneratePrefabs] " + exception.Message);
         }
         finally
         {
@@ -122,10 +102,10 @@ public class GeneratePrefabs
 
     private static void EnsureFolders()
     {
-        EnsureFolder(ResourcesFolder);
-        EnsureFolder(ResourcesPrefabFolder);
-        EnsureFolder(TestsFolder);
-        EnsureFolder(TestsPrefabFolder);
+        EnsureFolder(PrefabAssetConventions.ResourcesFolder);
+        EnsureFolder(PrefabAssetConventions.ResourcesPrefabFolder);
+        EnsureFolder(PrefabAssetConventions.TestsFolder);
+        EnsureFolder(PrefabAssetConventions.TestsPrefabFolder);
     }
 
     private static void EnsureFolder(string path)
@@ -139,7 +119,7 @@ public class GeneratePrefabs
         string name = Path.GetFileName(path);
         if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name))
         {
-            throw new InvalidOperationException($"La ruta de carpeta no es válida: {path}");
+            throw new InvalidOperationException("La ruta de carpeta no es válida: " + path);
         }
 
         parent = parent.Replace('\\', '/');
@@ -153,7 +133,7 @@ public class GeneratePrefabs
         string folderGuid = AssetDatabase.CreateFolder(parent, name);
         if (string.IsNullOrEmpty(folderGuid) && !AssetDatabase.IsValidFolder(path))
         {
-            throw new InvalidOperationException($"No se pudo crear la carpeta: {path}");
+            throw new InvalidOperationException("No se pudo crear la carpeta: " + path);
         }
     }
 
@@ -161,8 +141,12 @@ public class GeneratePrefabs
         GameObject energyPrefab,
         GameObject projectilePrefab)
     {
-        SavePrefabToBothLocations(energyPrefab, EnergyPickupPrefabName);
-        SavePrefabToBothLocations(projectilePrefab, ProjectilePrefabName);
+        SavePrefabToBothLocations(
+            energyPrefab,
+            PrefabAssetConventions.EnergyPickupPrefabName);
+        SavePrefabToBothLocations(
+            projectilePrefab,
+            PrefabAssetConventions.ProjectilePrefabName);
     }
 
     private static void CreateAndSaveEnemyPrefabs(
@@ -172,16 +156,16 @@ public class GeneratePrefabs
     {
         GameObject runner = CreateEnemyPrefab<Runner>(
             temporaryObjects,
-            RunnerPrefabName,
-            Color.red,
+            PrefabAssetConventions.RunnerPrefabName,
+            PrefabAssetConventions.RunnerColor,
             energyPrefab,
             Vector3.one,
             ConfigureRunner);
 
         GameObject artillery = CreateEnemyPrefab<Artillery>(
             temporaryObjects,
-            ArtilleryPrefabName,
-            Color.blue,
+            PrefabAssetConventions.ArtilleryPrefabName,
+            PrefabAssetConventions.ArtilleryColor,
             energyPrefab,
             Vector3.one,
             ConfigureArtillery);
@@ -189,24 +173,24 @@ public class GeneratePrefabs
 
         GameObject explosive = CreateEnemyPrefab<Explosive>(
             temporaryObjects,
-            ExplosivePrefabName,
-            Color.yellow,
+            PrefabAssetConventions.ExplosivePrefabName,
+            PrefabAssetConventions.ExplosiveColor,
             energyPrefab,
             Vector3.one,
             ConfigureExplosive);
 
         GameObject weaver = CreateEnemyPrefab<Weaver>(
             temporaryObjects,
-            WeaverPrefabName,
-            Color.magenta,
+            PrefabAssetConventions.WeaverPrefabName,
+            PrefabAssetConventions.WeaverColor,
             energyPrefab,
             Vector3.one,
             ConfigureWeaver);
 
         GameObject nest = CreateEnemyPrefab<Nest>(
             temporaryObjects,
-            NestPrefabName,
-            Color.gray,
+            PrefabAssetConventions.NestPrefabName,
+            PrefabAssetConventions.NestColor,
             energyPrefab,
             NestScale,
             ConfigureNest);
@@ -214,21 +198,21 @@ public class GeneratePrefabs
 
         GameObject colossus = CreateEnemyPrefab<Colossus>(
             temporaryObjects,
-            ColossusPrefabName,
-            ColossusColor,
+            PrefabAssetConventions.ColossusPrefabName,
+            PrefabAssetConventions.ColossusColor,
             energyPrefab,
             ColossusScale,
             ConfigureColossus);
 
         GameObject turret = CreateTurretPrefab(temporaryObjects, projectilePrefab);
 
-        SavePrefabToBothLocations(runner, RunnerPrefabName);
-        SavePrefabToBothLocations(artillery, ArtilleryPrefabName);
-        SavePrefabToBothLocations(explosive, ExplosivePrefabName);
-        SavePrefabToBothLocations(weaver, WeaverPrefabName);
-        SavePrefabToBothLocations(nest, NestPrefabName);
-        SavePrefabToBothLocations(colossus, ColossusPrefabName);
-        SavePrefabToBothLocations(turret, TurretPrefabName);
+        SavePrefabToBothLocations(runner, PrefabAssetConventions.RunnerPrefabName);
+        SavePrefabToBothLocations(artillery, PrefabAssetConventions.ArtilleryPrefabName);
+        SavePrefabToBothLocations(explosive, PrefabAssetConventions.ExplosivePrefabName);
+        SavePrefabToBothLocations(weaver, PrefabAssetConventions.WeaverPrefabName);
+        SavePrefabToBothLocations(nest, PrefabAssetConventions.NestPrefabName);
+        SavePrefabToBothLocations(colossus, PrefabAssetConventions.ColossusPrefabName);
+        SavePrefabToBothLocations(turret, PrefabAssetConventions.TurretPrefabName);
         RepairNestReferences();
     }
 
@@ -237,7 +221,7 @@ public class GeneratePrefabs
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         if (prefab == null)
         {
-            throw new InvalidOperationException($"No se pudo cargar el prefab: {path}");
+            throw new InvalidOperationException("No se pudo cargar el prefab: " + path);
         }
 
         return prefab;
@@ -245,39 +229,38 @@ public class GeneratePrefabs
 
     private static void SavePrefabToBothLocations(GameObject prefab, string prefabName)
     {
-        SavePrefab(prefab, GetPrefabPath(ResourcesPrefabFolder, prefabName));
-        SavePrefab(prefab, GetPrefabPath(TestsPrefabFolder, prefabName));
-    }
-
-    private static string GetPrefabPath(string folder, string prefabName)
-    {
-        return folder + "/" + prefabName + PrefabExtension;
+        SavePrefab(
+            prefab,
+            PrefabAssetConventions.GetResourcePrefabPath(prefabName));
+        SavePrefab(
+            prefab,
+            PrefabAssetConventions.GetTestsPrefabPath(prefabName));
     }
 
     private static void SavePrefab(GameObject gameObject, string path)
     {
         if (gameObject == null)
         {
-            throw new ArgumentNullException(nameof(gameObject));
+            throw new ArgumentNullException("gameObject");
         }
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new ArgumentException("La ruta del prefab no puede estar vacía.", nameof(path));
+            throw new ArgumentException("La ruta del prefab no puede estar vacía.", "path");
         }
 
         UnityEngine.Object existingAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
         if (existingAsset != null && !AssetDatabase.DeleteAsset(path))
         {
-            throw new InvalidOperationException($"No se pudo reemplazar el prefab: {path}");
+            throw new InvalidOperationException("No se pudo reemplazar el prefab: " + path);
         }
 
         GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(gameObject, path);
         if (savedPrefab == null)
         {
-            throw new InvalidOperationException($"No se pudo guardar el prefab: {path}");
+            throw new InvalidOperationException("No se pudo guardar el prefab: " + path);
         }
 
-        Debug.Log($"[GeneratePrefabs] Guardado {path}");
+        Debug.Log("[GeneratePrefabs] Guardado " + path);
     }
 
     private static GameObject CreateTemporaryPrimitive(
@@ -288,7 +271,7 @@ public class GeneratePrefabs
         GameObject gameObject = GameObject.CreatePrimitive(primitiveType);
         if (gameObject == null)
         {
-            throw new InvalidOperationException($"No se pudo crear el objeto temporal: {name}");
+            throw new InvalidOperationException("No se pudo crear el objeto temporal: " + name);
         }
 
         gameObject.name = name;
@@ -301,20 +284,20 @@ public class GeneratePrefabs
         GameObject gameObject = CreateTemporaryPrimitive(
             temporaryObjects,
             PrimitiveType.Sphere,
-            EnergyPickupPrefabName);
+            PrefabAssetConventions.EnergyPickupPrefabName);
 
         SphereCollider collider = GetRequiredComponent<SphereCollider>(gameObject);
         ConfigureTriggerCollider(collider, PickupColliderRadiusMeters);
         gameObject.transform.localScale = Vector3.one * EnergyPickupScale;
         ApplyMaterial(
             GetRequiredComponent<Renderer>(gameObject),
-            Color.cyan,
-            NoEmissionIntensity,
+            PrefabAssetConventions.EnergyPickupColor,
+            PrefabAssetConventions.NoEmissionIntensity,
             false);
         ConfigureKinematicPhysics(gameObject);
         gameObject.AddComponent<EnergyPickup>();
         PooledObject pooledObject = gameObject.AddComponent<PooledObject>();
-        pooledObject.poolKey = EnergyPickupPoolKey;
+        pooledObject.poolKey = PrefabAssetConventions.EnergyPickupPoolKey;
         return gameObject;
     }
 
@@ -323,15 +306,15 @@ public class GeneratePrefabs
         GameObject gameObject = CreateTemporaryPrimitive(
             temporaryObjects,
             PrimitiveType.Sphere,
-            ProjectilePrefabName);
+            PrefabAssetConventions.ProjectilePrefabName);
 
         gameObject.transform.localScale = Vector3.one * ProjectileScale;
         SphereCollider collider = GetRequiredComponent<SphereCollider>(gameObject);
         ConfigureTriggerCollider(collider, ProjectileColliderRadiusMeters);
         Material material = ApplyMaterial(
             GetRequiredComponent<Renderer>(gameObject),
-            ProjectileColor,
-            ProjectileEmissionIntensity,
+            PrefabAssetConventions.ProjectileColor,
+            PrefabAssetConventions.ProjectileEmissionIntensity,
             true);
         Rigidbody rigidbody = ConfigureProjectilePhysics(gameObject);
         rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
@@ -340,19 +323,23 @@ public class GeneratePrefabs
         trail.startWidth = ProjectileTrailStartWidthMeters;
         trail.endWidth = ProjectileTrailEndWidthMeters;
         trail.sharedMaterial = material;
-        trail.startColor = ProjectileColor;
+        trail.startColor = PrefabAssetConventions.ProjectileColor;
         trail.endColor = new Color(
-            ProjectileColor.r,
-            ProjectileColor.g,
-            ProjectileColor.b,
+            PrefabAssetConventions.ProjectileColor.r,
+            PrefabAssetConventions.ProjectileColor.g,
+            PrefabAssetConventions.ProjectileColor.b,
             ProjectileTrailAlpha);
         Light light = gameObject.AddComponent<Light>();
-        ConfigureLight(light, ProjectileColor, ProjectileLightRangeMeters, ProjectileLightIntensity);
+        ConfigureLight(
+            light,
+            PrefabAssetConventions.ProjectileColor,
+            ProjectileLightRangeMeters,
+            ProjectileLightIntensity);
         Projectile projectile = gameObject.AddComponent<Projectile>();
         projectile.daño = ProjectileDamage;
         projectile.tiempoVida = ProjectileLifetimeSeconds;
         PooledObject pooledObject = gameObject.AddComponent<PooledObject>();
-        pooledObject.poolKey = ProjectilePoolKey;
+        pooledObject.poolKey = PrefabAssetConventions.ProjectilePoolKey;
         return gameObject;
     }
 
@@ -367,11 +354,11 @@ public class GeneratePrefabs
     {
         if (energyPrefab == null)
         {
-            throw new ArgumentNullException(nameof(energyPrefab));
+            throw new ArgumentNullException("energyPrefab");
         }
         if (configureEnemy == null)
         {
-            throw new ArgumentNullException(nameof(configureEnemy));
+            throw new ArgumentNullException("configureEnemy");
         }
 
         GameObject gameObject = CreateTemporaryPrimitive(
@@ -382,7 +369,7 @@ public class GeneratePrefabs
         ApplyMaterial(
             GetRequiredComponent<Renderer>(gameObject),
             color,
-            NoEmissionIntensity,
+            PrefabAssetConventions.NoEmissionIntensity,
             false);
         ConfigureCollider(GetRequiredComponent<BoxCollider>(gameObject), false);
         TEnemy enemyComponent = gameObject.AddComponent<TEnemy>();
@@ -436,25 +423,29 @@ public class GeneratePrefabs
     {
         if (projectilePrefab == null)
         {
-            throw new ArgumentNullException(nameof(projectilePrefab));
+            throw new ArgumentNullException("projectilePrefab");
         }
 
         GameObject gameObject = CreateTemporaryPrimitive(
             temporaryObjects,
             PrimitiveType.Cube,
-            TurretPrefabName);
+            PrefabAssetConventions.TurretPrefabName);
         gameObject.transform.localScale = TurretScale;
         ApplyMaterial(
             GetRequiredComponent<Renderer>(gameObject),
-            TurretColor,
-            TurretEmissionIntensity,
+            PrefabAssetConventions.TurretColor,
+            PrefabAssetConventions.TurretEmissionIntensity,
             true);
         BoxCollider collider = GetRequiredComponent<BoxCollider>(gameObject);
         ConfigureCollider(collider, false);
         collider.center = Vector3.zero;
         collider.size = Vector3.one;
         Light light = gameObject.AddComponent<Light>();
-        ConfigureLight(light, TurretColor, TurretLightRangeMeters, TurretLightIntensity);
+        ConfigureLight(
+            light,
+            PrefabAssetConventions.TurretColor,
+            TurretLightRangeMeters,
+            TurretLightIntensity);
         Torreta turret = gameObject.AddComponent<Torreta>();
         turret.rango = TurretRangeMeters;
         turret.cadencia = TurretFireIntervalSeconds;
@@ -465,7 +456,7 @@ public class GeneratePrefabs
         turret.municionMaxima = TurretMaximumAmmo;
         turret.municionActual = TurretMaximumAmmo;
         turret.tiempoRecarga = TurretReloadSeconds;
-        GameObject muzzle = new GameObject(TurretMuzzleName);
+        GameObject muzzle = new GameObject(PrefabAssetConventions.TurretMuzzleName);
         muzzle.transform.SetParent(gameObject.transform);
         muzzle.transform.localPosition = Vector3.forward * ProjectileSpawnForwardMeters
             + Vector3.up * ProjectileSpawnUpMeters;
@@ -482,56 +473,12 @@ public class GeneratePrefabs
         float emissionIntensity,
         bool enableEmission)
     {
-        if (renderer == null)
-        {
-            throw new ArgumentNullException(nameof(renderer));
-        }
-
-        Shader shader = FindCompatibleShader();
-        Material material = new Material(shader);
-        bool colorConfigured = false;
-        if (material.HasProperty(BaseColorPropertyName))
-        {
-            material.SetColor(BaseColorPropertyName, color);
-            colorConfigured = true;
-        }
-        if (material.HasProperty(ColorPropertyName))
-        {
-            material.SetColor(ColorPropertyName, color);
-            colorConfigured = true;
-        }
-        if (!colorConfigured)
-        {
-            UnityEngine.Object.DestroyImmediate(material);
-            throw new InvalidOperationException("El shader no expone una propiedad de color compatible.");
-        }
-        if (enableEmission && material.HasProperty(EmissionColorPropertyName))
-        {
-            material.SetColor(EmissionColorPropertyName, color * emissionIntensity);
-            material.EnableKeyword(EmissionKeyword);
-        }
-
-        renderer.sharedMaterial = material;
+        Material material = PrefabMaterialUtility.CreateConfiguredMaterial(
+            color,
+            emissionIntensity,
+            enableEmission);
+        PrefabMaterialUtility.AssignSharedMaterial(renderer, material, "prefab temporal");
         return material;
-    }
-
-    private static Shader FindCompatibleShader()
-    {
-        Shader shader = Shader.Find(LitShaderName);
-        if (shader == null)
-        {
-            shader = Shader.Find(StandardShaderName);
-        }
-        if (shader == null)
-        {
-            shader = Shader.Find(SpriteShaderName);
-        }
-        if (shader == null)
-        {
-            throw new InvalidOperationException("No se encontró un shader compatible para los prefabs.");
-        }
-
-        return shader;
     }
 
     private static void ConfigureCollider(Collider collider, bool isTrigger)
@@ -577,7 +524,7 @@ public class GeneratePrefabs
     {
         if (light == null)
         {
-            throw new ArgumentNullException(nameof(light));
+            throw new ArgumentNullException("light");
         }
 
         light.type = LightType.Point;
@@ -589,12 +536,15 @@ public class GeneratePrefabs
     private static void RepairNestReferences()
     {
         GameObject runnerAsset = LoadPrefabAsset(
-            GetPrefabPath(ResourcesPrefabFolder, RunnerPrefabName));
+            PrefabAssetConventions.GetResourcePrefabPath(
+                PrefabAssetConventions.RunnerPrefabName));
         RepairNestReference(
-            GetPrefabPath(ResourcesPrefabFolder, NestPrefabName),
+            PrefabAssetConventions.GetResourcePrefabPath(
+                PrefabAssetConventions.NestPrefabName),
             runnerAsset);
         RepairNestReference(
-            GetPrefabPath(TestsPrefabFolder, NestPrefabName),
+            PrefabAssetConventions.GetTestsPrefabPath(
+                PrefabAssetConventions.NestPrefabName),
             runnerAsset);
     }
 
@@ -606,14 +556,14 @@ public class GeneratePrefabs
             nestRoot = PrefabUtility.LoadPrefabContents(nestPath);
             if (nestRoot == null)
             {
-                throw new InvalidOperationException($"No se pudo cargar el prefab: {nestPath}");
+                throw new InvalidOperationException("No se pudo cargar el prefab: " + nestPath);
             }
 
             Nest nest = GetRequiredComponent<Nest>(nestRoot);
             if (runnerAsset == null)
             {
                 throw new InvalidOperationException(
-                    $"No se encontró el prefab de corredor para: {nestPath}");
+                    "No se encontró el prefab de corredor para: " + nestPath);
             }
 
             nest.prefabCorredor = runnerAsset;
@@ -621,7 +571,7 @@ public class GeneratePrefabs
             if (savedPrefab == null)
             {
                 throw new InvalidOperationException(
-                    $"No se pudo guardar el prefab reparado: {nestPath}");
+                    "No se pudo guardar el prefab reparado: " + nestPath);
             }
         }
         finally
@@ -638,14 +588,14 @@ public class GeneratePrefabs
     {
         if (gameObject == null)
         {
-            throw new ArgumentNullException(nameof(gameObject));
+            throw new ArgumentNullException("gameObject");
         }
 
         TComponent component = gameObject.GetComponent<TComponent>();
         if (component == null)
         {
             throw new InvalidOperationException(
-                $"El objeto {gameObject.name} no tiene {typeof(TComponent).Name}.");
+                "El objeto " + gameObject.name + " no tiene " + typeof(TComponent).Name + ".");
         }
 
         return component;
@@ -681,10 +631,7 @@ public class GeneratePrefabs
 
         foreach (Material material in materials)
         {
-            if (material != null && !AssetDatabase.Contains(material))
-            {
-                UnityEngine.Object.DestroyImmediate(material);
-            }
+            PrefabMaterialUtility.DestroyTemporaryMaterial(material);
         }
     }
 }
