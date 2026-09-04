@@ -14,6 +14,7 @@ public class AudioAdapter : MonoBehaviour
     {
         Fire,
         Hit,
+        Damage,
         Death,
         Explosion,
         Wave,
@@ -39,6 +40,8 @@ public class AudioAdapter : MonoBehaviour
     private const float FireAmplitude = 0.6f;
     private const float HitDurationSeconds = 0.07f;
     private const float HitAmplitude = 0.7f;
+    private const float DamageDurationSeconds = 0.11f;
+    private const float DamageAmplitude = 0.55f;
     private const float DeathStartFrequencyHz = 320f;
     private const float DeathEndFrequencyHz = 70f;
     private const float DeathDurationSeconds = 0.32f;
@@ -71,6 +74,7 @@ public class AudioAdapter : MonoBehaviour
 
     private AudioSource fuente;
     private GameManager managerSuscrito;
+    private Pilar subscribedPilar;
     private readonly HashSet<WeaponSystem> armasSuscritas = new HashSet<WeaponSystem>();
     private readonly HashSet<EnergySystem> energiasSuscritas = new HashSet<EnergySystem>();
     private readonly Dictionary<Sfx, AudioClip> clips = new Dictionary<Sfx, AudioClip>();
@@ -114,11 +118,19 @@ public class AudioAdapter : MonoBehaviour
         CombatFeedback.OnCombatHit += ManejarImpacto;
         GameManager manager = FindFirstObjectByType<GameManager>();
         SuscribirGameManager(manager);
+        Pilar pilar = manager != null ? manager.pilar : null;
+        if (pilar == null)
+        {
+            pilar = FindFirstObjectByType<Pilar>();
+        }
+
+        SubscribePilar(pilar);
     }
 
     private void OnDestroy()
     {
         CombatFeedback.OnCombatHit -= ManejarImpacto;
+        UnsubscribePilar();
         DesuscribirGameManager();
         if (instancia == this)
         {
@@ -229,6 +241,34 @@ public class AudioAdapter : MonoBehaviour
         }
     }
 
+    private void SubscribePilar(Pilar pilar)
+    {
+        if (pilar == null || subscribedPilar == pilar)
+        {
+            return;
+        }
+
+        UnsubscribePilar();
+        subscribedPilar = pilar;
+        subscribedPilar.OnDañoRecibido += HandleDamageReceived;
+    }
+
+    private void UnsubscribePilar()
+    {
+        if (subscribedPilar == null)
+        {
+            return;
+        }
+
+        subscribedPilar.OnDañoRecibido -= HandleDamageReceived;
+        subscribedPilar = null;
+    }
+
+    private void HandleDamageReceived(float amount)
+    {
+        Reproducir(Sfx.Damage);
+    }
+
     private void ManejarImpacto(bool mato)
     {
         Reproducir(mato ? Sfx.Death : Sfx.Hit);
@@ -283,6 +323,7 @@ public class AudioAdapter : MonoBehaviour
             FireAmplitude,
             false);
         clips[Sfx.Hit] = CrearRuido(HitDurationSeconds, HitAmplitude);
+        clips[Sfx.Damage] = CrearRuido(DamageDurationSeconds, DamageAmplitude);
         clips[Sfx.Death] = CrearTono(
             DeathStartFrequencyHz,
             DeathEndFrequencyHz,
