@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Provides the Unity Editor command that creates project prefabs.
@@ -42,7 +43,11 @@ public class GeneratePrefabs
     private const float WeaverFieldRadiusMeters = 6f;
     private const float NestSpawnIntervalSeconds = 6f;
     private const int NestMaximumConcurrentRunners = 3;
-    private const float ColossusShotResistance = 0.8f;
+    private const float ColossusShotResistance = 0.55f;
+    private const float HealthBarWidth = 2.2f;
+    private const float HealthBarHeight = 0.28f;
+    private const float HealthBarCanvasScale = 0.016f;
+    private const float HealthBarHeightOffset = 0.6f;
 
     private static readonly Vector3 NestScale = new Vector3(2f, 1f, 2f);
     private static readonly Vector3 ColossusScale = new Vector3(2.5f, 3f, 2.5f);
@@ -381,7 +386,71 @@ public class GeneratePrefabs
 
         configureEnemy(enemyComponent);
         ConfigureEnemyPhysics(gameObject);
+        AddHealthBar(gameObject);
         return gameObject;
+    }
+
+    private static void AddHealthBar(GameObject enemyGO)
+    {
+        Enemy enemy = enemyGO.GetComponent<Enemy>();
+        if (enemy == null) return;
+        GameObject barGO = new GameObject("HealthBar");
+        barGO.transform.SetParent(enemyGO.transform, false);
+        barGO.transform.localPosition = Vector3.zero;
+        barGO.transform.localRotation = Quaternion.identity;
+        EnemyHealthBar healthBar = barGO.AddComponent<EnemyHealthBar>();
+
+        GameObject canvasGO = new GameObject("HealthBarCanvas");
+        canvasGO.layer = 5;
+        Transform canvasTr = canvasGO.transform;
+        canvasTr.SetParent(barGO.transform, false);
+        BoxCollider col = enemyGO.GetComponent<BoxCollider>();
+        float heightOffset = HealthBarHeightOffset;
+        if (col != null)
+            heightOffset = col.size.y * enemyGO.transform.localScale.y * 0.5f + 0.6f;
+        else
+            heightOffset = enemyGO.transform.localScale.y * 0.5f + 0.9f;
+        canvasTr.localPosition = new Vector3(0f, heightOffset, 0f);
+        canvasTr.localRotation = Quaternion.identity;
+        canvasTr.localScale = Vector3.one * HealthBarCanvasScale;
+
+        Canvas canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.sortingOrder = 100;
+        if (canvasGO.GetComponent<CanvasScaler>() == null) canvasGO.AddComponent<CanvasScaler>();
+        if (canvasGO.GetComponent<GraphicRaycaster>() == null) canvasGO.AddComponent<GraphicRaycaster>();
+        RectTransform canvasRect = canvasGO.GetComponent<RectTransform>();
+        canvasRect.sizeDelta = new Vector2(HealthBarWidth * 100f, HealthBarHeight * 100f);
+
+        GameObject bgGO = new GameObject("Background");
+        bgGO.layer = 5;
+        bgGO.transform.SetParent(canvasTr, false);
+        Image bgImg = bgGO.AddComponent<Image>();
+        bgImg.color = new Color(0.08f, 0.08f, 0.08f, 0.9f);
+        RectTransform bgRect = bgGO.GetComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.pivot = new Vector2(0.5f, 0.5f);
+        bgRect.anchoredPosition = Vector2.zero;
+        bgRect.sizeDelta = Vector2.zero;
+
+        GameObject fillGO = new GameObject("Fill");
+        fillGO.layer = 5;
+        fillGO.transform.SetParent(bgGO.transform, false);
+        Image fillImg = fillGO.AddComponent<Image>();
+        fillImg.color = new Color(0.15f, 1f, 0.15f, 1f);
+        fillImg.type = Image.Type.Filled;
+        fillImg.fillMethod = Image.FillMethod.Horizontal;
+        fillImg.fillOrigin = 0;
+        fillImg.fillAmount = 1f;
+        RectTransform fillRect = fillGO.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.pivot = new Vector2(0.5f, 0.5f);
+        fillRect.anchoredPosition = Vector2.zero;
+        fillRect.sizeDelta = Vector2.zero;
+
+        healthBar.AssignReferences(enemy, fillImg, canvasTr);
     }
 
     private static void ConfigureRunner(Runner runner)

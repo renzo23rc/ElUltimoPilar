@@ -32,6 +32,8 @@ public class TestSceneSetup : MonoBehaviour
     private const int EnergyPoolMaximumSize = 50;
     private const int ProjectilePoolInitialSize = 20;
     private const int ProjectilePoolMaximumSize = 80;
+    private const float PlayerMuzzleForwardMeters = 0.9f;
+    private const string PlayerMuzzleName = "PuntoDisparo";
 
     [Header("Configuración Rápida")]
     /// <summary>Gets or sets whether generation runs on start.</summary>
@@ -144,6 +146,18 @@ public class TestSceneSetup : MonoBehaviour
         suelo.transform.localScale = new Vector3(10f, 1f, 10f); // 100x100 unidades
         // Tag removido - no es necesario para el funcionamiento
         if (matSuelo != null) suelo.GetComponent<Renderer>().material = matSuelo;
+        else
+        {
+            Renderer rendSuelo = suelo.GetComponent<Renderer>();
+            if (rendSuelo != null)
+            {
+                // Gris por defecto cuando no hay material asignado (antes quedaba blanco)
+                Color gris = new Color(0.55f, 0.55f, 0.55f, 1f);
+                if (rendSuelo.material.HasProperty("_BaseColor")) rendSuelo.material.SetColor("_BaseColor", gris);
+                if (rendSuelo.material.HasProperty("_Color")) rendSuelo.material.SetColor("_Color", gris);
+                rendSuelo.material.color = gris;
+            }
+        }
         
         // 4. Pozo Central (inicialmente desactivado) - con PozoKill funcional - VISIBLE alrededor del Pilar
         GameObject pozo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -255,15 +269,21 @@ public class TestSceneSetup : MonoBehaviour
         playerInput.defaultControlScheme = "Keyboard&Mouse";
         playerInput.neverAutoSwitchControlSchemes = true;
 
+        var muzzleGO = new GameObject(PlayerMuzzleName);
+        muzzleGO.transform.SetParent(jugador.transform);
+        muzzleGO.transform.localPosition = new Vector3(0f, cam.transform.localPosition.y, PlayerMuzzleForwardMeters);
+        muzzleGO.transform.localRotation = Quaternion.identity;
+        muzzleGO.transform.localScale = Vector3.one;
+
         var playerController = jugador.AddComponent<PlayerController>();
         playerController.camaraJugador = camera;
-        playerController.puntoDisparo = cam.transform;
+        playerController.puntoDisparo = muzzleGO.transform;
         
         // Componentes
         jugador.AddComponent<EnergySystem>();
         var ws = jugador.AddComponent<WeaponSystem>();
         ws.camara = camera;
-        ws.puntoDisparo = cam.transform;
+        ws.puntoDisparo = muzzleGO.transform;
         
         // CharacterController se agrega automáticamente por [RequireComponent] en PlayerController
         var cc = jugador.GetComponent<CharacterController>();
