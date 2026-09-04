@@ -52,6 +52,47 @@ public class DamageRequestTests
         Assert.That(FloatBits(receiver.LastRequest.Amount), Is.EqualTo(FloatBits(amount)));
     }
 
+    [Test]
+    public void NonLethalDamageRequestMapsToHitFeedback()
+    {
+        const float targetHealthBeforeDamage = 30f;
+        const float damageAmount = 5f;
+        var request = new DamageRequest(damageAmount);
+
+        bool isLethal = CombatFeedback.IsLethalDamage(request, targetHealthBeforeDamage);
+
+        Assert.That(isLethal, Is.False);
+    }
+
+    [Test]
+    public void DamageRequestAtHealthBoundaryMapsToKillFeedback()
+    {
+        const float targetHealthBeforeDamage = 30f;
+        const float damageAmount = 30f;
+        var request = new DamageRequest(damageAmount);
+
+        bool isLethal = CombatFeedback.IsLethalDamage(request, targetHealthBeforeDamage);
+
+        Assert.That(isLethal, Is.True);
+    }
+
+    [Test]
+    public void OverkillDamageRequestMapsToKillFeedback()
+    {
+        const float targetHealthBeforeDamage = 30f;
+        const float damageAmount = 35f;
+        var request = new DamageRequest(damageAmount);
+
+        bool isLethal = CombatFeedback.IsLethalDamage(request, targetHealthBeforeDamage);
+
+        Assert.That(isLethal, Is.True);
+    }
+
+    // PlayMode test skeletons belong outside this EditMode suite:
+    // TODO [UnityTest]: verify hitstop timing is applied and released after a lethal hit.
+    // TODO [UnityTest]: verify registered player cameras receive and recover shake offsets.
+    // TODO [UnityTest]: verify the damage flash restores the original material color.
+
     private static int FloatBits(float value)
     {
         return BitConverter.SingleToInt32Bits(value);
