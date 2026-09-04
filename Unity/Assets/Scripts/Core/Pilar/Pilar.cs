@@ -17,6 +17,7 @@ public class Pilar : MonoBehaviour
     private const float MaximumHealth = 100f;
     private const int InitialPhase = 1;
     private const int EmergencyPhase = 4;
+    // Balance de las torretas de emergencia (próximo paso: mover a un ScriptableObject TurretConfig).
     private const float TurretSpawnHeightMeters = 1.1f;
     private const float TurretRangeMeters = 22f;
     private const float TurretFireRatePerSecond = 0.9f;
@@ -25,6 +26,7 @@ public class Pilar : MonoBehaviour
     private const int TurretAmmo = 15;
     private const float TurretReloadSeconds = 10f;
     private const float TurretProjectileSpeedMetersPerSecond = 28f;
+    // Medidas solo para dibujar los gizmos del editor; no afectan al gameplay.
     private const float TurretGizmoRadiusMeters = 25f;
     private const float TurretGizmoWellRadiusMeters = 5f;
     private const float TurretGizmoHeightMeters = 1.1f;
@@ -51,26 +53,38 @@ public class Pilar : MonoBehaviour
     public Color colorFase4 = Color.red;
 
     [Header("Torretas (Fase 4)")]
+    // Flag para spawnear una sola vez al entrar en fase 4.
     public bool torretasActivas = false;
     public Transform[] puntosTorretas;
     public GameObject prefabTorreta;
 
+    // Eventos: la UI y el audio escuchan vida y daño; la Arena escucha los cambios de fase.
     public event Action<float> OnVidaCambiada;
     public event Action<int> OnFaseCambiada;
     public event Action<float> OnDañoRecibido;
 
     private Renderer rend;
-    private int faseAnterior = InitialPhase;
-    private PilarTurretSpawner turretSpawner;
+    // El constructor del spawner es puro (solo guarda valores), por eso se crea
+    // acá: existe desde la construcción, incluso si RestaurarVida() corre antes del Start().
+    private PilarTurretSpawner turretSpawner = new PilarTurretSpawner(
+        TurretSpawnHeightMeters,
+        TurretRangeMeters,
+        TurretFireRatePerSecond,
+        TurretDamage,
+        TurretHealth,
+        TurretAmmo,
+        TurretReloadSeconds,
+        TurretProjectileSpeedMetersPerSecond);
     private PilarPhaseCoordinator phaseCoordinator;
     private PilarVisualPresenter visualPresenter;
     private float[] phaseThresholds;
     private Color[] phaseColors;
 
+    // Prepara renderer y ayudantes. Si hay GameManager, él restaura la vida en su
+    // propio reset, por eso acá se evita la doble restauración.
     private void Start()
     {
         CacheRenderer();
-        EnsureTurretSpawner();
         EnsurePhaseCoordinator();
         EnsureVisualPresenter();
 
@@ -78,10 +92,9 @@ public class Pilar : MonoBehaviour
         {
             return;
         }
-
-        RestaurarVida();
     }
 
+    // Por frame: aplica los pasos de fase pendientes según la vida y suaviza el color.
     private void Update()
     {
         IReadOnlyList<int> steps = EnsurePhaseCoordinator().StepToward(vidaActual);
@@ -93,11 +106,11 @@ public class Pilar : MonoBehaviour
         EnsureVisualPresenter().Present(rend, faseActual, Time.deltaTime);
     }
 
+    // Aplica un paso de fase, avisa a la Arena y activa las torretas una sola vez al llegar a fase 4.
     private void ChangePhase(int newPhase)
     {
-        faseAnterior = faseActual;
+        Debug.Log($"[Pilar] Fase cambiada: {faseActual} -> {newPhase} (Vida: {vidaActual}%)");
         faseActual = newPhase;
-        Debug.Log($"[Pilar] Fase cambiada: {faseAnterior} -> {faseActual} (Vida: {vidaActual}%)");
         OnFaseCambiada?.Invoke(faseActual);
 
         if (faseActual != EmergencyPhase || torretasActivas)
@@ -108,116 +121,81 @@ public class Pilar : MonoBehaviour
         ActivateTurrets();
     }
 
+    // Unity lo llama al tocar el Inspector en el editor: empuja umbrales y colores a los ayudantes ya creados.
+    private void OnValidate()
+    {
+        if (phaseCoordinator != null && phaseThresholds != null && phaseThresholds.Length == 3)
+        {
+            phaseThresholds[0] = umbralFase2;
+            phaseThresholds[1] = umbralFase3;
+            phaseThresholds[2] = umbralFase4;
+            phaseCoordinator.UpdateThresholds(phaseThresholds);
+        }
+
+        if (visualPresenter != null && phaseColors != null && phaseColors.Length == 4)
+        {
+            phaseColors[0] = colorFase1;
+            phaseColors[1] = colorFase2;
+            phaseColors[2] = colorFase3;
+            phaseColors[3] = colorFase4;
+            visualPresenter.UpdateColors(phaseColors);
+        }
+    }
+
+    // Crea el coordinador de fases una sola vez con los umbrales del Inspector.
     private PilarPhaseCoordinator EnsurePhaseCoordinator()
     {
         if (phaseCoordinator == null)
         {
             phaseThresholds = new[] { umbralFase2, umbralFase3, umbralFase4 };
             phaseCoordinator = new PilarPhaseCoordinator(phaseThresholds, faseActual);
-            return phaseCoordinator;
         }
 
-        if (phaseThresholds[0] == umbralFase2
-            && phaseThresholds[1] == umbralFase3
-            && phaseThresholds[2] == umbralFase4)
-        {
-            return phaseCoordinator;
-        }
-
-        phaseThresholds[0] = umbralFase2;
-        phaseThresholds[1] = umbralFase3;
-        phaseThresholds[2] = umbralFase4;
-        phaseCoordinator.UpdateThresholds(phaseThresholds);
         return phaseCoordinator;
     }
 
+    // Crea el presentador visual una sola vez con los colores del Inspector.
     private PilarVisualPresenter EnsureVisualPresenter()
     {
         if (visualPresenter == null)
         {
             phaseColors = new[] { colorFase1, colorFase2, colorFase3, colorFase4 };
             visualPresenter = new PilarVisualPresenter(phaseColors);
-            return visualPresenter;
         }
 
-        if (phaseColors[0] == colorFase1
-            && phaseColors[1] == colorFase2
-            && phaseColors[2] == colorFase3
-            && phaseColors[3] == colorFase4)
-        {
-            return visualPresenter;
-        }
-
-        phaseColors[0] = colorFase1;
-        phaseColors[1] = colorFase2;
-        phaseColors[2] = colorFase3;
-        phaseColors[3] = colorFase4;
-        visualPresenter.UpdateColors(phaseColors);
         return visualPresenter;
     }
 
     /// <summary>Applies damage when the match is active.</summary>
     public void RecibirDaño(float cantidad)
     {
-        ApplyDamage(cantidad, true);
-    }
-
-    /// <summary>Applies debug damage regardless of match activity.</summary>
-    public void AplicarDañoPrueba(float cantidad)
-    {
-        ApplyDamage(cantidad, false);
-        Debug.Log($"[Pilar] Daño prueba: {cantidad}. Vida: {vidaActual}%");
-    }
-
-    private void ApplyDamage(float amount, bool requireActiveMatch)
-    {
-        if (requireActiveMatch && GameManager.Instance != null && !GameManager.Instance.juegoActivo)
+        // Fuera de partida el daño de gameplay se ignora.
+        if (GameManager.Instance != null && !GameManager.Instance.juegoActivo)
         {
             return;
         }
 
-        vidaActual = Mathf.Max(MinimumHealth, vidaActual - amount);
+        // Resta con piso en cero y avisa a la UI (vida) y al audio (daño).
+        vidaActual = Mathf.Max(MinimumHealth, vidaActual - cantidad);
         OnVidaCambiada?.Invoke(vidaActual);
-        OnDañoRecibido?.Invoke(amount);
+        OnDañoRecibido?.Invoke(cantidad);
 
-        if (vidaActual > MinimumHealth)
-        {
-            return;
-        }
-
-        if (!requireActiveMatch || GameManager.Instance == null || GameManager.Instance.juegoActivo)
+        // Sin vida: derrota.
+        if (vidaActual <= MinimumHealth)
         {
             GameManager.Instance?.Derrota();
         }
     }
 
-    /// <summary>Restores health and visual state to the initial phase.</summary>
-    public void RestaurarVida()
-    {
-        CacheRenderer();
-        EnsureTurretSpawner();
-        turretSpawner.Clear();
-        vidaActual = vidaMaxima;
-        faseActual = InitialPhase;
-        faseAnterior = InitialPhase;
-        EnsurePhaseCoordinator().ResetTo(InitialPhase);
-        torretasActivas = false;
-        OnVidaCambiada?.Invoke(vidaActual);
-
-        if (rend != null)
-        {
-            rend.material.color = colorFase1;
-        }
-    }
-
+    // Protocolo de emergencia (fase 4): marca el flag para spawnear una sola vez y delega al spawner.
     private void ActivateTurrets()
     {
         torretasActivas = true;
-        EnsureTurretSpawner();
         Debug.Log("[Pilar] ¡Protocolo de emergencia! Torretas activadas. (4 torretas, proyectil físico, busca enemigo más cercano)");
         turretSpawner.Spawn(puntosTorretas, prefabTorreta);
     }
 
+    // Guarda el Renderer una sola vez para no llamar a GetComponent en cada uso.
     private void CacheRenderer()
     {
         if (rend == null)
@@ -226,67 +204,13 @@ public class Pilar : MonoBehaviour
         }
     }
 
-    private void EnsureTurretSpawner()
-    {
-        turretSpawner ??= new PilarTurretSpawner(
-            TurretSpawnHeightMeters,
-            TurretRangeMeters,
-            TurretFireRatePerSecond,
-            TurretDamage,
-            TurretHealth,
-            TurretAmmo,
-            TurretReloadSeconds,
-            TurretProjectileSpeedMetersPerSecond);
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        if (puntosTorretas == null)
-        {
-            return;
-        }
-
-        Gizmos.color = Color.yellow;
-        foreach (Transform point in puntosTorretas)
-        {
-            if (point == null)
-            {
-                continue;
-            }
-
-            Vector3 worldPosition = new Vector3(point.position.x, TurretGizmoHeightMeters, point.position.z);
-            Gizmos.DrawWireCube(
-                worldPosition,
-                new Vector3(TurretGizmoWidthMeters, TurretGizmoHeightSizeMeters, TurretGizmoDepthMeters));
-            Gizmos.DrawLine(point.position, worldPosition);
-            Gizmos.color = new Color(1f, 0f, 0f, 0.15f);
-            Gizmos.DrawWireSphere(transform.position, TurretGizmoWellRadiusMeters);
-            Gizmos.color = Color.yellow;
-        }
-
-        if (faseActual != EmergencyPhase)
-        {
-            return;
-        }
-
-        Gizmos.color = new Color(0f, 1f, 1f, 0.2f);
-        foreach (Transform point in puntosTorretas)
-        {
-            if (point == null)
-            {
-                continue;
-            }
-
-            Gizmos.DrawWireSphere(
-                new Vector3(point.position.x, TurretGizmoHeightMeters, point.position.z),
-                TurretGizmoRadiusMeters);
-        }
-    }
 
     /// <summary>Gets the current Pilar health.</summary>
+    // Lectura para el GameManager (resultado de partida) y el Hud.
     public float VidaActual => vidaActual;
 
     /// <summary>Gets the current health as a percentage.</summary>
+    // Porcentaje 0-100 para la barra del Hud; protege contra división por cero.
     public float PorcentajeVida
     {
         get
@@ -299,7 +223,4 @@ public class Pilar : MonoBehaviour
             return (vidaActual / vidaMaxima) * PercentageScale;
         }
     }
-
-    /// <summary>Gets whether the Pilar has positive health.</summary>
-    public bool EstaVivo => vidaActual > MinimumHealth;
 }

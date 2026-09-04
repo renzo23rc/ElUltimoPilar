@@ -392,7 +392,7 @@ public class Hud : MonoBehaviour
                     Debug.Log("[Hud] R: forzando inicio de juego para test de fases");
                     gameManager.IniciarJuego();
                 }
-                pilar.AplicarDañoPrueba(10f);
+                pilar.RecibirDaño(10f);
                 Debug.Log($"[Hud] R: pilar dañado 10% -> {pilar.vidaActual}% fase {pilar.faseActual}");
             }
             else
