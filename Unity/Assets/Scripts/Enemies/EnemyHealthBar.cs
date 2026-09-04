@@ -121,16 +121,16 @@ public class EnemyHealthBar : MonoBehaviour
                 existingCanvas.sortingOrder = 100;
                 existingCanvas.gameObject.layer = 5;
                 if (existingCanvas.worldCamera == null) existingCanvas.worldCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
-                float heightOffset = BarHeightOffset;
+                float existingHeightOffset = BarHeightOffset;
                 if (enemy != null)
                 {
                     Collider col = enemy.GetComponent<Collider>();
-                    if (col != null && col.bounds.extents.y > 0.01f) heightOffset = col.bounds.extents.y + 0.6f;
-                    else heightOffset = enemy.transform.localScale.y * 0.5f + 0.7f;
-                    if (heightOffset < 1.1f) heightOffset = enemy.transform.localScale.y * 0.5f + 0.9f;
+                    if (col != null && col.bounds.extents.y > 0.01f) existingHeightOffset = col.bounds.extents.y + 0.6f;
+                    else existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.7f;
+                    if (existingHeightOffset < 1.1f) existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.9f;
                 }
-                else heightOffset = 1.6f;
-                canvasTransform.localPosition = new Vector3(0f, heightOffset, 0f);
+                else existingHeightOffset = 1.6f;
+                canvasTransform.localPosition = new Vector3(0f, existingHeightOffset, 0f);
                 Image[] imgs = existingCanvas.GetComponentsInChildren<Image>(true);
                 if (imgs.Length > 0) imgs[0].color = new Color(0.08f, 0.08f, 0.08f, BackgroundAlpha);
                 if (imgs.Length > 1)
