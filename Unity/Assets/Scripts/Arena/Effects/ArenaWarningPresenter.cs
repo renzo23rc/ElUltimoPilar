@@ -3,7 +3,8 @@ using System.Collections;
 using UnityEngine;
 using UltimoPilar.Core.Shared;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Presents arena warnings through injected HUD and audio ports.</summary>
 public sealed class ArenaWarningPresenter
@@ -373,4 +374,5 @@ public sealed class ArenaWarningPresenter
             warningRing = null;
         }
     }
+}
 }

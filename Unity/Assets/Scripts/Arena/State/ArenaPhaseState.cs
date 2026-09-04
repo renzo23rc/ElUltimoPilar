@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Tracks irreversible arena phase progression and pending transitions.</summary>
 public sealed class ArenaPhaseState
@@ -88,4 +89,5 @@ public sealed class ArenaPhaseState
     {
         return phase >= FirstPhase;
     }
+}
 }

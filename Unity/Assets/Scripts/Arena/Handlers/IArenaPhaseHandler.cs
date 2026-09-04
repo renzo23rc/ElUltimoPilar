@@ -1,7 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Defines the warning and activation operations for one arena phase.</summary>
 public interface IArenaPhaseHandler
@@ -42,4 +43,5 @@ internal static class ArenaPhaseHandlerCatalog
 
         return handlers;
     }
+}
 }

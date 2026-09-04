@@ -2,10 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UltimoPilar.Core.Shared;
 
-namespace UltimoPilar.Core.Pilar;
-
-/// <summary>Creates, configures, and cleans up Pilar emergency turrets.</summary>
-public sealed class PilarTurretSpawner
+namespace UltimoPilar.Core.Pilar
+{
+    /// <summary>Creates, configures, and cleans up Pilar emergency turrets.</summary>
+    public sealed class PilarTurretSpawner
 {
     private const float FallbackWidthMeters = 1.4f;
     private const float FallbackHeightMeters = 2.2f;
@@ -170,4 +170,5 @@ public sealed class PilarTurretSpawner
         firePoint.transform.localScale = Vector3.one;
         turretComponent.puntoDisparo = firePoint.transform;
     }
+}
 }

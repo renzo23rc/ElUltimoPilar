@@ -1,6 +1,7 @@
 using System.Collections;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Handles the altered gravity phase transition.</summary>
 public sealed class GravityPhaseHandler : IArenaPhaseHandler
@@ -43,4 +44,5 @@ public sealed class GravityPhaseHandler : IArenaPhaseHandler
 
         yield return phaseEffects.ActivateGravity();
     }
+}
 }

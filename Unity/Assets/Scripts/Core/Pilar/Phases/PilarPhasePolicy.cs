@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 
-namespace UltimoPilar.Core.Pilar;
-
-/// <summary>Calculates Pilar phases from ordered health thresholds.</summary>
-public sealed class PilarPhasePolicy
+namespace UltimoPilar.Core.Pilar
+{
+    /// <summary>Calculates Pilar phases from ordered health thresholds.</summary>
+    public sealed class PilarPhasePolicy
 {
     private const int FirstPhase = 1;
     private const int PhaseOffset = 1;
@@ -82,4 +82,5 @@ public sealed class PilarPhasePolicy
     {
         return Math.Min(Math.Max(phase, FirstPhase), maximumPhase);
     }
+}
 }

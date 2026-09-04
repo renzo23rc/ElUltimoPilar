@@ -1,9 +1,9 @@
 using UnityEngine;
 
-namespace UltimoPilar.Core.Pilar;
-
-/// <summary>Applies phase colors to a renderer without phase branching.</summary>
-public sealed class PilarVisualPresenter
+namespace UltimoPilar.Core.Pilar
+{
+    /// <summary>Applies phase colors to a renderer without phase branching.</summary>
+    public sealed class PilarVisualPresenter
 {
     private const int FirstPhase = 1;
     private const float DefaultLerpSpeedPerSecond = 2f;
@@ -45,4 +45,5 @@ public sealed class PilarVisualPresenter
             ? colors[colorIndex]
             : fallbackColor;
     }
+}
 }

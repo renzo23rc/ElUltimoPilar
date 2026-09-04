@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 
-namespace UltimoPilar.Core.Pilar;
-
-/// <summary>Coordinates phase calculation and mirrors the current Pilar phase.</summary>
-public sealed class PilarPhaseCoordinator
+namespace UltimoPilar.Core.Pilar
+{
+    /// <summary>Coordinates phase calculation and mirrors the current Pilar phase.</summary>
+    public sealed class PilarPhaseCoordinator
 {
     private float[] thresholds;
     private PilarPhasePolicy phasePolicy;
@@ -81,4 +81,5 @@ public sealed class PilarPhaseCoordinator
 
         return true;
     }
+}
 }
