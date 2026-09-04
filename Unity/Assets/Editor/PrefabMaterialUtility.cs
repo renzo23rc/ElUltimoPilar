@@ -94,7 +94,7 @@ internal static class PrefabMaterialUtility
             return;
         }
 
-        Object.DestroyImmediate(material);
+        UnityEngine.Object.DestroyImmediate(material);
     }
 
     private static void ConfigureColor(Material material, Color color)
