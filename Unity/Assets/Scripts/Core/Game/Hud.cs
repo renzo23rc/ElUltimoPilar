@@ -450,18 +450,31 @@ public class Hud : MonoBehaviour
         }
     }
     
+    public static string GetVariantDisplayName(bool variantIsActive, string semanticDisplayName)
+    {
+        if (!variantIsActive || string.IsNullOrEmpty(semanticDisplayName))
+            return string.Empty;
+
+        return semanticDisplayName;
+    }
+
     void ActualizarVariante()
     {
         if (textoVariante == null) return;
-        if (armas != null && armas.VarianteActiva)
+
+        string displayName = armas == null
+            ? string.Empty
+            : GetVariantDisplayName(armas.VarianteActiva, armas.ActiveVariantDisplayName);
+        if (string.IsNullOrEmpty(displayName))
         {
-            textoVariante.text = $"¡x{armas.multiplicadorVariante:F0} {armas.tipoVariante}! {armas.tiempoVarianteRestante:F0}s";
-            textoVariante.color = new Color(1f, 0.55f, 0.1f);
-        }
-        else
             textoVariante.text = "";
+            return;
+        }
+
+        textoVariante.text = $"¡x{armas.multiplicadorVariante:F0} {displayName}! {armas.tiempoVarianteRestante:F0}s";
+        textoVariante.color = new Color(1f, 0.55f, 0.1f);
     }
-    
+
     void ActualizarCrosshair()
     {
         if (textoCrosshair == null) return;
