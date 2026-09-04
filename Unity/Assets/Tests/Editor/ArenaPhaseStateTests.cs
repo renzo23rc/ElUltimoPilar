@@ -27,8 +27,8 @@ public class ArenaPhaseStateTests
         state.EnqueueMissing(GravityPhase, InitialPhase);
 
         Assert.That(state.CurrentPhase, Is.EqualTo(GravityPhase));
-        Assert.That(state.ActivatedPhases, Does.Contain(GravityPhase));
-        Assert.That(state.ActivatedPhases, Does.Not.Contain(InitialPhase));
+        Assert.That(state.ActivatedPhases, Has.Member(GravityPhase));
+        Assert.That(state.ActivatedPhases, Has.No.Member(InitialPhase));
         Assert.That(state.TryDequeue(out _), Is.False);
     }
 
