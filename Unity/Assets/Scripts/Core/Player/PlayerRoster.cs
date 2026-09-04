@@ -11,6 +11,8 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
     /// <summary>Maximum supported player capacity.</summary>
     public const int MaximumCapacity = 4;
 
+    private const int NotFoundIndex = -1;
+
     private readonly List<TPlayer> players;
     private readonly IReadOnlyList<TPlayer> readOnlyPlayers;
 
@@ -48,7 +50,7 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
     /// <summary>Registers a player when capacity and uniqueness permit it.</summary>
     public bool Register(TPlayer player)
     {
-        if (player == null || players.Contains(player) || Count >= Capacity)
+        if (player == null || IsRegistered(player) || Count >= Capacity)
             return false;
 
         players.Add(player);
@@ -58,7 +60,12 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
     /// <summary>Removes a registered player.</summary>
     public bool Unregister(TPlayer player)
     {
-        return player != null && players.Remove(player);
+        var playerIndex = FindRegisteredPlayerIndex(player);
+        if (playerIndex == NotFoundIndex)
+            return false;
+
+        players.RemoveAt(playerIndex);
+        return true;
     }
 
     /// <summary>Restores ammunition for every registered player.</summary>
@@ -66,6 +73,25 @@ public sealed class PlayerRoster<TPlayer> where TPlayer : class, IPlayerRosterMe
     {
         foreach (var player in players)
             player.ReplenishWaveAmmo();
+    }
+
+    private bool IsRegistered(TPlayer player)
+    {
+        return FindRegisteredPlayerIndex(player) != NotFoundIndex;
+    }
+
+    private int FindRegisteredPlayerIndex(TPlayer player)
+    {
+        if (player == null)
+            return NotFoundIndex;
+
+        for (var playerIndex = 0; playerIndex < players.Count; playerIndex++)
+        {
+            if (ReferenceEquals(players[playerIndex], player))
+                return playerIndex;
+        }
+
+        return NotFoundIndex;
     }
 
     private int CountPlayers(bool isDowned)

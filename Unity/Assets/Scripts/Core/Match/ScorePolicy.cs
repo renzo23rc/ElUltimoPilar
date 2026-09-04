@@ -15,6 +15,9 @@ public static class ScorePolicy
     /// <returns>The rounded score from zero to one hundred.</returns>
     public static int Calculate(PilarHealthSnapshot pilarHealth)
     {
+        if (!pilarHealth.IsValid)
+                throw new ArgumentException("Score calculation requires a valid Pilar health snapshot.", nameof(pilarHealth));
+
         return Calculate(pilarHealth.RemainingPercentage);
     }
 
@@ -25,7 +28,7 @@ public static class ScorePolicy
     /// <returns>The rounded score from zero to one hundred.</returns>
     public static int Calculate(float remainingPercentage)
     {
-        if (float.IsNaN(remainingPercentage) || float.IsInfinity(remainingPercentage))
+            if (float.IsNaN(remainingPercentage) || float.IsInfinity(remainingPercentage))
                 throw new ArgumentOutOfRangeException(nameof(remainingPercentage), "Percentage must be finite.");
 
         double percentage = remainingPercentage;

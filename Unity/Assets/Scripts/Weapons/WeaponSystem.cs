@@ -23,8 +23,64 @@ private const float MuzzleFlashOffsetMeters = 0.3f;
 private const float MuzzleFlashSizeMeters = 0.18f;
 private const float MuzzleFlashLifetimeSeconds = 0.06f;
 private const float MeleeForwardOffsetMeters = 1.5f;
+private const float PushForceNewtons = 500f;
+
     public enum TipoArma { Directa, Area, CuerpoACuerpo }
-    
+
+    public enum WeaponVariant
+    {
+PrecisionRifle,
+Decoy,
+Slowdown,
+PushStrike
+    }
+
+    public enum VariantEffect
+    {
+DamageMultiplier,
+Decoy,
+Slowdown,
+Push
+    }
+
+    public readonly struct VariantDefinition
+    {
+public VariantDefinition(TipoArma weaponType, VariantEffect effect, string displayName)
+{
+WeaponType = weaponType;
+Effect = effect;
+DisplayName = displayName;
+}
+
+public TipoArma WeaponType { get; }
+public VariantEffect Effect { get; }
+public string DisplayName { get; }
+    }
+
+    public static VariantDefinition GetVariantDefinition(WeaponVariant variant)
+    {
+return variant switch
+{
+WeaponVariant.PrecisionRifle => new VariantDefinition(
+TipoArma.Directa,
+VariantEffect.DamageMultiplier,
+"Rifle de precisión"),
+WeaponVariant.Decoy => new VariantDefinition(
+TipoArma.Area,
+VariantEffect.Decoy,
+"Señuelo"),
+WeaponVariant.Slowdown => new VariantDefinition(
+TipoArma.Area,
+VariantEffect.Slowdown,
+"Ralentización"),
+WeaponVariant.PushStrike => new VariantDefinition(
+TipoArma.CuerpoACuerpo,
+VariantEffect.Push,
+"Golpe de empuje"),
+_ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupported weapon variant.")
+};
+    }
+
     [System.Serializable]
     public class Arma
     {
@@ -88,8 +144,14 @@ private const float MeleeForwardOffsetMeters = 1.5f;
     public TipoArma tipoVariante = TipoArma.Directa;
     public float multiplicadorVariante = 1f;
     public float tiempoVarianteRestante = 0f;
-    public bool VarianteActiva => tiempoVarianteRestante > 0f;
-    
+        [HideInInspector] public WeaponVariant activeVariant = WeaponVariant.PrecisionRifle;
+        [HideInInspector] public VariantEffect activeVariantEffect = VariantEffect.DamageMultiplier;
+        public bool VarianteActiva => tiempoVarianteRestante > 0f;
+
+    public WeaponVariant ActiveVariant => activeVariant;
+    public VariantEffect ActiveVariantEffect => activeVariantEffect;
+    public string ActiveVariantDisplayName => GetActiveVariantDisplayName();
+
     [Header("Referencias")]
     public Transform puntoDisparo;
     public Camera camara;
@@ -100,8 +162,11 @@ private const float MeleeForwardOffsetMeters = 1.5f;
     public event Action OnSinMunicion;
     public event Action<TipoArma> OnCambioArma;
     public event Action OnVarianteExpirada;
-    
+    public event Action<Vector3> OnDecoyRequested;
+    public event Action<Enemy, float> OnSlowdownRequested;
+
     private PlayerController player;
+    private bool hasSemanticVariant;
 
     private static void ApplyDamage(IDamageable target, float amount)
     {
@@ -144,9 +209,7 @@ private const float MeleeForwardOffsetMeters = 1.5f;
             tiempoVarianteRestante -= Time.deltaTime;
             if (tiempoVarianteRestante <= 0f)
             {
-                tiempoVarianteRestante = 0f;
-                multiplicadorVariante = 1f;
-                OnVarianteExpirada?.Invoke();
+                ClearVariantState(true);
                 Debug.Log("[WeaponSystem] Variante temporal expirada");
             }
         }
@@ -304,9 +367,10 @@ private const float MeleeForwardOffsetMeters = 1.5f;
                 contador++;
             }
         }
-        
+
+        ApplyAreaVariantEffect(afectados, puntoImpacto);
         Debug.Log($"[WeaponSystem] Explosión de área: {daño} daño a {contador} enemigos");
-        
+
         // Efecto visual procedural SIEMPRE (aunque haya prefab)
         CrearExplosionArea(puntoImpacto, normal, arma.radioArea, contador > 0 ? Color.yellow : new Color(1,0.6f,0,0.8f));
         CrearTrazador(ray.origin, puntoImpacto, Color.yellow);
@@ -331,15 +395,11 @@ private const float MeleeForwardOffsetMeters = 1.5f;
             {
                 ApplyDamage(enemy, daño);
                 
-                // Empujar enemigo (física)
-                Rigidbody rb = col.GetComponent<Rigidbody>();
-                if (rb != null)
+                if (ShouldApplyPushVariant(arma))
                 {
-                    Vector3 dirEmpuje = (col.transform.position - transform.position).normalized;
-                    dirEmpuje.y = 0.5f;
-                    rb.AddForce(dirEmpuje * 500f);
+                    ApplyPush(col);
                 }
-                
+
                 contador++;
             }
         }
@@ -347,8 +407,47 @@ private const float MeleeForwardOffsetMeters = 1.5f;
         Debug.Log($"[WeaponSystem] Ataque melee: {daño} daño a {contador} enemigos");
     }
 
-    public void CambiarArma(TipoArma tipo)
-    {
+        private void ApplyAreaVariantEffect(Collider[] affected, Vector3 impactPoint)
+        {
+            if (!VarianteActiva || tipoVariante != TipoArma.Area)
+                return;
+
+            switch (activeVariantEffect)
+            {
+                case VariantEffect.Decoy:
+                    OnDecoyRequested?.Invoke(impactPoint);
+                    break;
+                case VariantEffect.Slowdown:
+                    foreach (var collider in affected)
+                    {
+                        var enemy = collider.GetComponent<Enemy>();
+                        if (enemy != null)
+                            OnSlowdownRequested?.Invoke(enemy, tiempoVarianteRestante);
+                    }
+                    break;
+            }
+        }
+
+        private bool ShouldApplyPushVariant(Arma arma)
+        {
+            return VarianteActiva
+                && arma.tipo == tipoVariante
+                && activeVariantEffect == VariantEffect.Push;
+        }
+
+        private void ApplyPush(Collider collider)
+        {
+            Rigidbody rigidbody = collider.GetComponent<Rigidbody>();
+            if (rigidbody == null)
+                return;
+
+            Vector3 pushDirection = (collider.transform.position - transform.position).normalized;
+            pushDirection.y = 0.5f;
+            rigidbody.AddForce(pushDirection * PushForceNewtons);
+        }
+
+        public void CambiarArma(TipoArma tipo)
+        {
         if (armaEquipada == tipo) return;
         armaEquipada = tipo;
         OnCambioArma?.Invoke(tipo);
@@ -388,22 +487,64 @@ private const float MeleeForwardOffsetMeters = 1.5f;
         Debug.Log("[WeaponSystem] Munición repuesta");
     }
 
-    public void ApplyVariant(TipoArma tipo, float multiplicador, float duracion)
+     public void ApplyVariant(TipoArma tipo, float multiplicador, float duracion)
+     {
+            activeVariant = WeaponVariant.PrecisionRifle;
+        hasSemanticVariant = false;
+        activeVariantEffect = VariantEffect.DamageMultiplier;
+        SetVariantState(tipo, multiplicador, duracion);
+    }
+
+    public void ApplyVariant(WeaponVariant variant, float multiplicador, float duracion)
+    {
+        VariantDefinition definition = GetVariantDefinition(variant);
+        activeVariant = variant;
+        activeVariantEffect = definition.Effect;
+        hasSemanticVariant = true;
+        SetVariantState(definition.WeaponType, multiplicador, duracion);
+    }
+
+    private void SetVariantState(TipoArma tipo, float multiplicador, float duracion)
     {
         tipoVariante = tipo;
         multiplicadorVariante = Mathf.Max(1f, multiplicador);
         tiempoVarianteRestante = Mathf.Max(0f, duracion);
-        Debug.Log($"[WeaponSystem] ¡Variante temporal! x{multiplicadorVariante} {tipoVariante} por {tiempoVarianteRestante:F0}s");
+        Debug.Log($"[WeaponSystem] ¡Variante temporal! x{multiplicadorVariante} {ActiveVariantDisplayName} por {tiempoVarianteRestante:F0}s");
     }
+
+    private void ClearVariantState(bool notify)
+    {
+        tiempoVarianteRestante = 0f;
+        multiplicadorVariante = 1f;
+        tipoVariante = TipoArma.Directa;
+        activeVariant = WeaponVariant.PrecisionRifle;
+        activeVariantEffect = VariantEffect.DamageMultiplier;
+        hasSemanticVariant = false;
     
+        if (notify)
+            OnVarianteExpirada?.Invoke();
+    }
+
+    private string GetActiveVariantDisplayName()
+    {
+        if (!VarianteActiva)
+            return string.Empty;
+            if (!hasSemanticVariant)
+                return tipoVariante.ToString();
+            return GetVariantDefinition(activeVariant).DisplayName;
+
+    }
+        
     public float DañoEfectivo(Arma arma)
     {
         if (arma == null) return 0f;
-        if (VarianteActiva && arma.tipo == tipoVariante)
+        if (VarianteActiva
+            && arma.tipo == tipoVariante
+            && activeVariantEffect == VariantEffect.DamageMultiplier)
             return arma.daño * multiplicadorVariante;
         return arma.daño;
     }
-    
+
     public void ResetState()
     {
         if (player == null) player = GetComponent<PlayerController>();
@@ -415,9 +556,7 @@ private const float MeleeForwardOffsetMeters = 1.5f;
         if (armaArea != null) armaArea.municionActual = armaArea.municionMaxima;
         if (armaMelee != null) armaMelee.municionActual = armaMelee.municionMaxima;
         cooldownDisparo = 0f;
-        tiempoVarianteRestante = 0f;
-        multiplicadorVariante = 1f;
-        tipoVariante = TipoArma.Directa;
+        ClearVariantState(false);
         SincronizarMunicionLegacy();
 
         if (weaponChanged) OnCambioArma?.Invoke(armaEquipada);

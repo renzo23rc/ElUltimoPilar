@@ -8,6 +8,7 @@ using UnityEngine;
 public class CombatFeedback : MonoBehaviour
 {
     private const float MinimumShakeIntensity = 0.001f;
+    private const float ZeroHealthThreshold = 0f;
     private const float RandomOffsetMinimum = -1f;
     private const float RandomOffsetMaximum = 1f;
     private const float ShakeDecayScale = 0.12f;
@@ -73,6 +74,17 @@ public class CombatFeedback : MonoBehaviour
         {
             instancia = null;
         }
+    }
+
+    /// <summary>
+    /// Determines whether a damage request reduces a target to zero or less health.
+    /// </summary>
+    /// <param name="request">The damage request to evaluate.</param>
+    /// <param name="targetHealthBeforeDamage">The target health before applying the request.</param>
+    /// <returns><see langword="true"/> when the resulting health is at or below zero.</returns>
+    public static bool IsLethalDamage(DamageRequest request, float targetHealthBeforeDamage)
+    {
+        return targetHealthBeforeDamage - request.Amount <= ZeroHealthThreshold;
     }
 
     /// <summary>

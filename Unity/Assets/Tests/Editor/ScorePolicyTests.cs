@@ -26,6 +26,13 @@ public class ScorePolicyTests
         Assert.That(ScorePolicy.Calculate(remainingPercentage), Is.EqualTo(expectedScore));
     }
 
+    [Test]
+    public void CalculateRejectsInvalidHealthSnapshot()
+    {
+        Assert.That(() => ScorePolicy.Calculate(default(PilarHealthSnapshot)),
+                Throws.TypeOf<System.ArgumentException>());
+    }
+
     [TestCase(float.NaN)]
     [TestCase(float.PositiveInfinity)]
     [TestCase(float.NegativeInfinity)]

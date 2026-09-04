@@ -145,7 +145,7 @@ protected virtual void AtacarTorreta(Torreta torreta)
         if (timerAtaque > 0f) return;
         torreta.RecibirDaño(dañoAlPilar);
         timerAtaque = cooldownAtaque;
-        Debug.Log($"[{GetType().Name}] Atacó a Torreta {torreta.name} por {dañoAlPilar} daño");
+
     }
 
     protected virtual void MoverHacia(Vector3 direccion)
@@ -174,7 +174,6 @@ protected virtual void AtacarPilar()
         pilarObjetivo?.RecibirDaño(dañoAlPilar);
         timerAtaque = cooldownAtaque;
         
-        Debug.Log($"[{GetType().Name}] Atacó al Pilar por {dañoAlPilar} de daño");
     }
 
     void IDamageable.ReceiveDamage(DamageRequest request)
@@ -186,14 +185,17 @@ protected virtual void AtacarPilar()
     {
         if (estaMuerto) return;
         
-        vidaActual -= cantidad;
-        NotificarDañoRecibido(cantidad);
-        CombatFeedback.NotifyHit(vidaActual <= 0);
+        DamageRequest request = new DamageRequest(cantidad);
+        float healthBeforeDamage = vidaActual;
+        vidaActual -= request.Amount;
+        bool isLethal = CombatFeedback.IsLethalDamage(request, healthBeforeDamage);
+        NotificarDañoRecibido(request.Amount);
+        CombatFeedback.NotifyHit(isLethal);
         
         // Feedback visual de daño
         StartCoroutine(FlashDaño());
         
-        if (vidaActual <= 0)
+        if (isLethal)
         {
             Morir();
         }
@@ -351,7 +353,7 @@ catch
         factorRalentActual = factor;
         velocidadMovimiento = velocidadOriginal * factor;
         estaRalentizado = true;
-        Debug.Log($"[{GetType().Name}] Ralentizado x{factor} por {duracion}s (vel {velocidadOriginal:F1}->{velocidadMovimiento:F1})");
+
         coRalentizacion = StartCoroutine(RutinaRalentizacion(factor, duracion));
     }
 
@@ -364,7 +366,7 @@ catch
         estaRalentizado = false;
         factorRalentActual = 1f;
         velocidadOriginal = -1f;
-        Debug.Log($"[{GetType().Name}] Ralentización removida, vel restaurada a {velocidadMovimiento:F1}");
+
     }
 
     System.Collections.IEnumerator RutinaRalentizacion(float factor, float duracion)
@@ -379,7 +381,7 @@ catch
             factorRalentActual = DefaultSlowFactor;
             velocidadOriginal = NoOriginalSpeed;
             coRalentizacion = null;
-            Debug.Log($"[{GetType().Name}] Ralentización expirada");
+
         }
     }
 

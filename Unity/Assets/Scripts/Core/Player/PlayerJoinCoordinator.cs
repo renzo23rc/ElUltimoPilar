@@ -22,7 +22,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     [SerializeField] private PlayerController playerTemplate;
 
     [Header("Configuration")]
-    [SerializeField] private int maxPlayers = 4;
+    [SerializeField] private int maxPlayers = MaximumPlayerCapacity;
 
     private InputAction joinAction;
     private GameManager subscribedGameManager;
@@ -69,6 +69,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
             subscribedGameManager.OnPlayerUnregistered -= HandlePlayerUnregistered;
 
         subscribedGameManager = null;
+        trackedAssignments.Clear();
     }
 
     private void ResolveGameManager()
@@ -108,6 +109,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
             subscribedGameManager.OnPlayerUnregistered -= HandlePlayerUnregistered;
 
         subscribedGameManager = gameManager;
+        trackedAssignments.Clear();
         if (subscribedGameManager != null)
             subscribedGameManager.OnPlayerUnregistered += HandlePlayerUnregistered;
     }
@@ -127,15 +129,16 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     public bool TryJoin(Gamepad gamepad)
     {
         ResolveGameManager();
-        if (gamepad == null || gameManager == null || playerTemplate == null)
+        if (gamepad == null || gameManager == null || playerTemplate == null || inputActionAsset == null)
             return false;
         if (playerTemplate.gameObject == null || playerTemplate.gameObject.activeSelf)
             return false;
 
-            int capacity = Mathf.Clamp(
-                Mathf.Min(maxPlayers, gameManager.maxPlayers),
-                MinimumPlayerCapacity,
-                MaximumPlayerCapacity);
+        var configuredCapacity = Mathf.Min(maxPlayers, gameManager.maxPlayers);
+        if (configuredCapacity < MinimumPlayerCapacity)
+            return false;
+
+        var capacity = Mathf.Min(configuredCapacity, MaximumPlayerCapacity);
         if (gameManager.PlayerCount >= capacity || IsGamepadAssigned(gamepad))
             return false;
 
@@ -197,8 +200,14 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
         ResolveGameManager();
         if (gamepad == null)
             return false;
-        if (trackedAssignments.ContainsKey(gamepad))
-            return true;
+
+        if (trackedAssignments.TryGetValue(gamepad, out var trackedPlayer))
+        {
+            if (IsTrackedAssignmentValid(trackedPlayer, gamepad))
+                return true;
+
+            trackedAssignments.Remove(gamepad);
+        }
 
         if (gameManager == null)
             return false;
@@ -212,7 +221,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
             if (playerInput == null)
                 continue;
 
-            for (int deviceIndex = 0; deviceIndex < playerInput.devices.Count; deviceIndex++)
+            for (var deviceIndex = 0; deviceIndex < playerInput.devices.Count; deviceIndex++)
             {
                 if (playerInput.devices[deviceIndex] == gamepad)
                     return true;
@@ -237,6 +246,29 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
         }
     }
 
+    private bool IsTrackedAssignmentValid(PlayerController player, Gamepad gamepad)
+    {
+        if (!IsRegistered(player))
+            return false;
+
+        var playerInput = player.GetComponent<PlayerInput>();
+        return HasDevice(playerInput, gamepad);
+    }
+
+    private bool HasDevice(PlayerInput playerInput, Gamepad gamepad)
+    {
+        if (playerInput == null || gamepad == null)
+            return false;
+
+        for (var deviceIndex = 0; deviceIndex < playerInput.devices.Count; deviceIndex++)
+        {
+            if (playerInput.devices[deviceIndex] == gamepad)
+                return true;
+        }
+
+        return false;
+    }
+
     private bool HasExclusivePairing(PlayerInput playerInput, Gamepad gamepad)
     {
         if (playerInput == null || playerInput.devices.Count != 1 || playerInput.devices[0] != gamepad)
@@ -254,11 +286,8 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
             if (otherInput == null)
                 continue;
 
-            for (int deviceIndex = 0; deviceIndex < otherInput.devices.Count; deviceIndex++)
-            {
-                if (otherInput.devices[deviceIndex] == gamepad)
-                    return false;
-            }
+            if (HasDevice(otherInput, gamepad))
+                return false;
         }
 
         return true;
@@ -297,13 +326,10 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
 
     private void RemoveTrackedAssignmentsForPlayer(PlayerController player)
     {
-        if (player == null)
-            return;
-
         var assignmentsToRemove = new List<Gamepad>();
         foreach (var assignment in trackedAssignments)
         {
-            if (assignment.Value == player)
+            if (assignment.Value == null || assignment.Value == player)
                 assignmentsToRemove.Add(assignment.Key);
         }
 

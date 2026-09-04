@@ -11,6 +11,7 @@ public class WeaponVariantPickup : MonoBehaviour
 private static readonly float FullCircleRadians = Mathf.PI * 2f;
     [Header("Variante")]
     public WeaponSystem.TipoArma tipoPotenciado = WeaponSystem.TipoArma.Directa;
+    public WeaponSystem.WeaponVariant variant = WeaponSystem.WeaponVariant.PrecisionRifle;
     public float multiplicadorDaño = 2f;
     public float duracionSegundos = 12f;
 
@@ -23,6 +24,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
 
     private Vector3 posicionInicial;
     private float tiempo;
+    private bool collected;
 
     void Start()
     {
@@ -40,6 +42,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
     void OnEnable()
     {
         posicionInicial = transform.position;
+        collected = false;
     }
 
     void Update()
@@ -52,17 +55,33 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
 
     void OnTriggerEnter(Collider other)
     {
+        if (collected)
+return;
+
         var player = other.GetComponent<PlayerController>();
         if (player == null) player = other.GetComponentInParent<PlayerController>();
         if (player == null) return;
         var armas = player.GetComponent<WeaponSystem>();
         if (armas == null) return;
 
-        armas.ApplyVariant(tipoPotenciado, multiplicadorDaño, duracionSegundos);
+        collected = true;
+        ApplyVariantTo(armas);
         OnRecogida?.Invoke(armas);
         AudioAdapter.Play(AudioAdapter.Sfx.Variant);
-        Debug.Log($"[Variante] {player.name} recogió x{multiplicadorDaño} {tipoPotenciado} por {duracionSegundos}s");
+        Debug.Log($"[Variante] {player.name} recogió x{multiplicadorDaño} {armas.ActiveVariantDisplayName} por {duracionSegundos}s");
         Destroy(gameObject);
+    }
+
+    private void ApplyVariantTo(WeaponSystem armas)
+    {
+            if (variant == WeaponSystem.WeaponVariant.PrecisionRifle
+                && tipoPotenciado != WeaponSystem.TipoArma.Directa)
+        {
+armas.ApplyVariant(tipoPotenciado, multiplicadorDaño, duracionSegundos);
+return;
+        }
+
+        armas.ApplyVariant(variant, multiplicadorDaño, duracionSegundos);
     }
 
     void OnTriggerStay(Collider other)
