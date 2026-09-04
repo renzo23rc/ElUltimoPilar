@@ -62,8 +62,28 @@ public class PlayerCommandTests
     {
         var empty = new PlayerCommand(0f, 0f, 0f, 0f);
         var selected = new PlayerCommand(0f, 0f, 0f, 0f, weaponSlot: 3);
-
+    
         Assert.That(empty.WeaponSlot, Is.Null);
         Assert.That(selected.WeaponSlot, Is.EqualTo(3));
     }
+
+    [TestCase(WeaponSystem.WeaponVariant.PrecisionRifle, WeaponSystem.TipoArma.Directa, WeaponSystem.VariantEffect.DamageMultiplier, "Rifle de precisión")]
+    [TestCase(WeaponSystem.WeaponVariant.Decoy, WeaponSystem.TipoArma.Area, WeaponSystem.VariantEffect.Decoy, "Señuelo")]
+    [TestCase(WeaponSystem.WeaponVariant.Slowdown, WeaponSystem.TipoArma.Area, WeaponSystem.VariantEffect.Slowdown, "Ralentización")]
+    [TestCase(WeaponSystem.WeaponVariant.PushStrike, WeaponSystem.TipoArma.CuerpoACuerpo, WeaponSystem.VariantEffect.Push, "Golpe de empuje")]
+    public void GddVariantDefinitionMapsToWeaponAndEffect(
+        WeaponSystem.WeaponVariant variant,
+        WeaponSystem.TipoArma weaponType,
+        WeaponSystem.VariantEffect effect,
+        string displayName)
+    {
+        var definition = WeaponSystem.GetVariantDefinition(variant);
+
+        Assert.That(definition.WeaponType, Is.EqualTo(weaponType));
+        Assert.That(definition.Effect, Is.EqualTo(effect));
+        Assert.That(definition.DisplayName, Is.EqualTo(displayName));
+    }
+
+    // PlayMode coverage remains a skeleton: pickup collision, countdown, expiry,
+    // expiry notification, and HUD reset require Unity frame and time progression.
 }
