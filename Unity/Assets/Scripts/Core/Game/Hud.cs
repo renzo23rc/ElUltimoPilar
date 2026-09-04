@@ -98,6 +98,7 @@ public class Hud : MonoBehaviour
         if (textoVidaPilar == null)
             CrearUI();
         
+        ConfigurarCrosshairRelativo();
         SuscribirEventosGameManager();
         CombatFeedback.OnCombatHit += FlashCrosshair;
     }
@@ -475,6 +476,20 @@ public class Hud : MonoBehaviour
         textoVariante.color = new Color(1f, 0.55f, 0.1f);
     }
 
+    void ConfigurarCrosshairRelativo()
+    {
+        if (textoCrosshair == null) return;
+        RectTransform rect = textoCrosshair.GetComponent<RectTransform>();
+        if (rect == null) return;
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        if (rect.sizeDelta.x > 60f || rect.sizeDelta.y > 60f)
+            rect.sizeDelta = new Vector2(40f, 40f);
+        textoCrosshair.alignment = TextAnchor.MiddleCenter;
+    }
+
     void ActualizarCrosshair()
     {
         if (textoCrosshair == null) return;
@@ -602,6 +617,12 @@ public class Hud : MonoBehaviour
         textoCrosshair = CrearTexto(canvas.transform, "Crosshair", new Vector2(Screen.width / 2 - 200, Screen.height / 2 + 60), 28);
         textoCrosshair.alignment = TextAnchor.MiddleCenter;
         textoCrosshair.text = "+";
+        RectTransform crosshairRect = textoCrosshair.GetComponent<RectTransform>();
+        crosshairRect.anchorMin = new Vector2(0.5f, 0.5f);
+        crosshairRect.anchorMax = new Vector2(0.5f, 0.5f);
+        crosshairRect.pivot = new Vector2(0.5f, 0.5f);
+        crosshairRect.anchoredPosition = Vector2.zero;
+        crosshairRect.sizeDelta = new Vector2(40f, 40f);
         
         textoMenu = CrearTexto(canvas.transform, "Menu", new Vector2(Screen.width / 2 - 300, Screen.height - 220), 30);
         textoMenu.alignment = TextAnchor.MiddleCenter;

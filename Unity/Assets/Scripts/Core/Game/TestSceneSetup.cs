@@ -32,6 +32,8 @@ public class TestSceneSetup : MonoBehaviour
     private const int EnergyPoolMaximumSize = 50;
     private const int ProjectilePoolInitialSize = 20;
     private const int ProjectilePoolMaximumSize = 80;
+    private const float PlayerMuzzleForwardMeters = 0.9f;
+    private const string PlayerMuzzleName = "PuntoDisparo";
 
     [Header("Configuración Rápida")]
     /// <summary>Gets or sets whether generation runs on start.</summary>
@@ -255,15 +257,21 @@ public class TestSceneSetup : MonoBehaviour
         playerInput.defaultControlScheme = "Keyboard&Mouse";
         playerInput.neverAutoSwitchControlSchemes = true;
 
+        var muzzleGO = new GameObject(PlayerMuzzleName);
+        muzzleGO.transform.SetParent(jugador.transform);
+        muzzleGO.transform.localPosition = new Vector3(0f, cam.transform.localPosition.y, PlayerMuzzleForwardMeters);
+        muzzleGO.transform.localRotation = Quaternion.identity;
+        muzzleGO.transform.localScale = Vector3.one;
+
         var playerController = jugador.AddComponent<PlayerController>();
         playerController.camaraJugador = camera;
-        playerController.puntoDisparo = cam.transform;
+        playerController.puntoDisparo = muzzleGO.transform;
         
         // Componentes
         jugador.AddComponent<EnergySystem>();
         var ws = jugador.AddComponent<WeaponSystem>();
         ws.camara = camera;
-        ws.puntoDisparo = cam.transform;
+        ws.puntoDisparo = muzzleGO.transform;
         
         // CharacterController se agrega automáticamente por [RequireComponent] en PlayerController
         var cc = jugador.GetComponent<CharacterController>();

@@ -31,6 +31,10 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     private const float FallDistanceMeters = 6f;
     private const float DefaultSlowFactor = 1f;
     private const float UnsetOriginalSpeed = -1f;
+    private const float MuzzleForwardOffsetMeters = 0.9f;
+    private const float MuzzleHeightMeters = 0.8f;
+    private const string MuzzleObjectName = "PuntoDisparo";
+    private const float CrosshairViewportCenter = 0.5f;
 
     [Header("Movimiento")]
     public float velocidadMovimiento = 8f;
@@ -119,7 +123,42 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         if (inputAdapter == null && playerInput != null)
             inputAdapter = new PlayerInputAdapter(playerInput);
         if (camaraJugador == null) camaraJugador = GetComponentInChildren<Camera>();
-        if (puntoDisparo == null) puntoDisparo = camaraJugador?.transform;
+        if (puntoDisparo == null || (camaraJugador != null && puntoDisparo == camaraJugador.transform))
+        {
+            puntoDisparo = EnsureMuzzleTransform();
+        }
+    }
+
+    Transform EnsureMuzzleTransform()
+    {
+        if (camaraJugador == null)
+        {
+            return transform;
+        }
+
+        Transform existing = transform.Find(MuzzleObjectName);
+        if (existing == null)
+        {
+            existing = camaraJugador.transform.Find(MuzzleObjectName);
+        }
+
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        GameObject muzzle = new GameObject(MuzzleObjectName);
+        muzzle.transform.SetParent(transform);
+        float height = camaraJugador.transform.localPosition.y;
+        if (Mathf.Approximately(height, 0f))
+        {
+            height = MuzzleHeightMeters;
+        }
+
+        muzzle.transform.localPosition = new Vector3(0f, height, MuzzleForwardOffsetMeters);
+        muzzle.transform.rotation = camaraJugador.transform.rotation;
+        muzzle.transform.localScale = Vector3.one;
+        return muzzle.transform;
     }
 
     void CapturarEstadoInicial()
@@ -197,6 +236,10 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         {
             camaraJugador.transform.localRotation = Quaternion.Euler(rotacionX, 0, 0);
             transform.Rotate(Vector3.up * lookDelta.x);
+            if (puntoDisparo != null)
+            {
+                puntoDisparo.rotation = camaraJugador.transform.rotation;
+            }
         }
     }
 
@@ -327,14 +370,44 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             armas.DispararActual();
             return;
         }
-        
-        // Fallback básico si no hay WeaponSystem
-        if (puntoDisparo != null && Physics.Raycast(puntoDisparo.position, puntoDisparo.forward, out RaycastHit hit, FallbackRaycastRangeMeters, capaEnemigos))
+
+        if (puntoDisparo == null || (camaraJugador != null && puntoDisparo == camaraJugador.transform))
         {
-            var enemy = hit.collider.GetComponent<Enemy>();
+            puntoDisparo = EnsureMuzzleTransform();
+        }
+
+        Ray aimRay = camaraJugador != null
+            ? camaraJugador.ViewportPointToRay(new Vector3(CrosshairViewportCenter, CrosshairViewportCenter, 0f))
+            : puntoDisparo != null ? new Ray(puntoDisparo.position, puntoDisparo.forward) : new Ray(transform.position, transform.forward);
+        LayerMask mask = capaEnemigos.value == 0 ? Physics.DefaultRaycastLayers : capaEnemigos;
+
+        // Ignorar auto-colisión si el rayo nace dentro del propio cuerpo.
+        RaycastHit hit = default;
+        bool hasHit = false;
+        if (Physics.Raycast(aimRay, out RaycastHit candidate, FallbackRaycastRangeMeters, mask))
+        {
+            PlayerController shooter = candidate.collider.GetComponentInParent<PlayerController>();
+            if (shooter == this)
+            {
+                Ray secondRay = new Ray(candidate.point + aimRay.direction * 0.05f, aimRay.direction);
+                if (Physics.Raycast(secondRay, out RaycastHit secondHit, FallbackRaycastRangeMeters - candidate.distance, mask))
+                {
+                    hit = secondHit;
+                    hasHit = true;
+                }
+            }
+            else
+            {
+                hit = candidate;
+                hasHit = true;
+            }
+        }
+
+        if (hasHit)
+        {
+            Enemy enemy = hit.collider.GetComponent<Enemy>();
             enemy?.RecibirDaño(FallbackDamage);
-            
-            Debug.DrawRay(puntoDisparo.position, puntoDisparo.forward * hit.distance, Color.red, 0.5f);
+            Debug.DrawRay(aimRay.origin, aimRay.direction * hit.distance, Color.red, 0.5f);
         }
     }
 

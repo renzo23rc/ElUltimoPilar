@@ -11,6 +11,12 @@ using System;
 public class WeaponSystem : MonoBehaviour
 {
 private const int WeaponSlotCount = 3;
+private const float MuzzleForwardOffsetMeters = 0.9f;
+private const float MuzzleHeightMeters = 0.8f;
+private const string MuzzleObjectName = "PuntoDisparo";
+private const float CrosshairViewportCenter = 0.5f;
+private const float AimSelfIgnoreOffsetMeters = 0.05f;
+private const int MaxAimSelfIgnoreIterations = 3;
 private const float ProjectileSpeedMetersPerSecond = 50f;
 private const float TracerStartWidthMeters = 0.025f;
 private const float TracerEndWidthMeters = 0.015f;
@@ -184,8 +190,10 @@ _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupporte
         }
         if (camara == null)
             camara = GetComponentInChildren<Camera>();
-        if (puntoDisparo == null && camara != null)
-            puntoDisparo = camara.transform;
+        if (puntoDisparo == null || (camara != null && puntoDisparo == camara.transform))
+        {
+            puntoDisparo = EnsureMuzzleTransform();
+        }
         if (camara != null)
             Debug.Log($"[WeaponSystem] Camara asignada: {camara.name} en {camara.transform.position}, puntoDisparo: {puntoDisparo.name}");
     }
@@ -198,6 +206,141 @@ _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupporte
             camara = player.camaraJugador;
             puntoDisparo = player.puntoDisparo;
         }
+
+        if (puntoDisparo == null || (camara != null && puntoDisparo == camara.transform))
+        {
+            puntoDisparo = EnsureMuzzleTransform();
+        }
+
+        if (puntoDisparo != null && camara != null && puntoDisparo.parent == transform)
+        {
+            puntoDisparo.rotation = camara.transform.rotation;
+        }
+    }
+
+    Transform EnsureMuzzleTransform()
+    {
+        if (camara == null)
+        {
+            return transform;
+        }
+
+        Transform existing = transform.Find(MuzzleObjectName);
+        if (existing == null)
+        {
+            existing = camara.transform.Find(MuzzleObjectName);
+        }
+
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        if (player != null && player.puntoDisparo != null && player.puntoDisparo != camara.transform)
+        {
+            return player.puntoDisparo;
+        }
+
+        GameObject muzzle = new GameObject(MuzzleObjectName);
+        muzzle.transform.SetParent(transform);
+        float height = camara.transform.localPosition.y;
+        if (Mathf.Approximately(height, 0f))
+        {
+            height = MuzzleHeightMeters;
+        }
+
+        muzzle.transform.localPosition = new Vector3(0f, height, MuzzleForwardOffsetMeters);
+        muzzle.transform.rotation = camara.transform.rotation;
+        muzzle.transform.localScale = Vector3.one;
+        return muzzle.transform;
+    }
+
+    Ray GetAimRay()
+    {
+        if (camara != null)
+        {
+            return camara.ViewportPointToRay(new Vector3(CrosshairViewportCenter, CrosshairViewportCenter, 0f));
+        }
+
+        if (puntoDisparo != null)
+        {
+            return new Ray(puntoDisparo.position, puntoDisparo.forward);
+        }
+
+        return new Ray(transform.position, transform.forward);
+    }
+
+    bool TryRaycastAim(Ray aimRay, float maxDistance, LayerMask mask, out RaycastHit hit)
+    {
+        hit = default;
+        LayerMask effectiveMask = mask.value == 0 ? Physics.DefaultRaycastLayers : mask;
+        Ray currentRay = aimRay;
+        float remaining = maxDistance;
+
+        for (int i = 0; i < MaxAimSelfIgnoreIterations; i++)
+        {
+            if (Physics.Raycast(currentRay, out RaycastHit candidate, remaining, effectiveMask))
+            {
+                PlayerController shooter = candidate.collider.GetComponentInParent<PlayerController>();
+                if (shooter != null && shooter == player)
+                {
+                    float advance = candidate.distance + AimSelfIgnoreOffsetMeters;
+                    if (advance >= remaining)
+                    {
+                        break;
+                    }
+
+                    currentRay = new Ray(candidate.point + currentRay.direction * AimSelfIgnoreOffsetMeters, currentRay.direction);
+                    remaining -= advance;
+                    continue;
+                }
+
+                if (puntoDisparo != null && candidate.collider.transform == puntoDisparo)
+                {
+                    float advance = candidate.distance + AimSelfIgnoreOffsetMeters;
+                    currentRay = new Ray(candidate.point + currentRay.direction * AimSelfIgnoreOffsetMeters, currentRay.direction);
+                    remaining -= advance;
+                    continue;
+                }
+
+                hit = candidate;
+                return true;
+            }
+
+            break;
+        }
+
+        return false;
+    }
+
+    Vector3 GetMuzzlePosition()
+    {
+        if (puntoDisparo != null)
+        {
+            return puntoDisparo.position;
+        }
+
+        if (camara != null)
+        {
+            return camara.transform.position + camara.transform.forward * MuzzleForwardOffsetMeters;
+        }
+
+        return transform.position;
+    }
+
+    Vector3 GetMuzzleForward()
+    {
+        if (puntoDisparo != null)
+        {
+            return puntoDisparo.forward;
+        }
+
+        if (camara != null)
+        {
+            return camara.transform.forward;
+        }
+
+        return transform.forward;
     }
 
     void Update()
@@ -289,49 +432,59 @@ _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupporte
     void DispararDirecto(Arma arma)
     {
         float daño = DañoEfectivo(arma);
-        if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
-        Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
-        LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
-        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, mask))
+        if (puntoDisparo == null || (camara != null && puntoDisparo == camara.transform))
         {
-            var enemy = hit.collider.GetComponent<Enemy>();
+            puntoDisparo = EnsureMuzzleTransform();
+        }
+
+        Vector3 muzzlePos = GetMuzzlePosition();
+        Ray aimRay = GetAimRay();
+        LayerMask mask = capasImpacto;
+        bool hasHit = TryRaycastAim(aimRay, arma.alcance, mask, out RaycastHit aimHit);
+
+        if (hasHit)
+        {
+            var enemy = aimHit.collider.GetComponent<Enemy>();
             if (enemy != null)
             {
                 ApplyDamage(enemy, daño);
                 Debug.Log($"[WeaponSystem] Impacto directo: {daño} daño a {enemy.name}");
-                CrearImpactoVisual(hit.point, hit.normal, Color.red, 0.35f, true);
+                CrearImpactoVisual(aimHit.point, aimHit.normal, Color.red, 0.35f, true);
             }
             else
             {
-                CrearImpactoVisual(hit.point, hit.normal, Color.white, 0.25f, false);
+                CrearImpactoVisual(aimHit.point, aimHit.normal, Color.white, 0.25f, false);
             }
-            
-            // Efecto de impacto prefab si existe
+
             if (arma.prefabImpacto != null)
-                Instantiate(arma.prefabImpacto, hit.point, Quaternion.LookRotation(hit.normal));
-            
-            CrearTrazador(ray.origin, hit.point, Color.red);
-            Debug.DrawRay(ray.origin, ray.direction * hit.distance, Color.red, 0.3f);
+                Instantiate(arma.prefabImpacto, aimHit.point, Quaternion.LookRotation(aimHit.normal));
+
+            CrearTrazador(muzzlePos, aimHit.point, Color.red);
+            Debug.DrawRay(aimRay.origin, aimRay.direction * aimHit.distance, Color.red, 0.3f);
         }
         else
         {
-            Vector3 fin = ray.origin + ray.direction * arma.alcance;
-            CrearTrazador(ray.origin, fin, new Color(1,1,1,0.4f));
-            CrearImpactoVisual(fin, -ray.direction, Color.gray, 0.15f, false);
-            Debug.DrawRay(ray.origin, ray.direction * arma.alcance, Color.white, 0.3f);
+            Vector3 fin = aimRay.origin + aimRay.direction * arma.alcance;
+            Vector3 tracerEnd = muzzlePos + aimRay.direction * arma.alcance;
+            CrearTrazador(muzzlePos, tracerEnd, new Color(1, 1, 1, 0.4f));
+            CrearImpactoVisual(fin, -aimRay.direction, Color.gray, 0.15f, false);
+            Debug.DrawRay(aimRay.origin, aimRay.direction * arma.alcance, Color.white, 0.3f);
         }
-        
-        // Proyectil visual
+
         if (arma.prefabProyectil != null)
         {
-            GameObject proj = Instantiate(arma.prefabProyectil, puntoDisparo.position, puntoDisparo.rotation);
-            var rb = proj.GetComponent<Rigidbody>();
+            Vector3 spawnPos = muzzlePos;
+            Quaternion spawnRot = puntoDisparo != null ? puntoDisparo.rotation : Quaternion.LookRotation(aimRay.direction);
+            GameObject proj = Instantiate(arma.prefabProyectil, spawnPos, spawnRot);
+            Rigidbody rb = proj.GetComponent<Rigidbody>();
             if (rb != null)
-                rb.linearVelocity = puntoDisparo.forward * ProjectileSpeedMetersPerSecond;
+            {
+                Vector3 dir = hasHit ? (aimHit.point - spawnPos).normalized : aimRay.direction;
+                rb.linearVelocity = dir * ProjectileSpeedMetersPerSecond;
+            }
         }
         else
         {
-            // Flash de boca procedural si no hay prefab
             CrearFlashBoca(Color.red);
         }
     }
@@ -339,23 +492,27 @@ _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupporte
     void DispararArea(Arma arma)
     {
         float daño = DañoEfectivo(arma);
-        if (puntoDisparo == null) puntoDisparo = camara != null ? camara.transform : transform;
-        Ray ray = new Ray(puntoDisparo.position, puntoDisparo.forward);
-        LayerMask mask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
+        if (puntoDisparo == null || (camara != null && puntoDisparo == camara.transform))
+        {
+            puntoDisparo = EnsureMuzzleTransform();
+        }
+
+        Vector3 muzzlePos = GetMuzzlePosition();
+        Ray aimRay = GetAimRay();
+        LayerMask mask = capasImpacto;
         Vector3 puntoImpacto;
-        Vector3 normal = -ray.direction;
-        
-        if (Physics.Raycast(ray, out RaycastHit hit, arma.alcance, mask))
+        Vector3 normal = -aimRay.direction;
+
+        if (TryRaycastAim(aimRay, arma.alcance, mask, out RaycastHit hit))
         {
             puntoImpacto = hit.point;
             normal = hit.normal;
         }
         else
         {
-            puntoImpacto = puntoDisparo.position + puntoDisparo.forward * arma.alcance;
+            puntoImpacto = aimRay.origin + aimRay.direction * arma.alcance;
         }
-        
-        // Daño en área
+
         Collider[] afectados = Physics.OverlapSphere(puntoImpacto, arma.radioArea);
         int contador = 0;
         foreach (var col in afectados)
@@ -371,15 +528,14 @@ _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupporte
         ApplyAreaVariantEffect(afectados, puntoImpacto);
         Debug.Log($"[WeaponSystem] Explosión de área: {daño} daño a {contador} enemigos");
 
-        // Efecto visual procedural SIEMPRE (aunque haya prefab)
-        CrearExplosionArea(puntoImpacto, normal, arma.radioArea, contador > 0 ? Color.yellow : new Color(1,0.6f,0,0.8f));
-        CrearTrazador(ray.origin, puntoImpacto, Color.yellow);
-        
+        CrearExplosionArea(puntoImpacto, normal, arma.radioArea, contador > 0 ? Color.yellow : new Color(1, 0.6f, 0, 0.8f));
+        CrearTrazador(muzzlePos, puntoImpacto, Color.yellow);
+
         if (arma.prefabImpacto != null)
             Instantiate(arma.prefabImpacto, puntoImpacto, Quaternion.identity);
-        
+
         CrearFlashBoca(Color.yellow);
-        Debug.DrawRay(ray.origin, ray.direction * (puntoImpacto - puntoDisparo.position).magnitude, Color.yellow, 0.5f);
+        Debug.DrawRay(aimRay.origin, aimRay.direction * Vector3.Distance(aimRay.origin, puntoImpacto), Color.yellow, 0.5f);
     }
 
     void AtacarMelee(Arma arma)
