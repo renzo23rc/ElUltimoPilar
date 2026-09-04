@@ -11,7 +11,7 @@ Está organizado en 6 páginas, una idea por página: el overview muestra la arq
 | `02 Player input` | Un snapshot `PlayerCommand` por frame: del `PlayerInput` al `PlayerController`. |
 | `03 Coop setup` | Composición multijugador: join con gamepads y split-screen. Sin reglas de partida. |
 | `04 Combat` | El daño viaja por `IDamageable` como `DamageRequest`; variantes, energía y feedback. |
-| `05 Match presentation` | Hub de partida, Pilar, spawner, arena y presentación (solo lee eventos, no escribe estado). |
+| `05 Match presentation` | Hub de partida, Pilar, spawner, arena y presentación (solo lee eventos, no escribe estado). Incluye colaboradores de Pilar (fases, visual, torretas) y de fases de arena (estado, handlers, efectos, avisos). |
 
 ## Cómo leerlo
 
@@ -24,4 +24,4 @@ Está organizado en 6 páginas, una idea por página: el overview muestra la arq
 
 ## Verificación
 
-El archivo sigue la [referencia XML oficial de Draw.io](https://github.com/jgraph/drawio-mcp/blob/main/shared/xml-reference.md): aristas rectas UML sin ruteo manual, etiquetas cortas, IDs únicos, celdas estructurales `0`/`1` y geometría en cada arista. Validado por parseo XML contra el checklist 1–14 (6 páginas, 48 aristas etiquetadas, sin referencias colgadas).
+El archivo sigue la [referencia XML oficial de Draw.io](https://github.com/jgraph/drawio-mcp/blob/main/shared/xml-reference.md): aristas rectas UML sin ruteo manual, etiquetas cortas, IDs únicos, celdas estructurales `0`/`1` y geometría en cada arista. Validado por parseo XML contra el checklist 1–14 (6 páginas, 51 aristas etiquetadas, sin referencias colgadas ni aristas sin etiqueta).
