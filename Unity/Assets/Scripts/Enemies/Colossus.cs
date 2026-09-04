@@ -8,12 +8,12 @@ using UnityEngine;
 public class Colossus : Enemy
 {
 private const float MovementSpeedMetersPerSecond = 0.9f;
-private const float MaximumHealth = 300f;
-private const float PilarDamage = 25f;
-private const float PlayerDamage = 20f;
+private const float MaximumHealth = 180f;
+private const float PilarDamage = 22f;
+private const float PlayerDamage = 18f;
 private const int EnergyDropAmount = 20;
     [Header("Coloso Específico")]
-    public float resistenciaDisparos = 0.8f; // Reduce 80% del daño de disparos
+    [Range(0f, 0.9f)] public float resistenciaDisparos = 0.55f; // Reduce 55% del daño (antes 80% -> inmortal)
     public float dañoEmpuje = 30f;
     public float radioAtaque = 4f;
     public GameObject prefabOndaImpacto;
