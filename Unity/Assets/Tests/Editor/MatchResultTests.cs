@@ -1,9 +1,12 @@
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public class MatchResultTests
 {
     private const float MaximumHealth = 100f;
+    private const string AwakeMethodName = "Awake";
 
     [Test]
     public void ValidVictorySnapshotExposesOutcomeAndHealth()
@@ -176,6 +179,9 @@ public class MatchResultTests
         manager.IniciarJuego();
         manager.pilar.vidaMaxima = float.NaN;
 
+        LogAssert.Expect(
+            LogType.Error,
+            "[GameManager] No se puede publicar el resultado: salud inválida del Pilar (restante=100, máxima=NaN).");
         manager.DerrotaPorJugadores();
 
         Assert.That(manager.EstadoActual, Is.EqualTo(MatchState.Defeat));
@@ -209,7 +215,11 @@ public class MatchResultTests
     {
         gameManagerObject = new GameObject("MatchResultTests.GameManager");
         manager = gameManagerObject.AddComponent<GameManager>();
-        manager.SendMessage("Awake", SendMessageOptions.RequireReceiver);
+        MethodInfo awakeMethod = typeof(GameManager).GetMethod(
+            AwakeMethodName,
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(awakeMethod, Is.Not.Null);
+        awakeMethod.Invoke(manager, null);
 
         pilarObject = new GameObject("MatchResultTests.Pilar");
         var pilar = pilarObject.AddComponent<Pilar>();
