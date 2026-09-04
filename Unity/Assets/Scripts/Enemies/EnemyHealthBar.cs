@@ -108,12 +108,39 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void EnsureHealthBarUI()
     {
-        if (healthFill != null && canvasTransform != null) return;
         if (healthFill != null)
         {
             Canvas existingCanvas = healthFill.GetComponentInParent<Canvas>();
             if (existingCanvas != null) canvasTransform = existingCanvas.transform;
-            return;
+            if (canvasTransform != null && existingCanvas != null)
+            {
+                // Fix old invisible bars (small scale, wrong alpha, wrong height, billboard invertido, layer)
+                canvasTransform.localScale = Vector3.one * CanvasScale;
+                RectTransform cr = existingCanvas.GetComponent<RectTransform>();
+                if (cr != null) cr.sizeDelta = new Vector2(BarWidth * 100f, BarHeight * 100f);
+                existingCanvas.sortingOrder = 100;
+                existingCanvas.gameObject.layer = 5;
+                if (existingCanvas.worldCamera == null) existingCanvas.worldCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+                float existingHeightOffset = BarHeightOffset;
+                if (enemy != null)
+                {
+                    Collider col = enemy.GetComponent<Collider>();
+                    if (col != null && col.bounds.extents.y > 0.01f) existingHeightOffset = col.bounds.extents.y + 0.6f;
+                    else existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.7f;
+                    if (existingHeightOffset < 1.1f) existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.9f;
+                }
+                else existingHeightOffset = 1.6f;
+                canvasTransform.localPosition = new Vector3(0f, existingHeightOffset, 0f);
+                Image[] imgs = existingCanvas.GetComponentsInChildren<Image>(true);
+                if (imgs.Length > 0) imgs[0].color = new Color(0.08f, 0.08f, 0.08f, BackgroundAlpha);
+                if (imgs.Length > 1)
+                {
+                    imgs[1].color = new Color(0.15f, 1f, 0.15f, 1f);
+                    healthFill = imgs[1];
+                }
+                foreach (var img in imgs) img.gameObject.layer = 5;
+            }
+            if (healthFill != null && canvasTransform != null) return;
         }
 
         // Create WorldSpace canvas above enemy head.

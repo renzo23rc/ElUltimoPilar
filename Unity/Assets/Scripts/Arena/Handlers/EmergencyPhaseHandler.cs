@@ -1,6 +1,7 @@
 using System.Collections;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Handles the emergency arena phase transition.</summary>
 public sealed class EmergencyPhaseHandler : IArenaPhaseHandler
@@ -43,4 +44,5 @@ public sealed class EmergencyPhaseHandler : IArenaPhaseHandler
 
         yield return phaseEffects.ActivateEmergency();
     }
+}
 }

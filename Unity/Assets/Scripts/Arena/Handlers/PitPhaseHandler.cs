@@ -1,6 +1,7 @@
 using System.Collections;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Handles the central pit phase transition.</summary>
 public sealed class PitPhaseHandler : IArenaPhaseHandler
@@ -43,4 +44,5 @@ public sealed class PitPhaseHandler : IArenaPhaseHandler
 
         yield return phaseEffects.ActivatePit();
     }
+}
 }

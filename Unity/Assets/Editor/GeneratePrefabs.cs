@@ -43,7 +43,7 @@ public class GeneratePrefabs
     private const float WeaverFieldRadiusMeters = 6f;
     private const float NestSpawnIntervalSeconds = 6f;
     private const int NestMaximumConcurrentRunners = 3;
-    private const float ColossusShotResistance = 0.8f;
+    private const float ColossusShotResistance = 0.55f;
     private const float HealthBarWidth = 2.2f;
     private const float HealthBarHeight = 0.28f;
     private const float HealthBarCanvasScale = 0.016f;

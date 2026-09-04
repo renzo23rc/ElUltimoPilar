@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UltimoPilar.Core.Shared;
 
-namespace UltimoPilar.Arena;
+namespace UltimoPilar.Arena
+{
 
 /// <summary>Owns arena object activation, animation, lighting, particles, and debris.</summary>
 public sealed class ArenaPhaseEffects
@@ -270,4 +271,5 @@ public sealed class ArenaPhaseEffects
 
         target.SetActive(active);
     }
+}
 }
