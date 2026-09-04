@@ -24,6 +24,25 @@ public class Hud : MonoBehaviour
     private const float KillCrosshairDurationSeconds = 0.35f;
     private const float HitCrosshairDurationSeconds = 0.15f;
 
+    private const float HudPadding = 10f;
+    private const float HudTopOffsetVidaPilar = 30f;
+    private const float HudTopOffsetBarraPilar = 60f;
+    private const float HudTopOffsetVidaJugador = 100f;
+    private const float HudTopOffsetBarraJugador = 125f;
+    private const float HudTopOffsetEnergia = 155f;
+    private const float HudTopOffsetBarraEnergia = 180f;
+    private const float HudTopOffsetOleada = 30f;
+    private const float HudTopOffsetMunicion = 60f;
+    private const float HudTopOffsetArma = 85f;
+    private const float HudTopOffsetVariante = 70f;
+    private const float HudTopOffsetMenu = 220f;
+    private const float HudTopOffsetResultado = 300f;
+    private const float HudTopOffsetPuntaje = 360f;
+    private const float HudBarWidthPilar = 300f;
+    private const float HudBarWidthJugador = 200f;
+    private const float HudBarHeightPilar = 20f;
+    private const float HudBarHeightJugador = 15f;
+
     [Header("Referencias")]
     /// <summary>Gets or sets the Pilar reference.</summary>
     public Pilar pilar;
@@ -97,7 +116,10 @@ public class Hud : MonoBehaviour
         // Crear UI si no existe
         if (textoVidaPilar == null)
             CrearUI();
-        
+        else
+            SincronizarHudExistenteARelativo();
+
+        ConfigurarCrosshairRelativo();
         SuscribirEventosGameManager();
         CombatFeedback.OnCombatHit += FlashCrosshair;
     }
@@ -391,7 +413,10 @@ public class Hud : MonoBehaviour
         foreach (var p in gameManager.Players)
         {
             if (p == null) continue;
-            textosFilaJugadores.Add(CrearTexto(filasJugadores, $"Fila{i}", new Vector2(Screen.width - 230, Screen.height - 130 - i * 26), 16));
+            Text fila = CrearTexto(filasJugadores, $"Fila{i}", Vector2.zero, 19);
+            ConfigurarAnclaTopRight(fila.GetComponent<RectTransform>(), new Vector2(0f, i * 28f), new Vector2(260f, 26f));
+            fila.alignment = TextAnchor.UpperRight;
+            textosFilaJugadores.Add(fila);
             i++;
         }
         conteoFilas = i;
@@ -473,6 +498,109 @@ public class Hud : MonoBehaviour
 
         textoVariante.text = $"¡x{armas.multiplicadorVariante:F0} {displayName}! {armas.tiempoVarianteRestante:F0}s";
         textoVariante.color = new Color(1f, 0.55f, 0.1f);
+    }
+
+    void ConfigurarCrosshairRelativo()
+    {
+        if (textoCrosshair == null) return;
+        RectTransform rect = textoCrosshair.GetComponent<RectTransform>();
+        if (rect == null) return;
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(50f, 50f);
+        textoCrosshair.alignment = TextAnchor.MiddleCenter;
+        textoCrosshair.fontSize = 34;
+    }
+
+    void SincronizarHudExistenteARelativo()
+    {
+        Canvas canvas = GetComponentInChildren<Canvas>();
+        if (canvas == null) canvas = FindFirstObjectByType<Canvas>();
+        if (canvas != null)
+        {
+            CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920f, 1080f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+        }
+
+        if (textoVidaPilar != null)
+        {
+            textoVidaPilar.fontSize = 28;
+            ConfigurarAnclaTopLeft(textoVidaPilar.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetVidaPilar), new Vector2(440f, 44f));
+        }
+        if (barraVidaPilar != null) ConfigurarAnclaTopLeft(barraVidaPilar.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraPilar), new Vector2(HudBarWidthPilar, HudBarHeightPilar));
+        if (textoVidaJugador != null)
+        {
+            textoVidaJugador.fontSize = 24;
+            ConfigurarAnclaTopLeft(textoVidaJugador.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetVidaJugador), new Vector2(440f, 44f));
+        }
+        if (barraVidaJugador != null) ConfigurarAnclaTopLeft(barraVidaJugador.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraJugador), new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+        if (textoEnergia != null)
+        {
+            textoEnergia.fontSize = 24;
+            ConfigurarAnclaTopLeft(textoEnergia.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetEnergia), new Vector2(440f, 44f));
+        }
+        if (barraEnergia != null) ConfigurarAnclaTopLeft(barraEnergia.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraEnergia), new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+        if (textoOleada != null)
+        {
+            textoOleada.fontSize = 28;
+            ConfigurarAnclaTopRight(textoOleada.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetOleada), new Vector2(340f, 44f));
+        }
+        if (textoMunicion != null)
+        {
+            textoMunicion.fontSize = 24;
+            ConfigurarAnclaTopRight(textoMunicion.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetMunicion), new Vector2(340f, 44f));
+        }
+        if (textoArma != null)
+        {
+            textoArma.fontSize = 22;
+            ConfigurarAnclaTopRight(textoArma.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetArma), new Vector2(340f, 44f));
+        }
+        if (textoMensaje != null)
+        {
+            textoMensaje.fontSize = 40;
+            ConfigurarAnclaCentro(textoMensaje.GetComponent<RectTransform>(), Vector2.zero, new Vector2(660f, 70f));
+        }
+        if (textoMenu != null)
+        {
+            textoMenu.fontSize = 34;
+            ConfigurarAnclaTopCenter(textoMenu.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetMenu), new Vector2(660f, 60f));
+        }
+        if (textoResultado != null)
+        {
+            textoResultado.fontSize = 50;
+            ConfigurarAnclaTopCenter(textoResultado.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetResultado), new Vector2(660f, 70f));
+        }
+        if (textoPuntaje != null)
+        {
+            textoPuntaje.fontSize = 30;
+            ConfigurarAnclaTopCenter(textoPuntaje.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetPuntaje), new Vector2(660f, 60f));
+        }
+        if (textoVariante != null)
+        {
+            textoVariante.fontSize = 26;
+            ConfigurarAnclaTopCenter(textoVariante.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetVariante), new Vector2(460f, 44f));
+        }
+        if (filasJugadores != null)
+        {
+            RectTransform filasRect = filasJugadores.GetComponent<RectTransform>();
+            if (filasRect != null) ConfigurarAnclaTopRight(filasRect, new Vector2(HudPadding, 130f), new Vector2(260f, 200f));
+            for (int i = 0; i < textosFilaJugadores.Count; i++)
+            {
+                Text t = textosFilaJugadores[i];
+                if (t == null) continue;
+                t.fontSize = 19;
+                ConfigurarAnclaTopRight(t.GetComponent<RectTransform>(), new Vector2(0f, i * 28f), new Vector2(260f, 26f));
+                t.alignment = TextAnchor.UpperRight;
+            }
+        }
     }
 
     void ActualizarCrosshair()
@@ -572,50 +700,131 @@ public class Hud : MonoBehaviour
 
     void CrearUI()
     {
-        // Buscar o crear canvas
         Canvas canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasGO = new GameObject("Canvas");
             canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasGO.AddComponent<CanvasScaler>();
+            CanvasScaler scaler = canvasGO.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGO.AddComponent<GraphicRaycaster>();
         }
-        
-        // Crear textos y barras
-        textoVidaPilar = CrearTexto(canvas.transform, "VidaPilar", new Vector2(10, Screen.height - 30), 24);
-        barraVidaPilar = CrearBarra(canvas.transform, "BarraPilar", new Vector2(10, Screen.height - 60), new Vector2(300, 20));
-        
-        textoVidaJugador = CrearTexto(canvas.transform, "VidaJugador", new Vector2(10, Screen.height - 100), 20);
-        barraVidaJugador = CrearBarra(canvas.transform, "BarraJugador", new Vector2(10, Screen.height - 125), new Vector2(200, 15));
-        
-        textoEnergia = CrearTexto(canvas.transform, "Energia", new Vector2(10, Screen.height - 155), 20);
-        barraEnergia = CrearBarra(canvas.transform, "BarraEnergia", new Vector2(10, Screen.height - 180), new Vector2(200, 15));
-        
-        textoOleada = CrearTexto(canvas.transform, "Oleada", new Vector2(Screen.width - 200, Screen.height - 30), 24);
-        textoMunicion = CrearTexto(canvas.transform, "Municion", new Vector2(Screen.width - 200, Screen.height - 60), 20);
-        textoArma = CrearTexto(canvas.transform, "Arma", new Vector2(Screen.width - 200, Screen.height - 85), 18);
-        textoMensaje = CrearTexto(canvas.transform, "Mensaje", new Vector2(Screen.width / 2 - 200, Screen.height / 2), 36);
+        else
+        {
+            CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920f, 1080f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+            }
+        }
+
+        textoVidaPilar = CrearTexto(canvas.transform, "VidaPilar", Vector2.zero, 28);
+        ConfigurarAnclaTopLeft(textoVidaPilar.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetVidaPilar), new Vector2(440f, 44f));
+        textoVidaPilar.alignment = TextAnchor.UpperLeft;
+
+        barraVidaPilar = CrearBarra(canvas.transform, "BarraPilar", Vector2.zero, new Vector2(HudBarWidthPilar, HudBarHeightPilar));
+        ConfigurarAnclaTopLeft(barraVidaPilar.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraPilar), new Vector2(HudBarWidthPilar, HudBarHeightPilar));
+
+        textoVidaJugador = CrearTexto(canvas.transform, "VidaJugador", Vector2.zero, 24);
+        ConfigurarAnclaTopLeft(textoVidaJugador.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetVidaJugador), new Vector2(440f, 44f));
+        textoVidaJugador.alignment = TextAnchor.UpperLeft;
+
+        barraVidaJugador = CrearBarra(canvas.transform, "BarraJugador", Vector2.zero, new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+        ConfigurarAnclaTopLeft(barraVidaJugador.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraJugador), new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+
+        textoEnergia = CrearTexto(canvas.transform, "Energia", Vector2.zero, 24);
+        ConfigurarAnclaTopLeft(textoEnergia.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetEnergia), new Vector2(440f, 44f));
+        textoEnergia.alignment = TextAnchor.UpperLeft;
+
+        barraEnergia = CrearBarra(canvas.transform, "BarraEnergia", Vector2.zero, new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+        ConfigurarAnclaTopLeft(barraEnergia.transform.parent.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetBarraEnergia), new Vector2(HudBarWidthJugador, HudBarHeightJugador));
+
+        textoOleada = CrearTexto(canvas.transform, "Oleada", Vector2.zero, 28);
+        ConfigurarAnclaTopRight(textoOleada.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetOleada), new Vector2(340f, 44f));
+        textoOleada.alignment = TextAnchor.UpperRight;
+
+        textoMunicion = CrearTexto(canvas.transform, "Municion", Vector2.zero, 24);
+        ConfigurarAnclaTopRight(textoMunicion.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetMunicion), new Vector2(340f, 44f));
+        textoMunicion.alignment = TextAnchor.UpperRight;
+
+        textoArma = CrearTexto(canvas.transform, "Arma", Vector2.zero, 22);
+        ConfigurarAnclaTopRight(textoArma.GetComponent<RectTransform>(), new Vector2(HudPadding, HudTopOffsetArma), new Vector2(340f, 44f));
+        textoArma.alignment = TextAnchor.UpperRight;
+
+        textoMensaje = CrearTexto(canvas.transform, "Mensaje", Vector2.zero, 40);
+        ConfigurarAnclaCentro(textoMensaje.GetComponent<RectTransform>(), Vector2.zero, new Vector2(660f, 70f));
         textoMensaje.alignment = TextAnchor.MiddleCenter;
-        
-        textoCrosshair = CrearTexto(canvas.transform, "Crosshair", new Vector2(Screen.width / 2 - 200, Screen.height / 2 + 60), 28);
+
+        textoCrosshair = CrearTexto(canvas.transform, "Crosshair", Vector2.zero, 34);
+        ConfigurarAnclaCentro(textoCrosshair.GetComponent<RectTransform>(), Vector2.zero, new Vector2(50f, 50f));
         textoCrosshair.alignment = TextAnchor.MiddleCenter;
         textoCrosshair.text = "+";
-        
-        textoMenu = CrearTexto(canvas.transform, "Menu", new Vector2(Screen.width / 2 - 300, Screen.height - 220), 30);
+
+        textoMenu = CrearTexto(canvas.transform, "Menu", Vector2.zero, 34);
+        ConfigurarAnclaTopCenter(textoMenu.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetMenu), new Vector2(660f, 60f));
         textoMenu.alignment = TextAnchor.MiddleCenter;
-        textoResultado = CrearTexto(canvas.transform, "Resultado", new Vector2(Screen.width / 2 - 300, Screen.height - 300), 44);
+
+        textoResultado = CrearTexto(canvas.transform, "Resultado", Vector2.zero, 50);
+        ConfigurarAnclaTopCenter(textoResultado.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetResultado), new Vector2(660f, 70f));
         textoResultado.alignment = TextAnchor.MiddleCenter;
-        textoPuntaje = CrearTexto(canvas.transform, "Puntaje", new Vector2(Screen.width / 2 - 300, Screen.height - 360), 26);
+
+        textoPuntaje = CrearTexto(canvas.transform, "Puntaje", Vector2.zero, 30);
+        ConfigurarAnclaTopCenter(textoPuntaje.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetPuntaje), new Vector2(660f, 60f));
         textoPuntaje.alignment = TextAnchor.MiddleCenter;
-        textoVariante = CrearTexto(canvas.transform, "Variante", new Vector2(Screen.width / 2 - 200, Screen.height - 70), 22);
+
+        textoVariante = CrearTexto(canvas.transform, "Variante", Vector2.zero, 26);
+        ConfigurarAnclaTopCenter(textoVariante.GetComponent<RectTransform>(), new Vector2(0f, HudTopOffsetVariante), new Vector2(460f, 44f));
         textoVariante.alignment = TextAnchor.MiddleCenter;
-        
+
         GameObject filasGO = new GameObject("FilasJugadores");
         filasGO.transform.SetParent(canvas.transform);
+        RectTransform filasRect = filasGO.AddComponent<RectTransform>();
+        ConfigurarAnclaTopRight(filasRect, new Vector2(HudPadding, 130f), new Vector2(220f, 200f));
         filasJugadores = filasGO.transform;
         ReconstruirFilasJugadores();
+    }
+
+    void ConfigurarAnclaTopLeft(RectTransform rect, Vector2 offsetDesdeBorde, Vector2 size)
+    {
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(offsetDesdeBorde.x, -offsetDesdeBorde.y);
+        rect.sizeDelta = size;
+    }
+
+    void ConfigurarAnclaTopRight(RectTransform rect, Vector2 offsetDesdeBorde, Vector2 size)
+    {
+        rect.anchorMin = new Vector2(1f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 1f);
+        rect.anchoredPosition = new Vector2(-offsetDesdeBorde.x, -offsetDesdeBorde.y);
+        rect.sizeDelta = size;
+    }
+
+    void ConfigurarAnclaTopCenter(RectTransform rect, Vector2 offsetDesdeTop, Vector2 size)
+    {
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(offsetDesdeTop.x, -offsetDesdeTop.y);
+        rect.sizeDelta = size;
+    }
+
+    void ConfigurarAnclaCentro(RectTransform rect, Vector2 offsetDesdeCentro, Vector2 size)
+    {
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = offsetDesdeCentro;
+        rect.sizeDelta = size;
     }
 
     Text CrearTexto(Transform parent, string nombre, Vector2 pos, int tamaño)

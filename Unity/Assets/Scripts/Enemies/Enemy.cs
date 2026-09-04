@@ -69,6 +69,18 @@ private float velocidadOriginal = NoOriginalSpeed;
         // Auto-asignar modeloVisual si quedó sin asignar (evita UnassignedReference)
         if (modeloVisual == null)
             modeloVisual = transform;
+
+        EnsureHealthBar();
+    }
+
+    private void EnsureHealthBar()
+    {
+        if (GetComponentInChildren<EnemyHealthBar>(true) != null) return;
+        GameObject barGO = new GameObject("HealthBar");
+        barGO.transform.SetParent(transform, false);
+        barGO.transform.localPosition = Vector3.zero;
+        barGO.transform.localRotation = Quaternion.identity;
+        barGO.AddComponent<EnemyHealthBar>();
     }
 
     protected virtual void Update()
