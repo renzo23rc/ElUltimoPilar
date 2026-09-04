@@ -43,6 +43,46 @@ public class MatchFlowTests
     }
 
     [Test]
+    public void WaitingStateRejectsActionsThatRequireAnActiveMatch()
+    {
+        var flow = new MatchFlow(3);
+
+        Assert.That(flow.Pause(), Is.False);
+        Assert.That(flow.Resume(), Is.False);
+        Assert.That(flow.TryStartNextWave(), Is.False);
+        Assert.That(flow.SetVictory(), Is.False);
+        Assert.That(flow.SetDefeat(), Is.False);
+        Assert.That(flow.State, Is.EqualTo(MatchState.WaitingToStart));
+        Assert.That(flow.CurrentWave, Is.Zero);
+    }
+
+    [Test]
+    public void PlayingStateRejectsRepeatedStartAndResume()
+    {
+        var flow = new MatchFlow(3);
+        flow.Start();
+
+        Assert.That(flow.Start(), Is.False);
+        Assert.That(flow.Resume(), Is.False);
+        Assert.That(flow.State, Is.EqualTo(MatchState.Playing));
+    }
+
+    [Test]
+    public void PausedStateRejectsRepeatedPauseAndStart()
+    {
+        var flow = new MatchFlow(3);
+        flow.Start();
+        flow.TryStartNextWave();
+        flow.Pause();
+
+        Assert.That(flow.Pause(), Is.False);
+        Assert.That(flow.Start(), Is.False);
+        Assert.That(flow.TryStartNextWave(), Is.False);
+        Assert.That(flow.State, Is.EqualTo(MatchState.Paused));
+        Assert.That(flow.CurrentWave, Is.EqualTo(1));
+    }
+
+    [Test]
     public void StartingPastTheConfiguredLastWaveTransitionsToVictory()
     {
         var flow = new MatchFlow(2);
@@ -63,12 +103,19 @@ public class MatchFlowTests
 
         Assert.That(flow.SetVictory(), Is.True);
         Assert.That(flow.State, Is.EqualTo(MatchState.Victory));
+        Assert.That(flow.Start(), Is.False);
         Assert.That(flow.Pause(), Is.False);
+        Assert.That(flow.Resume(), Is.False);
+        Assert.That(flow.TryStartNextWave(), Is.False);
+        Assert.That(flow.SetVictory(), Is.False);
+        Assert.That(flow.SetDefeat(), Is.False);
 
         flow.Reset();
 
         Assert.That(flow.State, Is.EqualTo(MatchState.WaitingToStart));
         Assert.That(flow.CurrentWave, Is.Zero);
+        Assert.That(flow.Start(), Is.True);
+        Assert.That(flow.TryStartNextWave(), Is.True);
     }
 
     [Test]
@@ -79,12 +126,18 @@ public class MatchFlowTests
 
         Assert.That(flow.SetDefeat(), Is.True);
         Assert.That(flow.State, Is.EqualTo(MatchState.Defeat));
-        Assert.That(flow.Resume(), Is.False);
         Assert.That(flow.Start(), Is.False);
+        Assert.That(flow.Pause(), Is.False);
+        Assert.That(flow.Resume(), Is.False);
+        Assert.That(flow.TryStartNextWave(), Is.False);
+        Assert.That(flow.SetVictory(), Is.False);
+        Assert.That(flow.SetDefeat(), Is.False);
 
         flow.Reset();
 
         Assert.That(flow.State, Is.EqualTo(MatchState.WaitingToStart));
         Assert.That(flow.CurrentWave, Is.Zero);
+        Assert.That(flow.Start(), Is.True);
+        Assert.That(flow.TryStartNextWave(), Is.True);
     }
 }
