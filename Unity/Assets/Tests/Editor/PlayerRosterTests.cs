@@ -2,6 +2,12 @@ using NUnit.Framework;
 
 public class PlayerRosterTests
 {
+    [Test]
+    public void MaximumCapacityIsFourPlayers()
+    {
+        Assert.That(PlayerRoster<FakePlayer>.MaximumCapacity, Is.EqualTo(4));
+    }
+
     [TestCase(PlayerRoster<FakePlayer>.MinimumCapacity - 1)]
     [TestCase(PlayerRoster<FakePlayer>.MaximumCapacity + 1)]
     public void ConstructorRejectsCapacityOutsideSupportedBounds(int capacity)
@@ -51,6 +57,33 @@ public class PlayerRosterTests
         Assert.That(roster.Unregister(first), Is.False);
         Assert.That(roster.Register(replacement), Is.True);
         Assert.That(roster.Players[0], Is.SameAs(replacement));
+    }
+
+    [Test]
+    public void RegisterAllowsDistinctPlayerInstancesThatCompareEqual()
+    {
+        var roster = new PlayerRoster<EqualPlayer>(PlayerRoster<EqualPlayer>.MinimumCapacity + 1);
+        var first = new EqualPlayer();
+        var second = new EqualPlayer();
+
+        Assert.That(roster.Register(first), Is.True);
+        Assert.That(roster.Register(second), Is.True);
+        Assert.That(roster.Count, Is.EqualTo(roster.Capacity));
+        Assert.That(roster.Players[0], Is.SameAs(first));
+        Assert.That(roster.Players[1], Is.SameAs(second));
+    }
+
+    [Test]
+    public void UnregisterDoesNotRemoveDistinctPlayerInstanceThatComparesEqual()
+    {
+        var roster = new PlayerRoster<EqualPlayer>(PlayerRoster<EqualPlayer>.MinimumCapacity + 1);
+        var registeredPlayer = new EqualPlayer();
+        var unregisteredPlayer = new EqualPlayer();
+
+        Assert.That(roster.Register(registeredPlayer), Is.True);
+        Assert.That(roster.Unregister(unregisteredPlayer), Is.False);
+        Assert.That(roster.Count, Is.EqualTo(1));
+        Assert.That(roster.Players[0], Is.SameAs(registeredPlayer));
     }
 
     [Test]
@@ -152,6 +185,25 @@ public class PlayerRosterTests
         public void ReplenishWaveAmmo()
         {
             ReplenishCalls++;
+        }
+    }
+
+    private sealed class EqualPlayer : IPlayerRosterMember
+    {
+        public bool IsDowned { get; set; }
+
+        public void ReplenishWaveAmmo()
+        {
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is EqualPlayer;
+        }
+
+        public override int GetHashCode()
+        {
+            return typeof(EqualPlayer).GetHashCode();
         }
     }
 }
