@@ -1,22 +1,15 @@
-/**
- * ArenaTransform.cs
- * Gestiona las transformaciones acumulativas e irreversibles de la arena
- * según los umbrales de vida del Pilar.
- * 
- * Según el GDD:
- * - Fase 1 (100-75%): Arena base
- * - Fase 2 (75-50%): Pozo central se abre
- * - Fase 3 (50-25%): Zona de gravedad alterada
- * - Fase 4 (25-0%): Protocolo de emergencia + caos
- * 
- * Colocar en un GameObject vacío "ArenaManager" o en el suelo/arena.
- */
+// arenatransform.cs
+// controla las transformaciones de la arena segun la vida del pilar
+// fases: 1 base, 2 pozo, 3 gravedad, 4 emergencia
+// va en un objeto vacio gestor de arena
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UltimoPilar.Arena;
 
+// componente que reacciona a cambios de fase del pilar y ejecuta avisos y activaciones en orden
 public class ArenaTransform : MonoBehaviour
 {
     private const int FirstArenaPhase = 1;
@@ -26,13 +19,13 @@ public class ArenaTransform : MonoBehaviour
     public Pilar pilar;
     public GameObject sueloBase;
 
-    [Header("Elementos de Transformación")]
-    public GameObject pozoCentral; // Se activa en fase 2
-    public GameObject zonaGravedad; // Se activa en fase 3
-    public GameObject escombrosFase4; // Se activan en fase 4
+    [Header("Elementos de Transformacion")]
+    public GameObject pozoCentral;
+    public GameObject zonaGravedad;
+    public GameObject escombrosFase4;
     public GameObject[] obstaculosAdicionales;
 
-    [Header("Configuración")]
+    [Header("Configuracion")]
     public float tiempoAvisoPrevio = 3f;
     public Color colorAviso = Color.yellow;
     public AudioClip sonidoTransformacion;
@@ -41,7 +34,6 @@ public class ArenaTransform : MonoBehaviour
     public int faseActual = FirstArenaPhase;
     public bool transformacionEnProgreso = false;
 
-    // Eventos
     public event Action<int> OnTransformacionIniciada;
     public event Action<int> OnTransformacionCompletada;
 
@@ -51,6 +43,7 @@ public class ArenaTransform : MonoBehaviour
     private ArenaPhaseEffects phaseEffects;
     private bool procesandoCola;
 
+    // inicializa, busca pilar si falta, asegura dependencias y se suscribe al cambio de fase
     private void Start()
     {
         if (pilar == null)
@@ -64,14 +57,13 @@ public class ArenaTransform : MonoBehaviour
             pilar.OnFaseCambiada += OnPilarFaseCambiada;
         }
 
-        // GameManager owns the managed match reset. Preserve standalone
-        // arena scenes without repeating the reset in a managed match.
         if (GameManager.Instance == null)
         {
             ResetState();
         }
     }
 
+    // se desuscribe del pilar al destruir el objeto
     private void OnDestroy()
     {
         if (pilar != null)
@@ -80,7 +72,7 @@ public class ArenaTransform : MonoBehaviour
         }
     }
 
-    /// <summary>Resets arena progression and restores the captured presentation state.</summary>
+    // resetea progresion, cola y efectos visuales a fase 1
     public void ResetState()
     {
         EnsureDependencies();
@@ -93,6 +85,7 @@ public class ArenaTransform : MonoBehaviour
         warningPresenter.Reset();
     }
 
+    // crea los servicios internos si no existen (estado, presentador, efectos y manejadores)
     private void EnsureDependencies()
     {
         if (phaseState == null)
@@ -136,6 +129,7 @@ public class ArenaTransform : MonoBehaviour
         }
     }
 
+    // obtiene el renderizador del suelo para el efecto de parpadeo
     private Renderer GetFloorRenderer()
     {
         if (sueloBase == null)
@@ -146,6 +140,7 @@ public class ArenaTransform : MonoBehaviour
         return sueloBase.GetComponent<Renderer>();
     }
 
+    // resuelve donde suena el aviso, cerca de la camara del jugador o en la arena
     private Vector3 ResolveAudioPosition()
     {
         GameManager gameManager = GameManager.Instance;
@@ -157,6 +152,7 @@ public class ArenaTransform : MonoBehaviour
         return gameManager.player.camaraJugador.transform.position;
     }
 
+    // recibe cambio de fase del pilar, encola fases faltantes y lanza la cola
     private void OnPilarFaseCambiada(int nuevaFase)
     {
         if (nuevaFase <= faseActual)
@@ -175,6 +171,7 @@ public class ArenaTransform : MonoBehaviour
         StartCoroutine(ProcesarColaFases());
     }
 
+    // vacia la cola de fases de forma secuencial, una transformacion por vez
     private IEnumerator ProcesarColaFases()
     {
         procesandoCola = true;
@@ -186,6 +183,7 @@ public class ArenaTransform : MonoBehaviour
         procesandoCola = false;
     }
 
+    // ejecuta aviso y activacion de una fase y la marca como completada
     private IEnumerator EjecutarTransformacion(int fase)
     {
         EnsureDependencies();
@@ -197,7 +195,7 @@ public class ArenaTransform : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"[ArenaTransform] ¡AVISO! Transformación a Fase {fase} en {tiempoAvisoPrevio} segundos...");
+        Debug.Log($"[ArenaTransform] ¡AVISO! Transformacion a Fase {fase} en {tiempoAvisoPrevio} segundos...");
         OnTransformacionIniciada?.Invoke(fase);
         yield return StartCoroutine(handler.Warn(tiempoAvisoPrevio));
         yield return StartCoroutine(handler.Activate());
@@ -205,16 +203,15 @@ public class ArenaTransform : MonoBehaviour
         phaseState.MarkActivated(fase);
         transformacionEnProgreso = false;
         OnTransformacionCompletada?.Invoke(fase);
-        Debug.Log($"[ArenaTransform] Transformación a Fase {fase} completada.");
+        Debug.Log($"[ArenaTransform] Transformacion a Fase {fase} completada.");
     }
 
+    // dibuja el radio de la arena y el pozo en el editor
     private void OnDrawGizmosSelected()
     {
-        // Dibujar radio de la arena
         Gizmos.color = Color.cyan;
         Gizmos.DrawWireSphere(transform.position, ArenaGizmoRadiusMeters);
 
-        // Dibujar zonas de transformación
         if (pozoCentral == null)
         {
             return;
@@ -224,5 +221,3 @@ public class ArenaTransform : MonoBehaviour
         Gizmos.DrawWireCube(pozoCentral.transform.position, pozoCentral.transform.localScale);
     }
 }
-
-

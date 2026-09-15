@@ -146,6 +146,18 @@ public class TestSceneSetup : MonoBehaviour
         suelo.transform.localScale = new Vector3(10f, 1f, 10f); // 100x100 unidades
         // Tag removido - no es necesario para el funcionamiento
         if (matSuelo != null) suelo.GetComponent<Renderer>().material = matSuelo;
+        else
+        {
+            Renderer rendSuelo = suelo.GetComponent<Renderer>();
+            if (rendSuelo != null)
+            {
+                // Gris por defecto cuando no hay material asignado (antes quedaba blanco)
+                Color gris = new Color(0.55f, 0.55f, 0.55f, 1f);
+                if (rendSuelo.material.HasProperty("_BaseColor")) rendSuelo.material.SetColor("_BaseColor", gris);
+                if (rendSuelo.material.HasProperty("_Color")) rendSuelo.material.SetColor("_Color", gris);
+                rendSuelo.material.color = gris;
+            }
+        }
         
         // 4. Pozo Central (inicialmente desactivado) - con PozoKill funcional - VISIBLE alrededor del Pilar
         GameObject pozo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
