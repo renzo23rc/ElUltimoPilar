@@ -286,7 +286,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="p05" name="05 Match presentation">
-    <mxGraphModel dx="2438" dy="2033" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1731" dy="1560" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -297,7 +297,7 @@
           <mxGeometry height="280" width="290" x="190" y="-20" as="geometry" />
         </mxCell>
         <mxCell id="p05-pilar" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Pilar&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ vidaActual / vidaMaxima: float&lt;br&gt;+ faseActual: int&lt;br&gt;+ umbrales / colores / torretas&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ RecibirDaño(float)&lt;br&gt;+ RestaurarVida()&lt;br&gt;+ VidaActual / PorcentajeVida / EstaVivo&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnVidaCambiada(float)&lt;br&gt;OnFaseCambiada(int)&lt;br&gt;OnDañoRecibido(float)&lt;/p&gt;" vertex="1">
-          <mxGeometry height="260" width="290" x="660" y="30" as="geometry" />
+          <mxGeometry height="260" width="290" x="690" y="10" as="geometry" />
         </mxCell>
         <mxCell id="p05-spawner" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;EnemySpawner&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ OleadaEnProgreso: bool&lt;br&gt;+ EnemigosVivos: int&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ IniciarOleada(int)&lt;br&gt;+ EnemigoEliminado(Enemy)&lt;br&gt;+ LimpiarTodos()&lt;/p&gt;" vertex="1">
           <mxGeometry height="200" width="220" x="235" y="-270" as="geometry" />
@@ -306,7 +306,7 @@
           <mxGeometry height="170" width="290" x="-330" y="40" as="geometry" />
         </mxCell>
         <mxCell id="p05-arena" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ArenaTransform&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ pilar: Pilar&lt;br&gt;+ sueloBase / pozoCentral&lt;br&gt;+ zonaGravedad / escombros&lt;br&gt;+ faseActual: int&lt;br&gt;+ transformacionEnProgreso: bool&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ ResetState(): void&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnTransformacionIniciada(int)&lt;br&gt;OnTransformacionCompletada(int)&lt;/p&gt;" vertex="1">
-          <mxGeometry height="250" width="290" x="650" y="-435" as="geometry" />
+          <mxGeometry height="250" width="290" x="690" y="-435" as="geometry" />
         </mxCell>
         <mxCell id="p05-audio" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#FFE6CC;strokeColor=#D79B00;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;AudioAdapter&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ Play(Sfx)&lt;/p&gt;" vertex="1">
           <mxGeometry height="110" width="220" x="500" y="-140" as="geometry" />
