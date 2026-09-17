@@ -92,7 +92,7 @@ public class Pilar : MonoBehaviour
         {
             return;
         }
-    }
+    }   
 
     // Por frame: aplica los pasos de fase pendientes según la vida y suaviza el color.
     private void Update()

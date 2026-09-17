@@ -46,9 +46,6 @@
         <mxCell id="p00-e6" edge="1" parent="1" source="p00-gm" style="dashed=1;endArrow=open;html=1;labelBackgroundColor=#ffffff;" target="p00-audio" value="OnVictoria">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p00-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="How to read: full arrow = call or ownership (diamond). Dashed = event subscription. Gray boxes on detail pages are cross-page references. Each page lists exact payloads." vertex="1">
-          <mxGeometry height="120" width="920" x="40" y="910" as="geometry" />
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
@@ -105,7 +102,7 @@
         <mxCell id="p01-e6" edge="1" parent="1" source="p01-roster" style="dashed=1;endArrow=block;endFill=0;html=1;labelBackgroundColor=#ffffff;" target="p01-iplayer" value="constrains">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p01-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="Open triangle = association. Filled diamond = composition. Dashed = dependency. Open block = interface constraint. DamageRequest is created by WeaponSystem (p.04) and consumed via IDamageable." vertex="1">
+        <mxCell id="p01-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="&lt;br&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="120" width="920" x="40" y="830" as="geometry" />
         </mxCell>
       </root>
@@ -155,14 +152,11 @@
         <mxCell id="p02-e6" edge="1" parent="1" source="p02-pc" style="dashed=1;endArrow=block;endFill=0;html=1;labelBackgroundColor=#ffffff;" target="p02-ref" value="implements">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p02-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="PlayerController reads one PlayerCommand per frame from its adapter and emits OnCommandIssued(player, command). Weapon and Energy consumption is on p.04." vertex="1">
-          <mxGeometry height="100" width="920" x="40" y="580" as="geometry" />
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
   <diagram id="p03" name="03 Coop setup">
-    <mxGraphModel dx="1773" dy="1531" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="1222" dy="1693" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -211,14 +205,11 @@
         <mxCell id="p03-e8" edge="1" parent="1" source="p03-split" style="endArrow=open;html=1;labelBackgroundColor=#ffffff;" target="p03-pc" value="configures camera">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p03-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="Join pairs each gamepad exclusively and registers the new player. Split-screen follows roster order. Gameplay rules stay in GameManager (p.05)." vertex="1">
-          <mxGeometry height="100" width="920" x="160" y="460" as="geometry" />
-        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
   <diagram id="p04" name="04 Combat">
-    <mxGraphModel dx="1900" dy="1776" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1746" dy="2233" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -288,9 +279,6 @@
         <mxCell id="p04-e11" edge="1" parent="1" source="p04-enemy" style="endArrow=open;html=1;labelBackgroundColor=#ffffff;" target="p04-pilar" value="RecibirDaño">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="p04-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="Weapon never calls Enemy directly: it sends DamageRequest through IDamageable. Enemy reports kills to its spawner (p.05) via EnemigoEliminado." vertex="1">
-          <mxGeometry height="100" width="920" x="40" y="680" as="geometry" />
-        </mxCell>
         <mxCell id="p04-enemy" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#F8CECC;strokeColor=#B85450;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Enemy&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ vidaActual / vidaMaxima&lt;br&gt;+ dañoAlPilar / dañoAlJugador&lt;br&gt;+ energiaDrop: int&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ RecibirDaño(float)&lt;br&gt;+ ReceiveDamage(DamageRequest): void&lt;br&gt;(explicit IDamageable)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnMuerte()&lt;br&gt;OnDañoRecibido(float)&lt;/p&gt;" vertex="1">
           <mxGeometry height="230" width="290" x="420" y="105" as="geometry" />
         </mxCell>
@@ -298,18 +286,18 @@
     </mxGraphModel>
   </diagram>
   <diagram id="p05" name="05 Match presentation">
-    <mxGraphModel dx="2438" dy="2033" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1731" dy="1560" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="p05-title" parent="1" style="text;html=1;fontSize=18;fontStyle=1;align=left;" value="Diagrama de clases Pilar y ArenaTransform&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="30" width="380" x="60" y="-380" as="geometry" />
+        <mxCell id="p05-title" parent="1" style="text;html=1;fontSize=18;fontStyle=1;align=left;" value="Diagrama de clases Pilar y ArenaTransform, etc.&lt;div&gt;&lt;br&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="410" x="60" y="-380" as="geometry" />
         </mxCell>
         <mxCell id="p05-gm" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;GameManager&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ EstadoActual: MatchState&lt;br&gt;+ CurrentResult: MatchResult&lt;br&gt;+ Players / PlayerCount&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ IniciarJuego() / PausarJuego()&lt;br&gt;+ ReanudarJuego() / ReiniciarJuego()&lt;br&gt;+ Victoria() / Derrota()&lt;br&gt;+ DerrotaPorJugadores()&lt;br&gt;+ RegisterPlayer(PlayerController): bool&lt;br&gt;+ UnregisterPlayer(PlayerController): bool&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnMatchResult(MatchResult)&lt;br&gt;OnVictoria / OnDerrota&lt;br&gt;OnOleada* / OnPlayer* / OnJuegoIniciado&lt;/p&gt;" vertex="1">
-          <mxGeometry height="280" width="290" x="200" y="20" as="geometry" />
+          <mxGeometry height="280" width="290" x="190" y="-20" as="geometry" />
         </mxCell>
         <mxCell id="p05-pilar" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Pilar&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ vidaActual / vidaMaxima: float&lt;br&gt;+ faseActual: int&lt;br&gt;+ umbrales / colores / torretas&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ RecibirDaño(float)&lt;br&gt;+ RestaurarVida()&lt;br&gt;+ VidaActual / PorcentajeVida / EstaVivo&lt;/p&gt;&lt;hr size=&quot;1&quot;&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnVidaCambiada(float)&lt;br&gt;OnFaseCambiada(int)&lt;br&gt;OnDañoRecibido(float)&lt;/p&gt;" vertex="1">
-          <mxGeometry height="260" width="290" x="650" y="60" as="geometry" />
+          <mxGeometry height="260" width="290" x="690" y="10" as="geometry" />
         </mxCell>
         <mxCell id="p05-spawner" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;EnemySpawner&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ OleadaEnProgreso: bool&lt;br&gt;+ EnemigosVivos: int&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ IniciarOleada(int)&lt;br&gt;+ EnemigoEliminado(Enemy)&lt;br&gt;+ LimpiarTodos()&lt;/p&gt;" vertex="1">
           <mxGeometry height="200" width="220" x="235" y="-270" as="geometry" />
@@ -318,16 +306,16 @@
           <mxGeometry height="170" width="290" x="-330" y="40" as="geometry" />
         </mxCell>
         <mxCell id="p05-arena" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ArenaTransform&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ pilar: Pilar&lt;br&gt;+ sueloBase / pozoCentral&lt;br&gt;+ zonaGravedad / escombros&lt;br&gt;+ faseActual: int&lt;br&gt;+ transformacionEnProgreso: bool&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ ResetState(): void&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;events: OnTransformacionIniciada(int)&lt;br&gt;OnTransformacionCompletada(int)&lt;/p&gt;" vertex="1">
-          <mxGeometry height="250" width="290" x="650" y="-435" as="geometry" />
+          <mxGeometry height="250" width="290" x="690" y="-435" as="geometry" />
         </mxCell>
         <mxCell id="p05-audio" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#FFE6CC;strokeColor=#D79B00;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;AudioAdapter&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;+ Play(Sfx)&lt;/p&gt;" vertex="1">
-          <mxGeometry height="110" width="220" x="490" y="-140" as="geometry" />
+          <mxGeometry height="110" width="220" x="500" y="-140" as="geometry" />
         </mxCell>
         <mxCell id="p05-mr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;" value="&lt;b&gt;MatchResult&lt;/b&gt;&lt;br&gt;(see p.01)" vertex="1">
           <mxGeometry height="70" width="290" x="-330" y="290" as="geometry" />
         </mxCell>
         <mxCell id="p05-mf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;" value="&lt;b&gt;MatchFlow&lt;/b&gt;&lt;br&gt;(see p.01)" vertex="1">
-          <mxGeometry height="70" width="290" x="200" y="380" as="geometry" />
+          <mxGeometry height="70" width="290" x="190" y="330" as="geometry" />
         </mxCell>
         <mxCell id="p05-pc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;" value="&lt;b&gt;PlayerController&lt;/b&gt;&lt;br&gt;(see p.02)" vertex="1">
           <mxGeometry height="70" width="220" x="-50" y="-140" as="geometry" />
@@ -373,9 +361,6 @@
         </mxCell>
         <mxCell id="p05-e14" edge="1" parent="1" source="p05-arenacollab" style="dashed=1;endArrow=open;html=1;labelBackgroundColor=#ffffff;" target="p05-hud" value="MostrarAdvertencia">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="p05-legend" parent="1" style="text;html=1;fontSize=11;align=left;" value="Presentation never writes match state: it only subscribes to events and reads public fields. ArenaTransform holds a Pilar reference and subscribes to OnFaseCambiada." vertex="1">
-          <mxGeometry height="100" width="920" x="40" y="830" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
