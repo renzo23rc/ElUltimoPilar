@@ -126,3 +126,5 @@ ServerData
 .env.local
 *.alf
 *.ulf
+
+.superpowers/
