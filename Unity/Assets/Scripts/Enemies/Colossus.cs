@@ -3,21 +3,23 @@
  * Coloso (mini-jefe de oleada tardía): Lento, mucha vida, resistente a disparos directos.
  * La única forma viable es empujarlo a pozos o zonas de gravedad.
  */
+using UltimoPilar.Core.Shared;
 using UnityEngine;
 
 public class Colossus : Enemy
 {
-private const float MovementSpeedMetersPerSecond = 0.9f;
-private const float MaximumHealth = 180f;
-private const float PilarDamage = 22f;
-private const float PlayerDamage = 18f;
-private const int EnergyDropAmount = 20;
+    private const float MovementSpeedMetersPerSecond = 0.9f;
+    private const float MaximumHealth = 180f;
+    private const float PilarDamage = 22f;
+    private const float PlayerDamage = 18f;
+    private const int EnergyDropAmount = 20;
+
     [Header("Coloso Específico")]
     [Range(0f, 0.9f)] public float resistenciaDisparos = 0.55f; // Reduce 55% del daño (antes 80% -> inmortal)
     public float dañoEmpuje = 30f;
     public float radioAtaque = 4f;
     public GameObject prefabOndaImpacto;
-    
+
     [HideInInspector] public bool enZonaPeligrosa = false; // Usado por PozoKill/ZonaGravedad para debug
 
     protected override void Start()
@@ -35,13 +37,15 @@ private const int EnergyDropAmount = 20;
 
     protected override void Comportamiento()
     {
-        if (pilarObjetivo == null) return;
-        
+        if (pilarObjetivo == null)
+        {
+            return;
+        }
+
         Vector3 direccion = pilarObjetivo.transform.position - transform.position;
         direccion.y = 0;
         float distancia = direccion.magnitude;
-        
-        // Atacar área si está cerca
+
         if (distancia <= rangoAtaque)
         {
             AtacarArea();
@@ -54,26 +58,28 @@ private const int EnergyDropAmount = 20;
 
     void AtacarArea()
     {
-        if (timerAtaque > 0) return;
-        
-        // Daño en área al Pilar y jugadores cercanos
-        Collider[] afectados = Physics.OverlapSphere(transform.position, radioAtaque);
-        foreach (var col in afectados)
+        if (timerAtaque > 0)
         {
-            var pilar = col.GetComponent<Pilar>();
-            if (pilar != null)
-                pilar.RecibirDaño(dañoAlPilar);
-            
-            var player = col.GetComponent<PlayerController>();
-            if (player != null)
-                player.RecibirDaño(dañoAlJugador);
+            return;
         }
-        
+
+        // Daño en área al Pilar y jugadores cercanos, una vez por objetivo.
+        foreach (Pilar pilar in OverlapQuery.FindUniqueInSphere<Pilar>(transform.position, radioAtaque))
+        {
+            pilar.RecibirDaño(dañoAlPilar);
+        }
+
+        foreach (PlayerController player in OverlapQuery.FindUniqueInSphere<PlayerController>(transform.position, radioAtaque))
+        {
+            player.RecibirDaño(dañoAlJugador);
+        }
+
         if (prefabOndaImpacto != null)
+        {
             Instantiate(prefabOndaImpacto, transform.position, Quaternion.identity);
-        
+        }
+
         timerAtaque = cooldownAtaque;
-        Debug.Log("[Colossus] Ataque de área!");
     }
 
     public override void RecibirDaño(float cantidad)
@@ -85,23 +91,18 @@ private const int EnergyDropAmount = 20;
 
     void OnTriggerEnter(Collider other)
     {
-        // Detectar pozo vía componente PozoKill (robusto) + fallback por nombre (compatibilidad)
-        var pozo = other.GetComponent<PozoKill>();
-        if (pozo == null) pozo = other.GetComponentInParent<PozoKill>();
-        bool esPozo = pozo != null || other.gameObject.name.Contains("Pozo");
-        bool esGravedad = other.gameObject.name.Contains("Gravedad");
-
-        if (esPozo || esGravedad)
+        bool esPozo = other.GetComponentInParent<PozoKill>() != null;
+        bool esGravedad = other.GetComponentInParent<ZonaGravedadEffect>() != null;
+        if (!esPozo && !esGravedad)
         {
-            enZonaPeligrosa = true;
-            if (esPozo)
-            {
-                Debug.Log("[Colossus] ¡El Coloso cayó en un pozo! Muerte instantánea.");
-                // Bypass resistencia: vida 0 y morir directo con recompensa
-                vidaActual = 0;
-                // base.Morir() ya dropea energía y notifica spawner
-                if (!estaMuerto) base.Morir();
-            }
+            return;
+        }
+
+        enZonaPeligrosa = true;
+        if (esPozo)
+        {
+            // Caer al pozo ignora la resistencia y conserva la recompensa.
+            KillInstantly();
         }
     }
 

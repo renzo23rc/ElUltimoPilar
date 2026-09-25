@@ -18,9 +18,6 @@ namespace UltimoPilar.Core.Pilar
     private const float SpawnPointForwardMeters = 0.8f;
     private const float SpawnPointHeightMeters = 0.6f;
     private const float FirePointHeightMeters = 1.3f;
-    private const string FallbackShaderName = "Universal Render Pipeline/Lit";
-    private const string LegacyShaderName = "Standard";
-    private const string FinalShaderName = "Sprites/Default";
 
     private readonly List<GameObject> spawnedTurrets = new List<GameObject>();
     private readonly float spawnHeightMeters;
@@ -139,12 +136,9 @@ namespace UltimoPilar.Core.Pilar
     private void ConfigureFallbackVisuals(GameObject turret)
     {
         Color color = new Color(FallbackColorRed, FallbackColorGreen, FallbackColorBlue);
-        Renderer renderer = turret.GetComponent<Renderer>();
-        Shader shader = Shader.Find(FallbackShaderName) ?? Shader.Find(LegacyShaderName) ?? Shader.Find(FinalShaderName);
-        var material = new Material(shader);
-        MaterialColorHelper.SetBaseAndEmissionColor(material, color, DefaultEmissionMultiplier);
-        renderer.material = material;
-        Object.Destroy(turret.GetComponent<BoxCollider>());
+        OwnedMaterialCleanup.Assign(
+            turret.GetComponent<Renderer>(),
+            RuntimeMaterialFactory.CreateLit(color, DefaultEmissionMultiplier));
 
         var light = turret.AddComponent<Light>();
         light.type = LightType.Point;
@@ -155,7 +149,9 @@ namespace UltimoPilar.Core.Pilar
 
     private void ConfigureFallbackComponent(GameObject turret)
     {
-        var collider = turret.GetComponent<BoxCollider>() ?? turret.AddComponent<BoxCollider>();
+        // El cubo primitivo ya trae BoxCollider: se reutiliza en vez de destruirlo y recrearlo.
+        if (!turret.TryGetComponent(out BoxCollider collider))
+            collider = turret.AddComponent<BoxCollider>();
         collider.isTrigger = false;
         collider.center = Vector3.zero;
         collider.size = Vector3.one;

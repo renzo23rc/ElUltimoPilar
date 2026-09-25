@@ -34,6 +34,9 @@ public class TestSceneSetup : MonoBehaviour
     private const int ProjectilePoolMaximumSize = 80;
     private const float PlayerMuzzleForwardMeters = 0.9f;
     private const string PlayerMuzzleName = "PuntoDisparo";
+    private const string RuntimeTemplatesRootName = "PlantillasRuntime";
+
+    private Transform plantillasRuntime;
 
     [Header("Configuración Rápida")]
     /// <summary>Gets or sets whether generation runs on start.</summary>
@@ -65,6 +68,11 @@ public class TestSceneSetup : MonoBehaviour
     {
         Debug.Log("[TestSceneSetup] Generando escena de prueba...");
         
+        // Contenedor inactivo: las copias de prefabs que se configuran en runtime viven acá,
+        // así nunca se modifican los assets de Resources.
+        plantillasRuntime = new GameObject(RuntimeTemplatesRootName).transform;
+        plantillasRuntime.gameObject.SetActive(false);
+
         // 1. GameManager
         GameObject gm = new GameObject("GameManager");
         var gameManager = gm.AddComponent<GameManager>();
@@ -89,7 +97,7 @@ public class TestSceneSetup : MonoBehaviour
         }
         pilar.puntosTorretas = torretas;
         // Prefab torreta (Fase 4) - intenta cargar prefab real, fallback runtime si no existe
-        GameObject prefabTorreta = Resources.Load<GameObject>("Prefabs/Torreta");
+        GameObject prefabTorreta = CargarPlantilla("Torreta");
         if (prefabTorreta == null)
         {
             prefabTorreta = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -132,10 +140,6 @@ public class TestSceneSetup : MonoBehaviour
             pdTorreta.transform.localScale = Vector3.one;
             torreta.puntoDisparo = pdTorreta.transform;
             prefabTorreta.SetActive(false);
-        }
-        else
-        {
-            Debug.Log("[TestSceneSetup] Usando prefab real Torreta desde Resources/Prefabs");
         }
         pilar.prefabTorreta = prefabTorreta;
         
@@ -316,7 +320,6 @@ public class TestSceneSetup : MonoBehaviour
         
         // 9. Prefab de energía (intenta cargar real, fallback runtime)
         GameObject energia = Resources.Load<GameObject>("Prefabs/EnergiaPickup");
-        bool energiaIsReal = energia != null;
         if (energia == null)
         {
             energia = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -338,8 +341,7 @@ public class TestSceneSetup : MonoBehaviour
         poolMgr.RegisterPool("EnergyPickup", energia, EnergyPoolInitialSize, EnergyPoolMaximumSize);
 
         // Prefab proyectil base (intenta cargar real)
-        GameObject projPrefab = Resources.Load<GameObject>("Prefabs/ProyectilBase");
-        bool projIsReal = projPrefab != null;
+        GameObject projPrefab = CargarPlantilla("ProyectilBase");
         if (projPrefab == null)
         {
             projPrefab = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -378,7 +380,6 @@ public class TestSceneSetup : MonoBehaviour
             projComp.daño = 10f;
             projComp.tiempoVida = 5f;
         }
-        else Debug.Log("[TestSceneSetup] Usando prefab real ProyectilBase");
         // Asegurar PooledObject y estado inactivo para pool
         if (projPrefab.GetComponent<PooledObject>() == null) projPrefab.AddComponent<PooledObject>().poolKey = "Proyectil";
         if (projPrefab.activeSelf) projPrefab.SetActive(false);
@@ -529,15 +530,29 @@ public class TestSceneSetup : MonoBehaviour
 
     GameObject CargarOcrearEnemigo(string nombre, Color color, Type tipoScript, GameObject prefabEnergia)
     {
-        var loaded = Resources.Load<GameObject>("Prefabs/" + nombre);
-        if (loaded != null)
-        {
-            Debug.Log($"[TestSceneSetup] Usando prefab real {nombre} desde Resources/Prefabs");
-            var e = loaded.GetComponent<Enemy>();
-            if (e != null && e.prefabEnergia == null) e.prefabEnergia = prefabEnergia;
-            // Asegurar que el asset no se modifique en escena (instancia se creará via Instantiate)
-            return loaded;
-        }
-        return CrearPrefabEnemigo(nombre, color, tipoScript, prefabEnergia);
+        GameObject plantilla = CargarPlantilla(nombre);
+        if (plantilla == null)
+            return CrearPrefabEnemigo(nombre, color, tipoScript, prefabEnergia);
+
+        var enemy = plantilla.GetComponent<Enemy>();
+        if (enemy != null && enemy.prefabEnergia == null) enemy.prefabEnergia = prefabEnergia;
+        return plantilla;
+    }
+
+    /// <summary>
+    /// Returns a scene copy of a Resources prefab parked under the inactive templates root,
+    /// so runtime configuration never mutates the asset. Returns null when the prefab is missing.
+    /// </summary>
+    GameObject CargarPlantilla(string nombre)
+    {
+        GameObject asset = Resources.Load<GameObject>("Prefabs/" + nombre);
+        if (asset == null)
+            return null;
+
+        // Bajo un padre inactivo la copia no ejecuta Awake/OnEnable hasta que se instancie desde ella.
+        GameObject plantilla = Instantiate(asset, plantillasRuntime);
+        plantilla.name = asset.name;
+        Debug.Log($"[TestSceneSetup] Usando prefab real {nombre} desde Resources/Prefabs");
+        return plantilla;
     }
 }

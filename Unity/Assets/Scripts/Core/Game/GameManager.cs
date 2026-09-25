@@ -15,6 +15,7 @@ using System.Collections.Generic;
 public class GameManager : MonoBehaviour
 {
     private const float InitialTimeScale = 1f;
+    private const float PausedTimeScale = 0f;
     private const float NoInputLookThreshold = 2f;
 
     /// <summary>
@@ -203,7 +204,7 @@ public class GameManager : MonoBehaviour
     private void ResetOwnedState()
     {
         // Restaurar el reloj antes de detener cualquier estado dependiente del tiempo.
-        Time.timeScale = 1f;
+        Time.timeScale = InitialTimeScale;
         matchFlow.Reset();
         CurrentResult = null;
         esperandoInputInicial = false;
@@ -235,14 +236,14 @@ public class GameManager : MonoBehaviour
     public void PausarJuego()
     {
         if (!matchFlow.Pause()) return;
-        Time.timeScale = 0f;
+        Time.timeScale = PausedTimeScale;
     }
 
     /// <summary>Resumes the paused match.</summary>
     public void ReanudarJuego()
     {
         if (!matchFlow.Resume()) return;
-        Time.timeScale = 1f;
+        Time.timeScale = InitialTimeScale;
     }
 
     /// <summary>Restarts the match.</summary>
@@ -321,16 +322,10 @@ public class GameManager : MonoBehaviour
 
         if (!transitioned) return;
 
-        Time.timeScale = 1f;
-        PilarHealthSnapshot snapshot;
-        if (TryCreatePilarHealthSnapshot(out snapshot))
-        {
-            CurrentResult = new MatchResult(outcome, snapshot);
-        }
-        else
-        {
-            CurrentResult = null;
-        }
+        Time.timeScale = InitialTimeScale;
+        CurrentResult = TryCreatePilarHealthSnapshot(out PilarHealthSnapshot snapshot)
+            ? new MatchResult(outcome, snapshot)
+            : null;
 
         if (outcome == MatchState.Victory)
         {
@@ -377,7 +372,7 @@ public class GameManager : MonoBehaviour
     /// <param name="p">The revived player.</param>
     public void NotificarJugadorReanimado(PlayerController p)
     {
-        // No hace falta acción, solo log
+        // Compatibilidad: la reanimación se observa por PlayerController.OnReanimado.
     }
 
     /// <summary>Registers a player.</summary>
@@ -436,7 +431,7 @@ public class GameManager : MonoBehaviour
 
     void OnJugadorReanimado(PlayerController jugador)
     {
-        Debug.Log("[GameManager] Jugador reanimado - derrota evitada");
+        // La derrota co-op se reevalúa en cada derribo; reanimar no requiere acción.
     }
 
     void OnJugadorCommandIssued(PlayerController jugador, PlayerCommand command)
@@ -475,13 +470,8 @@ public class GameManager : MonoBehaviour
 
     void OnDestroy()
     {
-        foreach (var jugador in jugadoresSuscritos)
-        {
-            if (jugador == null) continue;
-            jugador.OnDerribado -= OnJugadorDerribado;
-            jugador.OnReanimado -= OnJugadorReanimado;
-            jugador.OnCommandIssued -= OnJugadorCommandIssued;
-        }
+        foreach (var jugador in new List<PlayerController>(jugadoresSuscritos))
+            DesuscribirEventosJugador(jugador);
         jugadoresSuscritos.Clear();
 
         if (Instance == this)

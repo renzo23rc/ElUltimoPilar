@@ -8,7 +8,11 @@ using System;
 
 public class WeaponVariantPickup : MonoBehaviour
 {
-private static readonly float FullCircleRadians = Mathf.PI * 2f;
+    private const float MinimumHorizontalDirectionSqr = 0.001f;
+    private static readonly float FullCircleRadians = Mathf.PI * 2f;
+    private static readonly Color PickupColor = new Color(1f, 0.55f, 0.1f);
+    private static readonly Color PickupEmissionColor = new Color(1f, 0.4f, 0f) * 0.8f;
+
     [Header("Variante")]
     public WeaponSystem.TipoArma tipoPotenciado = WeaponSystem.TipoArma.Directa;
     public WeaponSystem.WeaponVariant variant = WeaponSystem.WeaponVariant.PrecisionRifle;
@@ -38,9 +42,9 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
         var rend = GetComponent<Renderer>();
         if (rend != null)
         {
-            rend.material.color = new Color(1f, 0.55f, 0.1f);
+            rend.material.color = PickupColor;
             if (rend.material.HasProperty("_EmissionColor"))
-                rend.material.SetColor("_EmissionColor", new Color(1f, 0.4f, 0f) * 0.8f);
+                rend.material.SetColor("_EmissionColor", PickupEmissionColor);
         }
     }
 
@@ -82,7 +86,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
 
     void AtraerHaciaJugador()
     {
-        PlayerController jugador = ResolverJugadorCercano();
+        PlayerController jugador = PlayerLocator.FindClosestRegistered(transform.position);
         if (jugador == null) return;
         float distancia = Vector3.Distance(transform.position, jugador.transform.position);
         if (distancia <= rangoAtraccion)
@@ -90,41 +94,18 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
             Vector3 direccion = (jugador.transform.position - transform.position).normalized;
             // Mantener levitación en Y pero atraer en XZ y un poco en Y.
             direccion.y = 0f;
-            if (direccion.sqrMagnitude < 0.001f) direccion = (jugador.transform.position - transform.position).normalized;
+            if (direccion.sqrMagnitude < MinimumHorizontalDirectionSqr) direccion = (jugador.transform.position - transform.position).normalized;
             transform.position += direccion * velocidadAtraccion * Time.deltaTime;
             posicionInicial += direccion * velocidadAtraccion * Time.deltaTime;
         }
     }
 
-    PlayerController ResolverJugadorCercano()
-    {
-        GameManager manager = GameManager.Instance;
-        if (manager != null && manager.PlayerCount > 0)
-        {
-            PlayerController cercano = null;
-            float minDist = float.MaxValue;
-            foreach (PlayerController jugador in manager.Players)
-            {
-                if (jugador == null) continue;
-                float d = Vector3.Distance(transform.position, jugador.transform.position);
-                if (d < minDist)
-                {
-                    minDist = d;
-                    cercano = jugador;
-                }
-            }
-            if (cercano != null) return cercano;
-        }
-        return FindFirstObjectByType<PlayerController>();
-    }
-
     void OnTriggerEnter(Collider other)
     {
         if (collected)
-return;
+            return;
 
-        var player = other.GetComponent<PlayerController>();
-        if (player == null) player = other.GetComponentInParent<PlayerController>();
+        var player = other.GetComponentInParent<PlayerController>();
         if (player == null) return;
         var armas = player.GetComponent<WeaponSystem>();
         if (armas == null) return;
@@ -133,17 +114,17 @@ return;
         ApplyVariantTo(armas);
         OnRecogida?.Invoke(armas);
         AudioAdapter.Play(AudioAdapter.Sfx.Variant);
-        Debug.Log($"[Variante] {player.name} recogió x{multiplicadorDaño} {armas.ActiveVariantDisplayName} por {duracionSegundos}s");
         Destroy(gameObject);
     }
 
     private void ApplyVariantTo(WeaponSystem armas)
     {
-            if (variant == WeaponSystem.WeaponVariant.PrecisionRifle
-                && tipoPotenciado != WeaponSystem.TipoArma.Directa)
+        // Compatibilidad: el pickup heredado potencia un tipo de arma sin variante semántica.
+        if (variant == WeaponSystem.WeaponVariant.PrecisionRifle
+            && tipoPotenciado != WeaponSystem.TipoArma.Directa)
         {
-armas.ApplyVariant(tipoPotenciado, multiplicadorDaño, duracionSegundos);
-return;
+            armas.ApplyVariant(tipoPotenciado, multiplicadorDaño, duracionSegundos);
+            return;
         }
 
         armas.ApplyVariant(variant, multiplicadorDaño, duracionSegundos);

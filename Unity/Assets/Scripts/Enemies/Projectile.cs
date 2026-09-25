@@ -7,7 +7,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class Projectile : MonoBehaviour
 {
-private const float ImpactVfxDurationSeconds = 1f;
+    private const float ImpactVfxDurationSeconds = 1f;
+    private const string ImpactPoolKey = "Impacto";
+
     [Header("Configuración")]
     public float daño = 10f;
     public float dañoJugador = 10f;
@@ -15,11 +17,16 @@ private const float ImpactVfxDurationSeconds = 1f;
     public bool destruirAlImpactar = true;
     public GameObject prefabImpacto;
     
-    private Rigidbody rb;
+    private bool impactado;
+
+    void OnEnable()
+    {
+        // Las instancias del pool se reutilizan: cada activación puede impactar una vez.
+        impactado = false;
+    }
 
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
         // Si está en pool, el PooledObject manejará auto-release; si no, Destroy tradicional
         if (TryGetComponent<PooledObject>(out var pooled) && !string.IsNullOrEmpty(pooled.poolKey))
         {
@@ -33,10 +40,10 @@ private const float ImpactVfxDurationSeconds = 1f;
 
     void OnTriggerEnter(Collider other)
     {
-        // Ignorar otros proyectiles y enemigos (si es proyectil enemigo)
-        if (other.GetComponent<Projectile>() != null) return;
-        
-        var pilar = other.GetComponent<Pilar>();
+        // Un proyectil impacta una sola vez aunque toque varios colliders en el mismo paso.
+        if (impactado || other.GetComponentInParent<Projectile>() != null) return;
+
+        var pilar = other.GetComponentInParent<Pilar>();
         if (pilar != null)
         {
             pilar.RecibirDaño(daño);
@@ -44,7 +51,7 @@ private const float ImpactVfxDurationSeconds = 1f;
             return;
         }
         
-        var player = other.GetComponent<PlayerController>();
+        var player = other.GetComponentInParent<PlayerController>();
         if (player != null)
         {
             player.RecibirDaño(dañoJugador);
@@ -52,7 +59,7 @@ private const float ImpactVfxDurationSeconds = 1f;
             return;
         }
         
-        var enemy = other.GetComponent<Enemy>();
+        var enemy = other.GetComponentInParent<Enemy>();
         if (enemy != null)
         {
             enemy.RecibirDaño(daño);
@@ -60,8 +67,7 @@ private const float ImpactVfxDurationSeconds = 1f;
             return;
         }
 
-        var torreta = other.GetComponent<Torreta>();
-        if (torreta == null) torreta = other.GetComponentInParent<Torreta>();
+        var torreta = other.GetComponentInParent<Torreta>();
         if (torreta != null)
         {
             torreta.RecibirDaño(daño);
@@ -80,14 +86,16 @@ private const float ImpactVfxDurationSeconds = 1f;
     {
         if (prefabImpacto != null)
         {
-            if (PoolManager.Instance != null)
-                PoolManager.Instance.GetVFX("Impacto", transform.position, Quaternion.identity, ImpactVfxDurationSeconds);
-            else
-                Instantiate(prefabImpacto, transform.position, Quaternion.identity);
+            GameObject vfx = PoolManager.Instance != null
+                ? PoolManager.Instance.GetVFX(ImpactPoolKey, transform.position, Quaternion.identity, ImpactVfxDurationSeconds)
+                : null;
+            if (vfx == null)
+                Destroy(Instantiate(prefabImpacto, transform.position, Quaternion.identity), ImpactVfxDurationSeconds);
         }
-        
+
         if (destruirAlImpactar)
         {
+            impactado = true;
             var pooled = GetComponent<PooledObject>();
             if (pooled != null && !string.IsNullOrEmpty(pooled.poolKey) && PoolManager.Instance != null)
                 PoolManager.Instance.Release(pooled.poolKey, gameObject);

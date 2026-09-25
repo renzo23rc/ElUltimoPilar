@@ -1,4 +1,6 @@
+using UltimoPilar.Core.Shared;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 
 internal static class EnemyHealthFraction
@@ -18,7 +20,7 @@ internal static class EnemyHealthFraction
             return FullFraction;
         }
 
-        return Clamp(currentHealth / maximumHealth);
+        return Mathf.Clamp01(currentHealth / maximumHealth);
     }
 
     private static bool IsValidMaximum(float maximumHealth)
@@ -27,30 +29,30 @@ internal static class EnemyHealthFraction
             && !float.IsInfinity(maximumHealth)
             && maximumHealth > EmptyFraction;
     }
-
-    private static float Clamp(float fraction)
-    {
-        if (fraction <= EmptyFraction)
-        {
-            return EmptyFraction;
-        }
-
-        if (fraction >= FullFraction)
-        {
-            return FullFraction;
-        }
-
-        return fraction;
-    }
 }
 
+/// <summary>
+/// World-space health bar above an enemy. It faces every camera right before that camera renders,
+/// so it reads correctly in split-screen without searching for cameras each frame.
+/// </summary>
 public class EnemyHealthBar : MonoBehaviour
 {
     private const float BarWidth = 2.2f;
     private const float BarHeight = 0.28f;
-    private const float BarHeightOffset = 0.4f;
+    private const float CanvasUnitsPerMeter = 100f;
     private const float CanvasScale = 0.016f;
-    private const float BackgroundAlpha = 0.9f;
+    private const int CanvasSortingOrder = 100;
+    private const int UiLayer = 5;
+    private const float MinimumColliderExtentMeters = 0.01f;
+    private const float ColliderHeadroomMeters = 0.6f;
+    private const float ScaleHeadroomMeters = 0.7f;
+    private const float MinimumHeightOffsetMeters = 1.1f;
+    private const float MinimumHeightHeadroomMeters = 0.9f;
+    private const float DefaultHeightOffsetMeters = 1.6f;
+    private const float MinimumBillboardDistanceSqr = 0.001f;
+    private static readonly Color BackgroundColor = new Color(0.08f, 0.08f, 0.08f, 0.9f);
+    private static readonly Color FillColor = new Color(0.15f, 1f, 0.15f, 1f);
+    private static readonly Vector2 CenterPivot = new Vector2(0.5f, 0.5f);
 
     [Header("References")]
     [SerializeField] private Enemy enemy;
@@ -73,6 +75,7 @@ public class EnemyHealthBar : MonoBehaviour
     private void OnEnable()
     {
         ResolveEnemy();
+        RenderPipelineManager.beginCameraRendering += HandleBeginCameraRendering;
 
         if (enemy == null)
         {
@@ -90,12 +93,21 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void OnDisable()
     {
+        RenderPipelineManager.beginCameraRendering -= HandleBeginCameraRendering;
+
         if (enemy == null)
         {
             return;
         }
 
         enemy.OnDañoRecibido -= HandleDamageReceived;
+    }
+
+    public void AssignReferences(Enemy targetEnemy, Image fill, Transform canvas)
+    {
+        enemy = targetEnemy;
+        healthFill = fill;
+        canvasTransform = canvas;
     }
 
     private void ResolveEnemy()
@@ -108,127 +120,116 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void EnsureHealthBarUI()
     {
-        if (healthFill != null)
+        Canvas existingCanvas = healthFill != null ? healthFill.GetComponentInParent<Canvas>() : null;
+        if (existingCanvas != null)
         {
-            Canvas existingCanvas = healthFill.GetComponentInParent<Canvas>();
-            if (existingCanvas != null) canvasTransform = existingCanvas.transform;
-            if (canvasTransform != null && existingCanvas != null)
-            {
-                // Fix old invisible bars (small scale, wrong alpha, wrong height, billboard invertido, layer)
-                canvasTransform.localScale = Vector3.one * CanvasScale;
-                RectTransform cr = existingCanvas.GetComponent<RectTransform>();
-                if (cr != null) cr.sizeDelta = new Vector2(BarWidth * 100f, BarHeight * 100f);
-                existingCanvas.sortingOrder = 100;
-                existingCanvas.gameObject.layer = 5;
-                if (existingCanvas.worldCamera == null) existingCanvas.worldCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
-                float existingHeightOffset = BarHeightOffset;
-                if (enemy != null)
-                {
-                    Collider col = enemy.GetComponent<Collider>();
-                    if (col != null && col.bounds.extents.y > 0.01f) existingHeightOffset = col.bounds.extents.y + 0.6f;
-                    else existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.7f;
-                    if (existingHeightOffset < 1.1f) existingHeightOffset = enemy.transform.localScale.y * 0.5f + 0.9f;
-                }
-                else existingHeightOffset = 1.6f;
-                canvasTransform.localPosition = new Vector3(0f, existingHeightOffset, 0f);
-                Image[] imgs = existingCanvas.GetComponentsInChildren<Image>(true);
-                if (imgs.Length > 0) imgs[0].color = new Color(0.08f, 0.08f, 0.08f, BackgroundAlpha);
-                if (imgs.Length > 1)
-                {
-                    imgs[1].color = new Color(0.15f, 1f, 0.15f, 1f);
-                    healthFill = imgs[1];
-                }
-                foreach (var img in imgs) img.gameObject.layer = 5;
-            }
-            if (healthFill != null && canvasTransform != null) return;
+            RepairExistingBar(existingCanvas);
+            return;
         }
 
-        // Create WorldSpace canvas above enemy head.
-        GameObject canvasGO = new GameObject("HealthBarCanvas");
-        canvasTransform = canvasGO.transform;
+        CreateBar();
+    }
+
+    // Normaliza barras serializadas antiguas (escala, alpha, altura y layer incorrectos).
+    private void RepairExistingBar(Canvas existingCanvas)
+    {
+        canvasTransform = existingCanvas.transform;
+        ConfigureCanvas(existingCanvas);
+
+        Image[] images = existingCanvas.GetComponentsInChildren<Image>(true);
+        if (images.Length > 0)
+        {
+            images[0].color = BackgroundColor;
+        }
+
+        if (images.Length > 1)
+        {
+            images[1].color = FillColor;
+            healthFill = images[1];
+        }
+
+        foreach (Image image in images)
+        {
+            image.gameObject.layer = UiLayer;
+        }
+    }
+
+    private void CreateBar()
+    {
+        var canvasObject = new GameObject("HealthBarCanvas");
+        canvasTransform = canvasObject.transform;
         canvasTransform.SetParent(transform, false);
-
-        // Position above head based on collider or scale.
-        float heightOffset = BarHeightOffset;
-        if (enemy != null)
-        {
-            Collider col = enemy.GetComponent<Collider>();
-            if (col != null && col.bounds.extents.y > 0.01f) heightOffset = col.bounds.extents.y + 0.6f;
-            else heightOffset = enemy.transform.localScale.y * 0.5f + 0.7f;
-            if (heightOffset < 1.1f) heightOffset = enemy.transform.localScale.y * 0.5f + 0.9f;
-        }
-        else
-        {
-            heightOffset = 1.6f;
-        }
-
-        canvasTransform.localPosition = new Vector3(0f, heightOffset, 0f);
         canvasTransform.localRotation = Quaternion.identity;
-        canvasTransform.localScale = Vector3.one * CanvasScale;
 
-        canvasGO.layer = 5;
-        Canvas canvas = canvasGO.AddComponent<Canvas>();
+        Canvas canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
-        canvas.worldCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
-        canvas.sortingOrder = 100;
-        // CanvasScaler/GraphicRaycaster not needed for WorldSpace but keep for safety.
-        if (canvasGO.GetComponent<CanvasScaler>() == null) canvasGO.AddComponent<CanvasScaler>();
-        if (canvasGO.GetComponent<GraphicRaycaster>() == null) canvasGO.AddComponent<GraphicRaycaster>();
+        ConfigureCanvas(canvas);
 
-        RectTransform canvasRect = canvasGO.GetComponent<RectTransform>();
-        canvasRect.sizeDelta = new Vector2(BarWidth * 100f, BarHeight * 100f);
-
-        // Background - more opaque and with outline for visibility
-        GameObject bgGO = new GameObject("Background");
-        bgGO.layer = 5;
-        bgGO.transform.SetParent(canvasTransform, false);
-        Image bgImg = bgGO.AddComponent<Image>();
-        bgImg.color = new Color(0.08f, 0.08f, 0.08f, BackgroundAlpha);
-        RectTransform bgRect = bgGO.GetComponent<RectTransform>();
-        bgRect.anchorMin = Vector2.zero;
-        bgRect.anchorMax = Vector2.one;
-        bgRect.pivot = new Vector2(0.5f, 0.5f);
-        bgRect.anchoredPosition = Vector2.zero;
-        bgRect.sizeDelta = Vector2.zero;
-
-        // Fill - bright green, fully opaque
-        GameObject fillGO = new GameObject("Fill");
-        fillGO.layer = 5;
-        fillGO.transform.SetParent(bgGO.transform, false);
-        healthFill = fillGO.AddComponent<Image>();
-        healthFill.color = new Color(0.15f, 1f, 0.15f, 1f);
+        Image background = CreateStretchedImage("Background", canvasTransform, BackgroundColor);
+        healthFill = CreateStretchedImage("Fill", background.transform, FillColor);
         healthFill.type = Image.Type.Filled;
         healthFill.fillMethod = Image.FillMethod.Horizontal;
         healthFill.fillOrigin = 0;
-        healthFill.fillAmount = 1f;
-        RectTransform fillRect = fillGO.GetComponent<RectTransform>();
-        fillRect.anchorMin = Vector2.zero;
-        fillRect.anchorMax = Vector2.one;
-        fillRect.pivot = new Vector2(0.5f, 0.5f);
-        fillRect.anchoredPosition = Vector2.zero;
-        fillRect.sizeDelta = Vector2.zero;
-
-        // Ensure initial fill.
-        if (enemy != null) healthFill.fillAmount = CalculateHealthFraction(enemy.vidaActual, enemy.vidaMaxima);
+        RefreshHealthBar();
     }
 
-    private void LateUpdate()
+    private void ConfigureCanvas(Canvas canvas)
     {
-        if (canvasTransform == null) return;
-        Camera cam = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
-        if (cam == null) return;
-        Canvas canvas = canvasTransform.GetComponent<Canvas>();
-        if (canvas != null && canvas.worldCamera == null) canvas.worldCamera = cam;
-        // Billboard: face camera (canvas forward must point to camera).
-        Vector3 dir = cam.transform.position - canvasTransform.position;
-        if (dir.sqrMagnitude > 0.001f) canvasTransform.rotation = Quaternion.LookRotation(dir, cam.transform.up);
+        canvasTransform.localPosition = new Vector3(0f, CalculateHeightOffset(), 0f);
+        canvasTransform.localScale = Vector3.one * CanvasScale;
+        canvas.sortingOrder = CanvasSortingOrder;
+        canvas.gameObject.layer = UiLayer;
+        if (canvas.TryGetComponent(out RectTransform canvasRect))
+        {
+            canvasRect.sizeDelta = new Vector2(BarWidth * CanvasUnitsPerMeter, BarHeight * CanvasUnitsPerMeter);
+        }
     }
 
-    public void AssignReferences(Enemy targetEnemy, Image fill, Transform canvas)
+    private float CalculateHeightOffset()
     {
-        enemy = targetEnemy;
-        healthFill = fill;
-        canvasTransform = canvas;
+        if (enemy == null)
+        {
+            return DefaultHeightOffsetMeters;
+        }
+
+        float halfScaleHeight = enemy.transform.localScale.y * 0.5f;
+        Collider enemyCollider = enemy.GetComponent<Collider>();
+        float offset = enemyCollider != null && enemyCollider.bounds.extents.y > MinimumColliderExtentMeters
+            ? enemyCollider.bounds.extents.y + ColliderHeadroomMeters
+            : halfScaleHeight + ScaleHeadroomMeters;
+        return offset < MinimumHeightOffsetMeters ? halfScaleHeight + MinimumHeightHeadroomMeters : offset;
+    }
+
+    private static Image CreateStretchedImage(string objectName, Transform parent, Color color)
+    {
+        var imageObject = new GameObject(objectName);
+        imageObject.layer = UiLayer;
+        imageObject.transform.SetParent(parent, false);
+        Image image = imageObject.AddComponent<Image>();
+        image.color = color;
+
+        RectTransform rect = imageObject.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = CenterPivot;
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = Vector2.zero;
+        return image;
+    }
+
+    private void HandleBeginCameraRendering(ScriptableRenderContext context, Camera renderingCamera)
+    {
+        if (canvasTransform == null || renderingCamera == null)
+        {
+            return;
+        }
+
+        // Billboard: el frente del canvas apunta a la cámara que está por renderizar.
+        Vector3 toCamera = renderingCamera.transform.position - canvasTransform.position;
+        if (toCamera.sqrMagnitude > MinimumBillboardDistanceSqr)
+        {
+            canvasTransform.rotation = Quaternion.LookRotation(toCamera, renderingCamera.transform.up);
+        }
     }
 
     private void HandleDamageReceived(float damageAmount)
@@ -243,6 +244,6 @@ public class EnemyHealthBar : MonoBehaviour
             return;
         }
 
-        healthFill.fillAmount = CalculateHealthFraction(enemy.vidaActual, enemy.vidaMaxima);
+        UiFill.Set(healthFill, CalculateHealthFraction(enemy.vidaActual, enemy.vidaMaxima));
     }
 }

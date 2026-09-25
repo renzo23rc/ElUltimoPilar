@@ -65,7 +65,7 @@ public class PoolManager : MonoBehaviour
         prefabs[key] = prefab;
         pools[key] = new ObjectPool<GameObject>(
             createFunc: () => CreatePooled(key),
-            actionOnGet: go => go.SetActive(true),
+            actionOnGet: null,
             actionOnRelease: go => go.SetActive(false),
             actionOnDestroy: go => Destroy(go),
             collectionCheck: false,
@@ -139,12 +139,14 @@ public class PoolManager : MonoBehaviour
         }
 
         Rigidbody rigidbody = gameObject.GetComponent<Rigidbody>();
-        if (rigidbody != null)
+        if (rigidbody != null && !rigidbody.isKinematic)
         {
             rigidbody.linearVelocity = Vector3.zero;
             rigidbody.angularVelocity = Vector3.zero;
         }
 
+        // Se activa después de posicionar: OnEnable ve la posición nueva, no la del uso anterior.
+        gameObject.SetActive(true);
         return gameObject;
     }
 

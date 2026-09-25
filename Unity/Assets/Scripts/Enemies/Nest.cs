@@ -8,12 +8,13 @@ using System.Collections.Generic;
 
 public class Nest : Enemy
 {
-private const float StationaryMovementSpeedMetersPerSecond = 0f;
-private const float MaximumHealth = 80f;
-private const float NoPilarDamage = 0f;
-private const int EnergyDropAmount = 10;
-private const float RunnerHealth = 10f;
-private const float RunnerSpeedMetersPerSecond = 2.5f;
+    private const float StationaryMovementSpeedMetersPerSecond = 0f;
+    private const float MaximumHealth = 80f;
+    private const float NoPilarDamage = 0f;
+    private const int EnergyDropAmount = 10;
+    private const float RunnerHealth = 10f;
+    private const float RunnerSpeedMetersPerSecond = 2.5f;
+
     [Header("Nido Específico")]
     public GameObject prefabCorredor;
     public float intervaloGeneracion = 6f;
@@ -44,14 +45,14 @@ private const float RunnerSpeedMetersPerSecond = 2.5f;
     protected override void Update()
     {
         if (estaMuerto) return;
-        if (GameManager.Instance != null && !GameManager.Instance.juegoActivo) return;
+        if (!IsMatchRunning()) return;
         
         timerGeneracion -= Time.deltaTime;
         
         if (timerGeneracion <= 0 && prefabCorredor != null)
         {
             // Limpiar nulos antes de chequear límite
-            corredoresVivos.RemoveAll(e => e == null);
+            corredoresVivos.RemoveAll(e => e == null || e.EstaMuerto);
             if (corredoresVivos.Count < maxCorredoresSimultaneos)
             {
                 GenerarCorredor();
@@ -70,12 +71,9 @@ private const float RunnerSpeedMetersPerSecond = 2.5f;
         corredor.name = prefabCorredor.name + "(Clone_Nido)";
 
         // Configurar como corredor débil
-        var runner = corredor.GetComponent<Runner>();
-        if (runner != null)
+        if (corredor.TryGetComponent(out Runner runner))
         {
-runner.vidaMaxima = RunnerHealth;
-            runner.vidaActual = RunnerHealth;
-            runner.velocidadMovimiento = RunnerSpeedMetersPerSecond;
+            runner.ConfigureAsHatchling(RunnerHealth, RunnerSpeedMetersPerSecond);
         }
 
         var enemy = corredor.GetComponent<Enemy>();
@@ -84,22 +82,9 @@ runner.vidaMaxima = RunnerHealth;
             corredoresVivos.Add(enemy);
             // Registrar en spawner para que la oleada no termine mientras sigan vivos
             EnemySpawner.Instance?.RegistrarEnemigoExterno(enemy);
-            // Liberar cupo cuando muera
-            enemy.OnMuerte += () => {
-                corredoresVivos.Remove(enemy);
-                // El spawner ya lo quita vía EnemigoEliminado, no hace falta duplicar
-            };
         }
-        
-        corredoresGenerados++;
-        Debug.Log($"[Nest] Corredor generado ({corredoresVivos.Count}/{maxCorredoresSimultaneos}) total {corredoresGenerados}");
-    }
 
-    protected override void Morir()
-    {
-        // Al morir el nido, los corredores ya generados siguen vivos (presión residual)
-        // pero limpiamos referencia para GC
-        base.Morir();
+        corredoresGenerados++;
     }
 
     protected override void Comportamiento()

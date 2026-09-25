@@ -1,16 +1,17 @@
 /**
  * PlayerController.cs
- * Movimiento, cámara, disparo básico y recolección de energía.
+ * Movimiento, cámara, estado derribado/reanimación y ralentización del jugador.
  * Usa el NUEVO Input System de Unity (configurado en Player Settings).
  * Lee snapshots de comando desde el PlayerInputAdapter del jugador.
- * 
+ *
  * Colocar en el GameObject del jugador.
  * Requiere: CharacterController y una cámara hija.
  */
+using System;
+using System.Collections;
+using UltimoPilar.Core.Combat;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System.Collections;
-using System;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour, IPlayerRosterMember
@@ -18,23 +19,24 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     private const float MinimumHealth = 0f;
     private const float MaximumHealth = 100f;
     private const float MaximumLookAngleDegrees = 80f;
+    private const float HalfTurnDegrees = 180f;
+    private const float FullTurnDegrees = 360f;
     private const float GroundedVerticalSpeed = -2f;
     private const float GravityZoneGroundedSpeed = -0.5f;
     private const float GravityZoneMaximumFallSpeed = -3f;
     private const float GroundHeightMeters = 1.2f;
     private const float ZoneJumpMultiplier = 2.2f;
     private const float DoubleJumpGuardSeconds = 999f;
-    private const float FallbackRaycastRangeMeters = 100f;
-    private const float FallbackDamage = 10f;
+    private const float GravityZoneFieldOfViewDegrees = 75f;
+    private const float ZoneBobFrequencyHertz = 2.5f;
+    private const float ZoneBobSpeedMetersPerSecond = 0.8f;
+    private const float ZoneFloatFrequencyHertz = 3f;
+    private const float ZoneFloatAccelerationMetersPerSecondSquared = 9f;
     private const float FallDurationSeconds = 0.6f;
     private const float FallCenterImpulseMeters = 2f;
     private const float FallDistanceMeters = 6f;
-    private const float DefaultSlowFactor = 1f;
-    private const float UnsetOriginalSpeed = -1f;
-    private const float MuzzleForwardOffsetMeters = 0.9f;
-    private const float MuzzleHeightMeters = 0.8f;
-    private const string MuzzleObjectName = "PuntoDisparo";
-    private const float CrosshairViewportCenter = 0.5f;
+
+    private static readonly object UnattributedSlowdownSource = new object();
 
     [Header("Movimiento")]
     public float velocidadMovimiento = 8f;
@@ -49,47 +51,63 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     public float gravedadZona = -4f; // 80% menos
     public float impulsoZona = 6f; // empuje extra al entrar
     public float velocidadEnZona = 5f; // mas lento/flotante
-    
+
     [Header("Vida")]
     public float vidaMaxima = MaximumHealth;
     public float vidaActual = MaximumHealth;
-    
+
     [Header("Referencias")]
     public Camera camaraJugador;
     public Transform puntoDisparo;
     public LayerMask capaEnemigos;
     public LayerMask capaPilar;
-    
+
     [Header("Munición por Arma")]
-    public int municionDirecta = 80; // Sincronizado con WeaponSystem balanceo B1
+    public int municionDirecta = 80; // Espejo de WeaponSystem, que es la fuente de verdad.
     public int municionArea = 16;
-    
+
     private CharacterController controller;
     private Vector3 velocidadVertical;
     private float rotacionX = 0f;
-    
+
     // Componentes
     private EnergySystem energia;
     private WeaponSystem armas;
     private PlayerInput playerInput;
     private PlayerInputAdapter inputAdapter;
 
-    [Header("Ralentización (Weaver)")]
+    [Header("Ralentización")]
     public bool estaRalentizado = false;
-    private float velocidadOriginal = UnsetOriginalSpeed;
-    private float velocidadZonaOriginal = UnsetOriginalSpeed;
-    private Coroutine coRalentizacion;
+    private readonly SlowdownTracker slowdowns = new SlowdownTracker();
     private Coroutine fallCoroutine;
-    private float factorRalentActual = 1f;
 
-    private float velocidadMovimientoInicial;
-    private float velocidadZonaInicial;
     private int municionDirectaInicial;
     private int municionAreaInicial;
     private float fovCamaraInicial;
     private Quaternion rotacionCamaraInicial;
+    private Vector3 posicionAparicion;
+    private Quaternion rotacionAparicion;
     private bool estadoInicialCapturado;
     private bool estadoCamaraInicialCapturado;
+
+    // ===== SISTEMA DERRIBADO / REANIMACIÓN CO-OP =====
+    [Header("Estado Derribado (co-op)")]
+    public bool estaDerribado = false;
+    public float vidaAlRevivir = 50f;
+    public float rangoReanimacion = 3f;
+    public Key reanimarKey = Key.E;
+
+    public event Action<PlayerController> OnDerribado;
+    public event Action<PlayerController> OnReanimado;
+    public event Action<PlayerController, PlayerCommand> OnCommandIssued;
+
+    /// <summary>Gets whether the player is downed.</summary>
+    public bool IsDowned => estaDerribado;
+
+    /// <summary>Gets the position where the player appears and returns after a pit fall or restart.</summary>
+    public Vector3 SpawnPosition => posicionAparicion;
+
+    private float FactorRalentizacion => slowdowns.GetFactor(Time.time);
 
     void Awake()
     {
@@ -114,6 +132,12 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         GameManager.Instance?.RegisterPlayer(this);
     }
 
+    void OnDisable()
+    {
+        inputAdapter?.Disable();
+        GameManager.Instance?.UnregisterPlayer(this);
+    }
+
     void ResolverReferencias()
     {
         if (controller == null) controller = GetComponent<CharacterController>();
@@ -123,52 +147,18 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         if (inputAdapter == null && playerInput != null)
             inputAdapter = new PlayerInputAdapter(playerInput);
         if (camaraJugador == null) camaraJugador = GetComponentInChildren<Camera>();
-        if (puntoDisparo == null || (camaraJugador != null && puntoDisparo == camaraJugador.transform))
-        {
-            puntoDisparo = EnsureMuzzleTransform();
-        }
-    }
-
-    Transform EnsureMuzzleTransform()
-    {
-        if (camaraJugador == null)
-        {
-            return transform;
-        }
-
-        Transform existing = transform.Find(MuzzleObjectName);
-        if (existing == null)
-        {
-            existing = camaraJugador.transform.Find(MuzzleObjectName);
-        }
-
-        if (existing != null)
-        {
-            return existing;
-        }
-
-        GameObject muzzle = new GameObject(MuzzleObjectName);
-        muzzle.transform.SetParent(transform);
-        float height = camaraJugador.transform.localPosition.y;
-        if (Mathf.Approximately(height, 0f))
-        {
-            height = MuzzleHeightMeters;
-        }
-
-        muzzle.transform.localPosition = new Vector3(0f, height, MuzzleForwardOffsetMeters);
-        muzzle.transform.rotation = camaraJugador.transform.rotation;
-        muzzle.transform.localScale = Vector3.one;
-        return muzzle.transform;
+        if (!MuzzleTransformResolver.IsUsable(puntoDisparo, camaraJugador))
+            puntoDisparo = MuzzleTransformResolver.Ensure(transform, camaraJugador);
     }
 
     void CapturarEstadoInicial()
     {
         if (!estadoInicialCapturado)
         {
-            velocidadMovimientoInicial = velocidadMovimiento;
-            velocidadZonaInicial = velocidadEnZona;
             municionDirectaInicial = municionDirecta;
             municionAreaInicial = municionArea;
+            posicionAparicion = transform.position;
+            rotacionAparicion = transform.rotation;
             estadoInicialCapturado = true;
         }
 
@@ -180,27 +170,19 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         }
     }
 
-    void OnDisable()
-    {
-        inputAdapter?.Disable();
-        GameManager.Instance?.UnregisterPlayer(this);
-    }
-
     void Update()
     {
         PlayerCommand command = LeerComando();
-        EmitirComando(command);
+        OnCommandIssued?.Invoke(this, command);
 
         GameManager gameManager = GameManager.Instance;
-        bool juegoEstabaActivo = gameManager != null && gameManager.juegoActivo;
-        if (!juegoEstabaActivo) return;
-        if (gameManager.juegoPausado) return;
+        if (gameManager == null || !gameManager.juegoActivo || gameManager.juegoPausado) return;
 
+        estaRalentizado = slowdowns.IsActive(Time.time);
         if (estaDerribado)
         {
-            ManejarEstadoDerribado();
-            // Aún aplicar gravedad suave para que no flote derribado
-            if (controller != null && controller.enabled)
+            // Aún aplicar gravedad para que no flote derribado.
+            if (controller != null && controller.enabled && fallCoroutine == null)
                 ManejarGravedad();
             return;
         }
@@ -212,34 +194,25 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         ManejarHabilidad(command);
         ManejarGravedad();
         ManejarDisparo(command);
-        ManejarInteraccion(command);
+        ManejarReanimacionCoop(command);
     }
 
     PlayerCommand LeerComando()
     {
-        if (inputAdapter == null) return default(PlayerCommand);
-        return inputAdapter.CurrentCommand;
-    }
-
-    void EmitirComando(PlayerCommand command)
-    {
-        OnCommandIssued?.Invoke(this, command);
+        return inputAdapter == null ? default(PlayerCommand) : inputAdapter.CurrentCommand;
     }
 
     void ManejarMirada(PlayerCommand command)
     {
         Vector2 lookDelta = new Vector2(command.LookX, command.LookY) * sensibilidadMouse;
-        rotacionX -= lookDelta.y;
-        rotacionX = Mathf.Clamp(rotacionX, -MaximumLookAngleDegrees, MaximumLookAngleDegrees);
+        rotacionX = Mathf.Clamp(rotacionX - lookDelta.y, -MaximumLookAngleDegrees, MaximumLookAngleDegrees);
 
         if (camaraJugador != null)
         {
             camaraJugador.transform.localRotation = Quaternion.Euler(rotacionX, 0, 0);
             transform.Rotate(Vector3.up * lookDelta.x);
             if (puntoDisparo != null)
-            {
                 puntoDisparo.rotation = camaraJugador.transform.rotation;
-            }
         }
     }
 
@@ -247,7 +220,6 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     {
         if (controller == null) return;
 
-        Vector2 inputMovimiento = new Vector2(command.MoveX, command.MoveY);
         Transform referenciaMovimiento = camaraJugador != null ? camaraJugador.transform : transform;
         Vector3 forward = referenciaMovimiento.forward;
         Vector3 right = referenciaMovimiento.right;
@@ -256,10 +228,11 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         forward.Normalize();
         right.Normalize();
 
-        float vel = enZonaGravedad ? velocidadEnZona : velocidadMovimiento;
-        Vector3 movimiento = (forward * inputMovimiento.y + right * inputMovimiento.x) * vel;
-        // Flotacion extra en zona: movimiento mas esponjoso
-        if (enZonaGravedad) movimiento.y += Mathf.Sin(Time.time * 2.5f) * 0.8f * Time.deltaTime * 60f;
+        float velocidadBase = enZonaGravedad ? velocidadEnZona : velocidadMovimiento;
+        Vector3 movimiento = (forward * command.MoveY + right * command.MoveX) * (velocidadBase * FactorRalentizacion);
+        // Flotación en zona: vaivén vertical expresado como velocidad (independiente de los FPS).
+        if (enZonaGravedad)
+            movimiento.y += Mathf.Sin(Time.time * ZoneBobFrequencyHertz) * ZoneBobSpeedMetersPerSecond;
         controller.Move(movimiento * Time.deltaTime);
     }
 
@@ -281,32 +254,28 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             energia.ActivarHabilidad();
     }
 
-    void ManejarInteraccion(PlayerCommand command)
-    {
-        ManejarReanimacionCoop(command);
-    }
-
     void ManejarGravedad()
     {
-        bool enSuelo = controller.isGrounded;
         float gravActual = enZonaGravedad ? gravedadZona : gravedad;
-        if (enSuelo)
+        if (controller.isGrounded)
         {
             tiempoEnAire = 0f;
             if (velocidadVertical.y < 0)
-                velocidadVertical.y = enZonaGravedad ? -0.5f : -2f; // flotar en zona
+                velocidadVertical.y = enZonaGravedad ? GravityZoneGroundedSpeed : GroundedVerticalSpeed;
         }
         else
         {
             tiempoEnAire += Time.deltaTime;
             velocidadVertical.y += gravActual * Time.deltaTime;
-            // En zona, limitar caida y añadir flotacion exagerada
+            // En zona, limitar la caída y sumar una flotación oscilante.
             if (enZonaGravedad)
             {
-                velocidadVertical.y = Mathf.Max(velocidadVertical.y, -3f);
-                velocidadVertical.y += Mathf.Sin(Time.time * 3f) * 0.15f;
+                velocidadVertical.y = Mathf.Max(velocidadVertical.y, GravityZoneMaximumFallSpeed);
+                velocidadVertical.y += Mathf.Sin(Time.time * ZoneFloatFrequencyHertz)
+                    * ZoneFloatAccelerationMetersPerSecondSquared * Time.deltaTime;
             }
         }
+
         controller.Move(velocidadVertical * Time.deltaTime);
     }
 
@@ -315,112 +284,42 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     {
         if (enZonaGravedad) return;
         enZonaGravedad = true;
-        velocidadVertical.y = impulsoZona; // impulso hacia arriba exagerado
-        Debug.Log("[Player] ¡Entraste en zona de gravedad alterada! Gravedad reducida + impulso");
-        // FOV exagerado
-        if (camaraJugador != null) camaraJugador.fieldOfView = 75f;
+        velocidadVertical.y = impulsoZona;
+        if (camaraJugador != null) camaraJugador.fieldOfView = GravityZoneFieldOfViewDegrees;
     }
+
     public void SalirZonaGravedad()
     {
         if (!enZonaGravedad) return;
         enZonaGravedad = false;
-        Debug.Log("[Player] Saliste de zona de gravedad");
-        if (camaraJugador != null)
-        {
-            CapturarEstadoInicial();
-            if (estadoCamaraInicialCapturado)
-                camaraJugador.fieldOfView = fovCamaraInicial;
-        }
+        RestaurarCampoDeVision();
     }
 
     void IntentarSaltar()
     {
-        bool enSuelo = controller.isGrounded;
-        bool puedeSaltar = enSuelo || tiempoEnAire < coyoteTime || transform.position.y <= GroundHeightMeters;
-        Debug.Log($"[Player] Intento salto: enSuelo={enSuelo} tiempoEnAire={tiempoEnAire:F2} puede={puedeSaltar} y={transform.position.y:F2} vY={velocidadVertical.y:F2} enZona={enZonaGravedad}");
-        if (!puedeSaltar)
-        {
-            Debug.LogWarning("[Player] Salto bloqueado - no en suelo");
-            return;
-        }
+        // El respaldo por altura cubre isGrounded inestable, pero solo cayendo: evita saltos en el aire al subir.
+        bool cercaDelSuelo = transform.position.y <= GroundHeightMeters && velocidadVertical.y <= 0f;
+        bool puedeSaltar = controller.isGrounded || tiempoEnAire < coyoteTime || cercaDelSuelo;
+        if (!puedeSaltar) return;
 
         float gravParaSalto = enZonaGravedad ? gravedadZona : gravedad;
-        float altura = enZonaGravedad ? alturaSalto * 2.2f : alturaSalto; // salto 2.2x en zona (exagerado)
+        float altura = enZonaGravedad ? alturaSalto * ZoneJumpMultiplier : alturaSalto;
         velocidadVertical.y = Mathf.Sqrt(altura * -2f * gravParaSalto);
-        tiempoEnAire = 999f; // evitar doble salto
-        Debug.Log($"[Player] ¡Salto! vY={velocidadVertical.y:F1} (zona={enZonaGravedad})");
+        tiempoEnAire = DoubleJumpGuardSeconds;
     }
 
     void ManejarDisparo(PlayerCommand command)
     {
-        if (armas != null)
-        {
-            armas.ConsumeCommand(command);
-            return;
-        }
-
-        if (command.Fire)
-            Disparar();
-    }
-
-    void Disparar()
-    {
-        if (armas != null)
-        {
-            armas.DispararActual();
-            return;
-        }
-
-        if (puntoDisparo == null || (camaraJugador != null && puntoDisparo == camaraJugador.transform))
-        {
-            puntoDisparo = EnsureMuzzleTransform();
-        }
-
-        Ray aimRay = camaraJugador != null
-            ? camaraJugador.ViewportPointToRay(new Vector3(CrosshairViewportCenter, CrosshairViewportCenter, 0f))
-            : puntoDisparo != null ? new Ray(puntoDisparo.position, puntoDisparo.forward) : new Ray(transform.position, transform.forward);
-        LayerMask mask = capaEnemigos.value == 0 ? Physics.DefaultRaycastLayers : capaEnemigos;
-
-        // Ignorar auto-colisión si el rayo nace dentro del propio cuerpo.
-        RaycastHit hit = default;
-        bool hasHit = false;
-        if (Physics.Raycast(aimRay, out RaycastHit candidate, FallbackRaycastRangeMeters, mask))
-        {
-            PlayerController shooter = candidate.collider.GetComponentInParent<PlayerController>();
-            if (shooter == this)
-            {
-                Ray secondRay = new Ray(candidate.point + aimRay.direction * 0.05f, aimRay.direction);
-                if (Physics.Raycast(secondRay, out RaycastHit secondHit, FallbackRaycastRangeMeters - candidate.distance, mask))
-                {
-                    hit = secondHit;
-                    hasHit = true;
-                }
-            }
-            else
-            {
-                hit = candidate;
-                hasHit = true;
-            }
-        }
-
-        if (hasHit)
-        {
-            Enemy enemy = hit.collider.GetComponent<Enemy>();
-            enemy?.RecibirDaño(FallbackDamage);
-            Debug.DrawRay(aimRay.origin, aimRay.direction * hit.distance, Color.red, 0.5f);
-        }
+        armas?.ConsumeCommand(command);
     }
 
     public void RecibirDaño(float cantidad)
     {
         if (estaDerribado) return;
         vidaActual = Mathf.Max(MinimumHealth, vidaActual - cantidad);
-        Debug.Log($"[Player] Daño recibido: {cantidad}. Vida: {vidaActual}/{vidaMaxima}");
-        
-        if (vidaActual <= 0)
-        {
+
+        if (vidaActual <= MinimumHealth)
             EntrarDerribado();
-        }
     }
 
     public void Curar(float cantidad)
@@ -429,76 +328,52 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         vidaActual = Mathf.Min(vidaMaxima, vidaActual + cantidad);
     }
 
-    // ===== SISTEMA DERRIBADO / REANIMACIÓN CO-OP =====
-    [Header("Estado Derribado (co-op)")]
-    public bool estaDerribado = false;
-    public float vidaAlRevivir = 50f;
-    public float rangoReanimacion = 3f;
-    public Key reanimarKey = Key.E;
-
-    public event System.Action<PlayerController> OnDerribado;
-    public event System.Action<PlayerController> OnReanimado;
-    public event Action<PlayerController, PlayerCommand> OnCommandIssued;
-    public bool IsDowned => estaDerribado;
-
     public void EntrarDerribado()
     {
         if (estaDerribado) return;
         estaDerribado = true;
-        vidaActual = 0;
-        // Bloqueo de disparo y movimiento ya via early return
-        // Quitar ralentización pendiente
-        if (estaRalentizado) QuitarRalentizacion();
-        Debug.Log($"[Player] {name} DERRIBADO - Esperando reanimación (E a {rangoReanimacion}m)");
+        CompletarDerribo();
+    }
+
+    void CompletarDerribo()
+    {
+        vidaActual = MinimumHealth;
+        QuitarRalentizacion();
+        Debug.Log($"[Player] {name} DERRIBADO - Esperando reanimación ({rangoReanimacion}m)");
         OnDerribado?.Invoke(this);
-        // GameManager observa este evento a través de la frontera de jugadores registrados.
-        // Feedback HUD via evento, Hud lo escuchará
     }
 
     public void CaerEnPozo(Vector3 pozoPos)
     {
         if (estaDerribado) return;
-        Debug.Log($"[Player] {name} cayendo al pozo en {pozoPos} - instakill con caída");
-        // Animación de caída: deshabilitar controller momentáneamente y mover hacia abajo
         fallCoroutine = StartCoroutine(RutinaCaidaPozo(pozoPos));
     }
 
-    System.Collections.IEnumerator RutinaCaidaPozo(Vector3 pozoPos)
+    IEnumerator RutinaCaidaPozo(Vector3 pozoPos)
     {
-        // Desactivar movimiento por 0.6s y animar caída vertical
-        float t = 0f;
-        float dur = FallDurationSeconds;
-        Vector3 ini = transform.position;
-        // Bloquear input durante caída
-        estaDerribado = true; // temporal para bloquear LeerInput
-        // Pequeño impulso hacia centro del pozo
-        Vector3 dirCentro = (pozoPos - transform.position);
+        // Bloquea input y daño durante la animación de caída.
+        estaDerribado = true;
+        Vector3 inicio = transform.position;
+        Vector3 dirCentro = pozoPos - inicio;
         dirCentro.y = 0;
-        dirCentro = dirCentro.normalized * FallCenterImpulseMeters;
-        // Si CharacterController está activo, mover con Move
-        while (t < dur)
+        Vector3 destino = inicio + dirCentro.normalized * FallCenterImpulseMeters + Vector3.down * FallDistanceMeters;
+
+        float t = 0f;
+        while (t < FallDurationSeconds)
         {
             t += Time.deltaTime;
-            float p = t / dur;
-            Vector3 caida = Vector3.Lerp(ini, ini + dirCentro + Vector3.down * FallDistanceMeters, p);
+            Vector3 caida = Vector3.Lerp(inicio, destino, t / FallDurationSeconds);
             if (controller != null && controller.enabled)
-            {
-                Vector3 delta = caida - transform.position;
-                controller.Move(delta);
-            }
+                controller.Move(caida - transform.position);
             else
-            {
                 transform.position = caida;
-            }
             yield return null;
         }
-        // Ahora estado derribado definitivo
-        vidaActual = 0;
-        // Asegurar notificación si no estaba ya
-        OnDerribado?.Invoke(this);
-        Debug.Log($"[Player] {name} derribado por pozo");
-        fallCoroutine = null;
 
+        // Queda derribado en su punto de aparición, fuera del pozo, para que un aliado pueda reanimarlo.
+        TeletransportarA(posicionAparicion, transform.rotation);
+        fallCoroutine = null;
+        CompletarDerribo();
     }
 
     public void Reanimar()
@@ -507,10 +382,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         estaDerribado = false;
         vidaActual = vidaAlRevivir;
         velocidadVertical.y = 0;
-        // Pequeña invulnerabilidad visual (parpadeo no implementado, solo log)
-        Debug.Log($"[Player] {name} REANIMADO con {vidaActual} vida!");
         OnReanimado?.Invoke(this);
-        GameManager.Instance?.NotificarJugadorReanimado(this);
     }
 
     public void ResetState()
@@ -523,24 +395,14 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             StopCoroutine(fallCoroutine);
             fallCoroutine = null;
         }
-        if (coRalentizacion != null)
-        {
-            StopCoroutine(coRalentizacion);
-            coRalentizacion = null;
-        }
 
-        velocidadMovimiento = velocidadMovimientoInicial;
-        velocidadEnZona = velocidadZonaInicial;
-        estaRalentizado = false;
-        factorRalentActual = 1f;
-        velocidadOriginal = -1f;
-        velocidadZonaOriginal = -1f;
-
+        QuitarRalentizacion();
         vidaActual = vidaMaxima;
         estaDerribado = false;
         enZonaGravedad = false;
         tiempoEnAire = 0f;
         velocidadVertical = Vector3.zero;
+        TeletransportarA(posicionAparicion, rotacionAparicion);
 
         municionDirecta = armas?.armaDirecta?.municionMaxima ?? municionDirectaInicial;
         municionArea = armas?.armaArea?.municionMaxima ?? municionAreaInicial;
@@ -548,44 +410,49 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
         rotacionX = 0f;
         if (camaraJugador != null && estadoCamaraInicialCapturado)
         {
-            camaraJugador.fieldOfView = fovCamaraInicial;
             camaraJugador.transform.localRotation = rotacionCamaraInicial;
             rotacionX = rotacionCamaraInicial.eulerAngles.x;
-            if (rotacionX > 180f) rotacionX -= 360f;
+            if (rotacionX > HalfTurnDegrees) rotacionX -= FullTurnDegrees;
         }
+
+        RestaurarCampoDeVision();
     }
 
-    void ManejarEstadoDerribado()
+    void RestaurarCampoDeVision()
     {
-        // Solo mostrar mensaje pulsante en HUD, sin movimiento
-        // El jugador derribado no puede moverse ni disparar
+        CapturarEstadoInicial();
+        if (camaraJugador != null && estadoCamaraInicialCapturado)
+            camaraJugador.fieldOfView = fovCamaraInicial;
+    }
+
+    void TeletransportarA(Vector3 posicion, Quaternion rotacion)
+    {
+        // El CharacterController pisa las asignaciones directas de transform si queda habilitado.
+        bool controllerHabilitado = controller != null && controller.enabled;
+        if (controllerHabilitado) controller.enabled = false;
+        transform.SetPositionAndRotation(posicion, rotacion);
+        if (controllerHabilitado) controller.enabled = true;
     }
 
     void ManejarReanimacionCoop(PlayerCommand command)
     {
-        // Si estoy vivo, buscar aliados derribados cerca y usar la acción Interact para reanimar.
+        // Si estoy vivo, reanimo al aliado derribado más cercano dentro del rango con la acción Interact.
         if (estaDerribado || !command.Interact) return;
 
-        var gameManager = GameManager.Instance;
+        GameManager gameManager = GameManager.Instance;
         if (gameManager == null) return;
 
-        PlayerController objetivo = null;
-        float minDist = float.MaxValue;
-        foreach (var p in gameManager.Players)
-        {
-            if (p == this || !p.estaDerribado) continue;
-            float d = Vector3.Distance(transform.position, p.transform.position);
-            if (d <= rangoReanimacion && d < minDist)
-            {
-                minDist = d;
-                objetivo = p;
-            }
-        }
-        if (objetivo != null)
-        {
-            Debug.Log($"[Player] Reanimando a {objetivo.name} a {minDist:F1}m");
-            objetivo.Reanimar();
-        }
+        PlayerController objetivo = PlayerLocator.FindClosest(
+            gameManager.Players,
+            transform.position,
+            IsDownedAlly,
+            rangoReanimacion);
+        objetivo?.Reanimar();
+    }
+
+    bool IsDownedAlly(PlayerController candidate)
+    {
+        return candidate != this && candidate.estaDerribado;
     }
 
     public void ReplenishWaveAmmo()
@@ -607,62 +474,43 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             municionDirecta = municionDirectaInicial;
             municionArea = municionAreaInicial;
         }
-        Debug.Log("[Player] Munición repuesta al final de oleada");
     }
 
-    // ===== SISTEMA DE RALENTIZACIÓN (stack prohibido, 0.5/8s, afecta todos) =====
+    // ===== RALENTIZACIÓN (sin stack: gana la más fuerte, cada fuente se gestiona por separado) =====
+
+    /// <summary>Applies an unattributed slowdown; reapplying refreshes it.</summary>
     public void AplicarRalentizacion(float factor, float duracion)
     {
-        if (estaRalentizado)
-        {
-            // Stack prohibido: refrescar timer sin multiplicar
-            if (coRalentizacion != null) StopCoroutine(coRalentizacion);
-            coRalentizacion = StartCoroutine(RutinaRalentizacion(factor, duracion));
-            return;
-        }
-        velocidadOriginal = velocidadMovimiento;
-        velocidadZonaOriginal = velocidadEnZona;
-        factorRalentActual = factor;
-        velocidadMovimiento = velocidadOriginal * factor;
-        velocidadEnZona = velocidadZonaOriginal * factor;
-        estaRalentizado = true;
-        Debug.Log($"[Player] Ralentizado x{factor} por {duracion}s (vel {velocidadOriginal:F1}->{velocidadMovimiento:F1})");
-        coRalentizacion = StartCoroutine(RutinaRalentizacion(factor, duracion));
+        AplicarRalentizacion(UnattributedSlowdownSource, factor, duracion);
     }
 
+    /// <summary>Applies or refreshes the slowdown owned by a source.</summary>
+    /// <param name="fuente">The owner of the slowdown, such as a zone or an ability.</param>
+    /// <param name="factor">The speed multiplier between 0 and 1.</param>
+    /// <param name="duracion">The duration in seconds.</param>
+    public void AplicarRalentizacion(object fuente, float factor, float duracion)
+    {
+        slowdowns.Apply(fuente, factor, duracion, Time.time);
+        estaRalentizado = slowdowns.IsActive(Time.time);
+    }
+
+    /// <summary>Removes every active slowdown.</summary>
     public void QuitarRalentizacion()
     {
-        if (!estaRalentizado) return;
-        if (coRalentizacion != null) StopCoroutine(coRalentizacion);
-        coRalentizacion = null;
-        velocidadMovimiento = velocidadOriginal;
-        velocidadEnZona = velocidadZonaOriginal;
+        slowdowns.Clear();
         estaRalentizado = false;
-        factorRalentActual = 1f;
-        velocidadOriginal = -1f;
-        velocidadZonaOriginal = -1f;
-        Debug.Log("[Player] Ralentización removida");
     }
 
-    System.Collections.IEnumerator RutinaRalentizacion(float factor, float duracion)
+    /// <summary>Removes only the slowdown owned by a source, keeping the others.</summary>
+    /// <param name="fuente">The owner of the slowdown.</param>
+    public void QuitarRalentizacion(object fuente)
     {
-        yield return new WaitForSeconds(duracion);
-        if (estaRalentizado)
-        {
-            velocidadMovimiento = velocidadOriginal;
-            velocidadEnZona = velocidadZonaOriginal;
-            estaRalentizado = false;
-            factorRalentActual = DefaultSlowFactor;
-            velocidadOriginal = UnsetOriginalSpeed;
-            velocidadZonaOriginal = UnsetOriginalSpeed;
-            coRalentizacion = null;
-            Debug.Log("[Player] Ralentización expirada");
-        }
+        slowdowns.Remove(fuente);
+        estaRalentizado = slowdowns.IsActive(Time.time);
     }
 
     void OnDestroy()
     {
         if (fallCoroutine != null) StopCoroutine(fallCoroutine);
-        if (coRalentizacion != null) StopCoroutine(coRalentizacion);
     }
 }

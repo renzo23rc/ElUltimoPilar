@@ -1,12 +1,13 @@
 /**
  * PozoKill.cs
  * Trampa mortal del pozo central (Fase 2).
- * Detecta caída de enemigos (incluye Coloso) y jugador, aplica instakill
- * con recompensa y actualiza contador de oleada vía EnemySpawner.
+ * Detecta caída de jugadores y del Coloso; al Coloso lo mata con recompensa
+ * y al jugador lo derriba con animación de caída.
  *
  * Colocar en el GameObject "PozoCentral" creado por TestSceneSetup / ArenaTransform.
  * Requiere Collider isTrigger y opcional Rigidbody kinematic para detectar CharacterController.
  */
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
@@ -15,9 +16,9 @@ public class PozoKill : MonoBehaviour
     private const float PlayerFallBelowWorldY = -5f;
     private const float TriggerFallBelowWorldY = -2f;
     private const float InstakillDamage = 9999f;
-    private const float ColossusBypassDamage = 5000f;
     private const float GizmoFillAlpha = 0.2f;
     private const float GizmoHeightOffset = 1f;
+    private const float GizmoExtraHeightMeters = 2f;
 
     [Header("Configuración")]
     public float radioMortal = 4.5f; // Radio en XZ (pozo escala 3 => radio 1.5, ampliado para caída)
@@ -26,17 +27,16 @@ public class PozoKill : MonoBehaviour
     public bool mataEnemigos = true;
     public float dañoInstakill = InstakillDamage;
 
-    private Collider col;
+    private readonly List<Colossus> colosos = new List<Colossus>();
 
     void Awake()
     {
-        col = GetComponent<Collider>();
+        var col = GetComponent<Collider>();
         if (col != null) col.isTrigger = true;
         // Rigidbody kinematic necesario para que OnTriggerEnter funcione con CharacterController
-        var rb = GetComponent<Rigidbody>();
-        if (rb == null)
+        if (GetComponent<Rigidbody>() == null)
         {
-            rb = gameObject.AddComponent<Rigidbody>();
+            var rb = gameObject.AddComponent<Rigidbody>();
             rb.isKinematic = true;
             rb.useGravity = false;
         }
@@ -44,137 +44,104 @@ public class PozoKill : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        TryKill(other.gameObject);
+        TryKill(other);
     }
 
     void OnTriggerStay(Collider other)
     {
-        // Por si el enemigo entra rápido o spawnea dentro
-        TryKill(other.gameObject);
+        // Por si el objetivo entra rápido o aparece dentro.
+        TryKill(other);
     }
 
-    // Polling para CharacterController (no siempre genera trigger) y para caída por gravedad
+    // Polling para CharacterController (no siempre genera trigger) y para Colosos empujados.
     void Update()
     {
-        if (!mataJugador && !mataEnemigos) return;
-
-        // Check jugadores por distancia (CharacterController alternative)
-        var players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        foreach (var p in players)
-        {
-            if (p == null || p.estaDerribado) continue;
-            Vector3 planoPozo = new Vector3(transform.position.x, p.transform.position.y, transform.position.z);
-            float distXZ = Vector3.Distance(new Vector3(p.transform.position.x, 0, p.transform.position.z),
-                                            new Vector3(transform.position.x, 0, transform.position.z));
-            bool dentroRadio = distXZ <= radioMortal;
-            bool bajoAltura = p.transform.position.y <= transform.position.y + alturaMortal;
-            // También si cae por debajo del mundo
-            bool caidaLibre = p.transform.position.y < PlayerFallBelowWorldY;
-            if ((dentroRadio && bajoAltura) || caidaLibre)
-            {
-                if (mataJugador)
-                    MatarJugador(p);
-            }
-        }
-
-        // Check enemigos por OverlapSphere (robusto para Rigidbody enemies) - solo Coloso
+        if (mataJugador)
+            RevisarJugadores();
         if (mataEnemigos)
+            RevisarColosos();
+    }
+
+    void RevisarJugadores()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null) return;
+
+        foreach (PlayerController player in manager.Players)
         {
-            Collider[] enPozo = Physics.OverlapSphere(transform.position, radioMortal);
-            foreach (var c in enPozo)
-            {
-                if (c.gameObject == this.gameObject) continue;
-                // Solo si está bajo la altura mortal
-                if (c.transform.position.y > transform.position.y + alturaMortal) continue;
-                var e = c.GetComponent<Enemy>() ?? c.GetComponentInParent<Enemy>();
-                if (e is Colossus) TryKill(c.gameObject);
-            }
+            if (player == null || player.estaDerribado) continue;
+            bool caidaLibre = player.transform.position.y < PlayerFallBelowWorldY;
+            if (EstaDentroDelPozo(player.transform.position) || caidaLibre)
+                MatarJugador(player);
         }
     }
 
-    void TryKill(GameObject go)
+    void RevisarColosos()
     {
-        // Prioridad: Player
-        var player = go.GetComponent<PlayerController>();
-        if (player == null) player = go.GetComponentInParent<PlayerController>();
-        if (player != null && mataJugador)
+        // Se copia primero: matar a un Coloso lo quita del registro de enemigos activos.
+        colosos.Clear();
+        foreach (Enemy enemy in Enemy.Active)
         {
-            // Verificar altura también para evitar kill si player pasa por encima (puentes)
-            if (player.transform.position.y <= transform.position.y + alturaMortal || player.transform.position.y < TriggerFallBelowWorldY)
-            {
-                MatarJugador(player);
-                return;
-            }
+            if (enemy is Colossus colossus && !colossus.EstaMuerto && EstaDentroDelPozo(colossus.transform.position))
+                colosos.Add(colossus);
         }
 
-        var enemy = go.GetComponent<Enemy>();
-        if (enemy == null) enemy = go.GetComponentInParent<Enemy>();
-        if (enemy != null && mataEnemigos)
+        foreach (Colossus colossus in colosos)
+            MatarColoso(colossus);
+    }
+
+    bool EstaDentroDelPozo(Vector3 posicion)
+    {
+        Vector2 offsetXZ = new Vector2(posicion.x - transform.position.x, posicion.z - transform.position.z);
+        return offsetXZ.magnitude <= radioMortal && EstaBajoAlturaMortal(posicion);
+    }
+
+    bool EstaBajoAlturaMortal(Vector3 posicion)
+    {
+        return posicion.y <= transform.position.y + alturaMortal;
+    }
+
+    void TryKill(Collider other)
+    {
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player != null)
         {
-            // Solo matar si realmente cayó (y bajo altura mortal) - evita matar corredores que caminan sobre el borde
-            if (enemy.transform.position.y > transform.position.y + alturaMortal) return;
-            // Pozo solo debe matar Coloso (mini-jefe) - corredores/artilleros deben sobrevivir al pasar por borde
-            if (!(enemy is Colossus))
-            {
-                // Opcional: log para debug pero no matar
-                // Debug.Log($"[PozoKill] {enemy.name} sobre pozo pero no es Coloso - ignorado");
-                return;
-            }
-            MatarEnemigo(enemy);
+            // Verificar altura también para evitar kill si el jugador pasa por encima (puentes).
+            bool caido = EstaBajoAlturaMortal(player.transform.position) || player.transform.position.y < TriggerFallBelowWorldY;
+            if (mataJugador && caido)
+                MatarJugador(player);
+            return;
         }
+
+        // El pozo solo mata al Coloso: corredores y artilleros sobreviven al pasar por el borde.
+        Colossus colossus = other.GetComponentInParent<Colossus>();
+        if (mataEnemigos && colossus != null && EstaBajoAlturaMortal(colossus.transform.position))
+            MatarColoso(colossus);
     }
 
     void MatarJugador(PlayerController player)
     {
         if (player.estaDerribado) return;
-        Debug.Log($"[PozoKill] Jugador {player.name} cayó al pozo! Instakill + derribado");
-        // Efecto caída: empujar hacia abajo rápido si tiene CharacterController
         player.CaerEnPozo(transform.position);
     }
 
-    void MatarEnemigo(Enemy enemy)
+    void MatarColoso(Colossus colossus)
     {
-        if (enemy == null) return;
-        // Evitar doble kill si ya muerto
-        if (enemy is Colossus colossus)
-        {
-            Debug.Log($"[PozoKill] ¡Coloso cayó al pozo! Muerte instantánea + recompensa {colossus.energiaDrop}");
-        }
-        else
-        {
-            Debug.Log($"[PozoKill] {enemy.name} cayó al pozo");
-        }
-
-        // Daño instakill que ignora resistencias (para Coloso que reduce 80%)
-        // Usamos 9999 directo via RecibirDaño, pero Coloso lo reduce; añadimos bypass llamando a método interno si existe
-        if (enemy is Colossus)
-        {
-            // Bypass resistencia: directo a vida 0 y Morir
-            enemy.vidaActual = 0;
-            // Invocar Morir protegido via reflection o via daño masivo que supere resistencia
-            // Damos 5000*5 para asegurar muerte aun con 0.2 factor
-            enemy.RecibirDaño(ColossusBypassDamage);
-            if (enemy.vidaActual > 0)
-            {
-                // Fallback: destruir directo y notificar spawner
-                EnemySpawner.Instance?.EnemigoEliminado(enemy);
-                if (enemy.TryGetComponent<Collider>(out var c)) c.enabled = false;
-                Destroy(enemy.gameObject);
-            }
-        }
-        else
-        {
-            enemy.RecibirDaño(dañoInstakill);
-        }
+        if (colossus == null || colossus.EstaMuerto) return;
+        Debug.Log($"[PozoKill] ¡Coloso cayó al pozo! Muerte instantánea + recompensa {colossus.energiaDrop}");
+        // Ignora la resistencia del Coloso y conserva la recompensa normal de muerte.
+        colossus.KillInstantly();
     }
 
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
-        // Cilindro wire: radio y altura mortal
         Gizmos.DrawWireSphere(transform.position, radioMortal);
-        Gizmos.DrawLine(transform.position + Vector3.up * alturaMortal, transform.position + Vector3.up * alturaMortal + Vector3.forward * radioMortal);
+        Vector3 alturaMortalPos = transform.position + Vector3.up * alturaMortal;
+        Gizmos.DrawLine(alturaMortalPos, alturaMortalPos + Vector3.forward * radioMortal);
         Gizmos.color = new Color(1f, 0f, 0f, GizmoFillAlpha);
-        Gizmos.DrawCube(transform.position + Vector3.up * (alturaMortal * 0.5f - GizmoHeightOffset), new Vector3(radioMortal * 2, alturaMortal + 2f, radioMortal * 2));
+        Gizmos.DrawCube(
+            transform.position + Vector3.up * (alturaMortal * 0.5f - GizmoHeightOffset),
+            new Vector3(radioMortal * 2f, alturaMortal + GizmoExtraHeightMeters, radioMortal * 2f));
     }
 }

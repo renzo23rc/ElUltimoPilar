@@ -27,4 +27,28 @@ public class HudVariantDisplayTests
 
         Assert.That(displayName, Is.Empty);
     }
+
+    [Test]
+    public void DamageVariantLabelShowsMultiplier()
+    {
+        string label = Hud.FormatVariantLabel("Rifle de precisión", true, 2f, 12f);
+
+        Assert.That(label, Is.EqualTo("¡x2 Rifle de precisión! 12s"));
+    }
+
+    [TestCase("Señuelo")]
+    [TestCase("Ralentización")]
+    public void UtilityVariantLabelOmitsMultiplier(string displayName)
+    {
+        string label = Hud.FormatVariantLabel(displayName, false, 2f, 5f);
+
+        Assert.That(label, Is.EqualTo($"¡{displayName}! 5s"));
+    }
+
+    [TestCase("")]
+    [TestCase(null)]
+    public void MissingDisplayNameProducesEmptyLabel(string displayName)
+    {
+        Assert.That(Hud.FormatVariantLabel(displayName, true, 2f, 5f), Is.Empty);
+    }
 }

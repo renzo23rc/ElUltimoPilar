@@ -6,33 +6,36 @@
  * 
  * Colocar en el mismo GameObject que PlayerController.
  */
-using UnityEngine;
 using System;
+using System.Collections.Generic;
+using UltimoPilar.Core.Shared;
+using UnityEngine;
 
 public class EnergySystem : MonoBehaviour
 {
-private const float AreaRadiusMultiplier = 1.5f;
+    private const float AreaRadiusMultiplier = 1.5f;
+    private const float WaveExpansionDurationSeconds = 0.5f;
+    private const float WaveAlpha = 0.3f;
 
-private const float WaveExpansionDurationSeconds = 0.5f;
     [Header("Configuración")]
     public float energiaMaxima = 100f;
     public float energiaActual = 0f;
     public float costoCuracion = 15f; // Balanceo: 20->15 para que curar no sea castigo extremo (decisión real)
     public float vidaPorCuracion = 8f; // 1->8% vida: ahora curar es relevante tácticamente (2 curas = 16% vida)
     public float costoHabilidad = 28f; // 30->28 un poco más accesible para habilidad de control
-    
+
     [Header("Habilidades")]
     public bool habilidadPulsoDaño = true; // true = pulso de daño, false = ralentización
     public float radioPulso = 8f;
     public float dañoPulso = 25f;
     public float duracionRalentizacion = 5f;
     public float factorRalentizacion = 0.5f;
-    
+
     // Eventos
     public event Action<float> OnEnergiaCambiada;
     public event Action OnHabilidadActivada;
     public event Action OnCuracionUsada;
-    
+
     private PlayerController player;
 
     void Awake()
@@ -43,8 +46,7 @@ private const float WaveExpansionDurationSeconds = 0.5f;
     void Start()
     {
         if (player == null) player = GetComponent<PlayerController>();
-        // GameManager owns the managed match reset; preserve the old
-        // standalone component initialization when no manager exists.
+        // GameManager es dueño del reinicio; sin manager se conserva la inicialización autónoma.
         if (GameManager.Instance == null)
             energiaActual = 0f;
     }
@@ -59,109 +61,74 @@ private const float WaveExpansionDurationSeconds = 0.5f;
     {
         energiaActual = Mathf.Min(energiaMaxima, energiaActual + cantidad);
         OnEnergiaCambiada?.Invoke(energiaActual);
-        
-        Debug.Log($"[EnergySystem] +{cantidad} energía. Total: {energiaActual}/{energiaMaxima}");
     }
 
     public bool GastarEnCuracion()
     {
-        if (energiaActual >= costoCuracion && player != null)
-        {
-            energiaActual -= costoCuracion;
-            player.Curar(vidaPorCuracion);
-            OnEnergiaCambiada?.Invoke(energiaActual);
-            OnCuracionUsada?.Invoke();
-            
-            Debug.Log($"[EnergySystem] Curación usada. Vida +{vidaPorCuracion}%. Energía restante: {energiaActual}");
-            return true;
-        }
-        return false;
+        if (energiaActual < costoCuracion || player == null)
+            return false;
+
+        energiaActual -= costoCuracion;
+        player.Curar(vidaPorCuracion);
+        OnEnergiaCambiada?.Invoke(energiaActual);
+        OnCuracionUsada?.Invoke();
+        return true;
     }
 
     public bool ActivarHabilidad()
     {
-        if (energiaActual >= costoHabilidad)
-        {
-            energiaActual -= costoHabilidad;
-            OnEnergiaCambiada?.Invoke(energiaActual);
-            
-            if (habilidadPulsoDaño)
-            {
-                PulsoDeDaño();
-            }
-            else
-            {
-                RalentizacionArea();
-            }
-            
-            OnHabilidadActivada?.Invoke();
-            return true;
-        }
-        return false;
+        if (energiaActual < costoHabilidad)
+            return false;
+
+        energiaActual -= costoHabilidad;
+        OnEnergiaCambiada?.Invoke(energiaActual);
+
+        if (habilidadPulsoDaño)
+            PulsoDeDaño();
+        else
+            RalentizacionArea();
+
+        OnHabilidadActivada?.Invoke();
+        return true;
     }
 
     void PulsoDeDaño()
     {
-        Collider[] enemigos = Physics.OverlapSphere(transform.position, radioPulso);
-        int contador = 0;
-        foreach (var col in enemigos)
-        {
-            var enemy = col.GetComponent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.RecibirDaño(dañoPulso);
-                contador++;
-            }
-        }
-        
-        Debug.Log($"[EnergySystem] ¡Pulso de daño! {contador} enemigos afectados.");
-        
-        // Efecto visual simple
+        foreach (Enemy enemy in OverlapQuery.FindUniqueInSphere<Enemy>(transform.position, radioPulso))
+            enemy.RecibirDaño(dañoPulso);
+
         CrearOndaVisual(Color.yellow, radioPulso);
     }
 
     void RalentizacionArea()
     {
-        // Ralentización temporal (stack prohibido) afecta a enemigos y jugadores en área
-        Collider[] colisiones = Physics.OverlapSphere(transform.position, radioPulso * AreaRadiusMultiplier);
-        int countE = 0, countP = 0;
-        foreach (var col in colisiones)
+        // Ralentización temporal sin stack: afecta a enemigos y aliados en el área, no al lanzador.
+        float radio = radioPulso * AreaRadiusMultiplier;
+        foreach (Enemy enemy in OverlapQuery.FindUniqueInSphere<Enemy>(transform.position, radio))
+            enemy.AplicarRalentizacion(this, factorRalentizacion, duracionRalentizacion);
+
+        foreach (PlayerController aliado in AliadosEnRadio(radio))
+            aliado.AplicarRalentizacion(this, factorRalentizacion, duracionRalentizacion);
+
+        CrearOndaVisual(Color.cyan, radio);
+    }
+
+    List<PlayerController> AliadosEnRadio(float radio)
+    {
+        var aliados = new List<PlayerController>();
+        GameManager manager = GameManager.Instance;
+        if (manager == null)
+            return aliados;
+
+        foreach (PlayerController candidato in manager.Players)
         {
-            var enemy = col.GetComponent<Enemy>();
-            if (enemy == null) enemy = col.GetComponentInParent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
-                countE++;
-            }
-            var player = col.GetComponent<PlayerController>();
-            if (player == null) player = col.GetComponentInParent<PlayerController>();
-            if (player != null)
-            {
-                // No ralentizar al propio lanzador si se desea? Sí afecta a todos por spec, incluso self, pero evitamos self para habilidad aliada
-                // Por ahora sí afecta a todos excepto self para no penalizar al usarla
-                if (player.gameObject != this.gameObject)
-                {
-                    player.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
-                    countP++;
-                }
-            }
+            if (candidato == null || candidato == player)
+                continue;
+            if (Vector3.Distance(candidato.transform.position, transform.position) <= radio)
+                aliados.Add(candidato);
         }
-        // También afectar a todos los jugadores si rango incluye múltiples (co-op)
-        var todosPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-        foreach (var p in todosPlayers)
-        {
-            if (p.gameObject == this.gameObject) continue;
-            float d = Vector3.Distance(p.transform.position, transform.position);
-            if (d <= radioPulso * AreaRadiusMultiplier && !System.Array.Exists(colisiones, c => c.GetComponentInParent<PlayerController>() == p))
-            {
-                p.AplicarRalentizacion(factorRalentizacion, duracionRalentizacion);
-                countP++;
-            }
-        }
-        
-        Debug.Log($"[EnergySystem] ¡Ralentización área! Enemigos {countE}, Jugadores {countP} x{factorRalentizacion} por {duracionRalentizacion}s");
-        CrearOndaVisual(Color.cyan, radioPulso * AreaRadiusMultiplier);
+
+        return aliados;
     }
 
     void CrearOndaVisual(Color color, float radio)
@@ -170,45 +137,9 @@ private const float WaveExpansionDurationSeconds = 0.5f;
         onda.name = "OndaHabilidad";
         Destroy(onda.GetComponent<Collider>());
         onda.transform.position = transform.position;
-        onda.transform.localScale = Vector3.one * 0.1f;
-        
-        Renderer rend = onda.GetComponent<Renderer>();
-        rend.material.color = new Color(color.r, color.g, color.b, 0.3f);
-        rend.material.SetFloat("_Mode", 3);
-        
-        // Animación simple de expansión
+        OwnedMaterialCleanup.Assign(
+            onda.GetComponent<Renderer>(),
+            RuntimeMaterialFactory.CreateLit(new Color(color.r, color.g, color.b, WaveAlpha)));
         onda.AddComponent<OndaExpansion>().Iniciar(radio, WaveExpansionDurationSeconds);
-    }
-}
-
-/**
- * OndaExpansion.cs
- * Helper para animar la onda visual de habilidades.
- */
-public class OndaExpansion : MonoBehaviour
-{
-    private float radioObjetivo;
-    private float duracion;
-    private float timer;
-
-    public void Iniciar(float radio, float tiempo)
-    {
-        radioObjetivo = radio;
-        duracion = tiempo;
-        timer = 0f;
-    }
-
-    void Update()
-    {
-        timer += Time.deltaTime;
-        float t = timer / duracion;
-        
-        float escala = Mathf.Lerp(0.1f, radioObjetivo, t);
-        transform.localScale = new Vector3(escala, escala * 0.2f, escala);
-        
-        if (timer >= duracion + 0.2f)
-        {
-            Destroy(gameObject);
-        }
     }
 }

@@ -9,7 +9,8 @@ using UnityEngine;
 
 public class EnergyPickup : MonoBehaviour
 {
-private static readonly float FullCircleRadians = Mathf.PI * 2f;
+    private static readonly float FullCircleRadians = Mathf.PI * 2f;
+
     [Header("Configuración")]
     public float cantidad = 2f;
     public float velocidadRotacion = 100f;
@@ -20,6 +21,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
     
     private Vector3 posicionInicial;
     private float tiempo;
+    private bool recolectado;
 
     void Start()
     {
@@ -44,7 +46,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
 
     void AtraccionJugador()
     {
-        PlayerController jugador = ResolverJugadorCercano();
+        PlayerController jugador = PlayerLocator.FindClosestRegistered(transform.position);
         if (jugador == null) return;
         
         float distancia = Vector3.Distance(transform.position, jugador.transform.position);
@@ -58,10 +60,13 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
 
     void OnTriggerEnter(Collider other)
     {
-        var player = other.GetComponent<PlayerController>();
-        if (player == null) player = other.GetComponentInParent<PlayerController>();
+        // OnTriggerStay reenvía acá: sin esta guarda un mismo orbe podía sumarse más de una vez.
+        if (recolectado) return;
+
+        var player = other.GetComponentInParent<PlayerController>();
         if (player != null)
         {
+            recolectado = true;
             var energia = player.GetComponent<EnergySystem>();
             if (energia != null)
             {
@@ -81,6 +86,7 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
     {
         // Reset levitación base al respawn desde pool y asegurar trigger no bloquea enemigos
         posicionInicial = transform.position;
+        recolectado = false;
         var col = GetComponent<SphereCollider>();
         if (col != null) col.isTrigger = true;
         // Asegurar que trigger funcione con CharacterController (necesita Rigidbody en trigger)
@@ -97,27 +103,5 @@ private static readonly float FullCircleRadians = Mathf.PI * 2f;
     {
         // Fallback por si CharacterController no dispara OnTriggerEnter
         OnTriggerEnter(other);
-    }
-    
-    PlayerController ResolverJugadorCercano()
-    {
-        var manager = GameManager.Instance;
-        if (manager != null && manager.PlayerCount > 0)
-        {
-            PlayerController cercano = null;
-            float minDist = float.MaxValue;
-            foreach (var jugador in manager.Players)
-            {
-                if (jugador == null) continue;
-                float d = Vector3.Distance(transform.position, jugador.transform.position);
-                if (d < minDist)
-                {
-                    minDist = d;
-                    cercano = jugador;
-                }
-            }
-            if (cercano != null) return cercano;
-        }
-        return FindFirstObjectByType<PlayerController>();
     }
 }

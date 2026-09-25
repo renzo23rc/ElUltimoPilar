@@ -12,6 +12,7 @@ public class CombatFeedback : MonoBehaviour
     private const float RandomOffsetMinimum = -1f;
     private const float RandomOffsetMaximum = 1f;
     private const float ShakeDecayScale = 0.12f;
+    private const float NormalTimeScale = 1f;
 
     /// <summary>
     /// Raised when combat hit feedback is notified. The argument indicates whether the hit killed its target.
@@ -31,6 +32,7 @@ public class CombatFeedback : MonoBehaviour
     private float intensidadActual;
     private float hitstopRestante;
     private readonly Dictionary<Camera, Vector3> offsetsAplicados = new Dictionary<Camera, Vector3>();
+    private readonly List<Camera> camarasARevertir = new List<Camera>();
 
     /// <summary>
     /// Gets the shared combat feedback instance.
@@ -130,7 +132,7 @@ public class CombatFeedback : MonoBehaviour
 
             if (hitstopRestante <= 0f && JuegoEnCurso())
             {
-                Time.timeScale = 1f;
+                Time.timeScale = NormalTimeScale;
             }
         }
 
@@ -156,8 +158,9 @@ public class CombatFeedback : MonoBehaviour
             return;
         }
 
-        List<Camera> camaras = new List<Camera>(offsetsAplicados.Keys);
-        foreach (Camera camara in camaras)
+        camarasARevertir.Clear();
+        camarasARevertir.AddRange(offsetsAplicados.Keys);
+        foreach (Camera camara in camarasARevertir)
         {
             if (camara == null)
             {
@@ -165,7 +168,7 @@ public class CombatFeedback : MonoBehaviour
                 continue;
             }
 
-            camara.transform.position -= offsetsAplicados[camara];
+            camara.transform.localPosition -= offsetsAplicados[camara];
             offsetsAplicados.Remove(camara);
         }
     }
@@ -195,7 +198,8 @@ public class CombatFeedback : MonoBehaviour
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
                 0f) * intensidadActual;
-            camara.transform.position += offset;
+            // En espacio local: si el jugador rota entre frames, revertir no desplaza la cámara.
+            camara.transform.localPosition += offset;
             offsetsAplicados[camara] = offset;
         }
     }

@@ -68,7 +68,7 @@ public class EnemySpawner : MonoBehaviour
     private int enemigosSpawned = 0;
     private int enemigosPorSpawnear = 0;
     private float timerSpawn = 0f;
-    private List<Enemy> enemigosActivos = new List<Enemy>();
+    private readonly List<Enemy> enemigosActivos = new List<Enemy>();
     private ConfigOleada configActualCache = null;
 
     void Awake()
@@ -102,8 +102,8 @@ public class EnemySpawner : MonoBehaviour
             timerSpawn = (configActualCache ?? ConfigActual())?.intervaloSpawn ?? DefaultSpawnIntervalSeconds;
         }
         
-        // Limpiar enemigos muertos de la lista
-        enemigosActivos.RemoveAll(e => e == null);
+        // Limpiar enemigos muertos o destruidos de la lista
+        enemigosActivos.RemoveAll(e => e == null || e.EstaMuerto);
         EnemigosVivos = enemigosActivos.Count;
         
         // Verificar si oleada terminó
@@ -167,10 +167,15 @@ public class EnemySpawner : MonoBehaviour
         
         // Determinar qué tipo spawnear basado en la progresión
         GameObject prefab = SeleccionarPrefab(config);
-        if (prefab == null) return;
-        
+        if (prefab == null)
+        {
+            // Sin prefabs asignados no hay nada que spawnear: se descuenta para que la oleada pueda terminar.
+            Debug.LogWarning($"[Spawner] Oleada {oleadaActual}: no hay prefab de enemigo asignado.");
+            enemigosPorSpawnear--;
+            return;
+        }
+
         Vector3 posicion = ObtenerPosicionSpawn();
-        Debug.Log($"[Spawner] Spawneando {prefab.name} en {posicion} (restantes: {enemigosPorSpawnear})");
         GameObject enemigo = Instantiate(prefab, posicion, Quaternion.identity);
         enemigo.SetActive(true); // prefab base esta desactivado en TestSceneSetup
         enemigo.name = prefab.name + "(Clone)";
@@ -188,8 +193,6 @@ public class EnemySpawner : MonoBehaviour
     GameObject SeleccionarPrefab(ConfigOleada config)
     {
         // Lógica simple: spawnear en orden de prioridad según contadores restantes
-        int totalRestante = enemigosPorSpawnear;
-        
         if (config.colosos > 0 && enemigosSpawned >= config.cantidadTotal - config.colosos && prefabColoso != null)
         {
             config.colosos--;
@@ -306,9 +309,7 @@ public class EnemySpawner : MonoBehaviour
         if (enemigosActivos.Contains(enemy)) return;
         enemigosActivos.Add(enemy);
         EnemigosVivos = enemigosActivos.Count;
-        // Asegurar que el spawner lo elimine cuando muera (si el enemigo no lo hace ya)
-        enemy.OnMuerte += () => EnemigoEliminado(enemy);
-        Debug.Log($"[Spawner] Enemigo externo registrado: {enemy.name} - Vivos ahora: {EnemigosVivos}");
+        // Morir() notifica EnemigoEliminado; los destruidos por otra vía se purgan en Update.
     }
 
     /// <summary>
@@ -316,9 +317,6 @@ public class EnemySpawner : MonoBehaviour
     /// </summary>
     public void LimpiarTodos()
     {
-        if (enemigosActivos == null)
-            enemigosActivos = new List<Enemy>();
-
         // Only enemies owned and tracked by this spawner are cleaned here.
         // Projectiles, pickups and WeaverZones have no coordinated owner yet.
         foreach (var e in enemigosActivos)

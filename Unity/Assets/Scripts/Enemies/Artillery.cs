@@ -7,13 +7,15 @@ using UnityEngine;
 
 public class Artillery : Enemy
 {
-private const float DefaultMovementSpeedMetersPerSecond = 1f;
-private const float DefaultHealth = 40f;
-private const float PilarDamage = 15f;
-private const float PlayerDamage = 10f;
-private const int EnergyDropAmount = 3;
-private const float PlayerTargetRangeMultiplier = 1.5f;
-private const float RotationSharpness = 5f;
+    private const float DefaultMovementSpeedMetersPerSecond = 1f;
+    private const float DefaultHealth = 40f;
+    private const float PilarDamage = 15f;
+    private const float PlayerDamage = 10f;
+    private const int EnergyDropAmount = 3;
+    private const float PlayerTargetRangeMultiplier = 1.5f;
+    private const float RotationSharpness = 5f;
+    private const string ProjectilePoolKey = "Proyectil";
+
     [Header("Artillero Específico")]
     public GameObject prefabProyectil;
     public Transform puntoDisparo;
@@ -91,7 +93,7 @@ private const float RotationSharpness = 5f;
         Vector3 dir = pilarObjetivo.transform.position - puntoDisparo.position;
         if (Physics.Raycast(puntoDisparo.position, dir.normalized, out RaycastHit hit, dir.magnitude))
         {
-            tieneLineaVision = hit.collider.GetComponent<Pilar>() != null;
+            tieneLineaVision = hit.collider.GetComponentInParent<Pilar>() != null;
         }
         else
         {
@@ -125,24 +127,18 @@ private const float RotationSharpness = 5f;
             return;
         }
         
-        GameObject proj = null;
-        if (PoolManager.Instance != null)
+        Vector3 origen = puntoDisparo.position;
+        Quaternion rotacion = Quaternion.LookRotation(objetivo.position - origen);
+        GameObject proj = PoolManager.Instance != null
+            ? PoolManager.Instance.Get(ProjectilePoolKey, origen, rotacion)
+            : null;
+        if (proj == null)
         {
-            // Intentar obtener del pool "Proyectil" (registrado en TestSceneSetup)
-            proj = PoolManager.Instance.Get("Proyectil", puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
-            if (proj == null)
-                proj = Instantiate(prefabProyectil, puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
-            else
-            {
-                proj.transform.SetPositionAndRotation(puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
-                proj.SetActive(true);
-            }
+            proj = Instantiate(prefabProyectil, origen, rotacion);
         }
-        else
-        {
-            proj = Instantiate(prefabProyectil, puntoDisparo.position, Quaternion.LookRotation(objetivo.position - puntoDisparo.position));
-        }
-        
+
+        proj.SetActive(true);
+
         var rb = proj.GetComponent<Rigidbody>();
         if (rb != null)
         {

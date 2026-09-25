@@ -29,9 +29,6 @@ public sealed class ArenaWarningPresenter
     private const float PitMarkerScaleBase = 1f;
     private const float PingPongLength = 1f;
     private const int TransparentRenderQueue = 3000;
-    private const string UniversalLitShaderName = "Universal Render Pipeline/Lit";
-    private const string StandardShaderName = "Standard";
-    private const string SpritesDefaultShaderName = "Sprites/Default";
     private const string PitMarkerName = "AdvertenciaPozo";
     private const string PitRingName = "AnilloAdvertenciaPozo";
     private const string GravityWarningMessage = "¡ALERTA: Zona gravedad alterada!";
@@ -279,19 +276,9 @@ public sealed class ArenaWarningPresenter
             return;
         }
 
-        Shader shader = Shader.Find(UniversalLitShaderName)
-            ?? Shader.Find(StandardShaderName)
-            ?? Shader.Find(SpritesDefaultShaderName);
-        if (shader != null)
-        {
-            var material = new Material(shader)
-            {
-                renderQueue = TransparentRenderQueue
-            };
-            renderer.material = material;
-        }
-
-        SetObjectMaterialColor(target, color);
+        Material material = RuntimeMaterialFactory.CreateLit(color);
+        material.renderQueue = TransparentRenderQueue;
+        OwnedMaterialCleanup.Assign(renderer, material);
     }
 
     private static void SetObjectMaterialColor(GameObject target, Color color)
@@ -307,7 +294,7 @@ public sealed class ArenaWarningPresenter
             return;
         }
 
-        MaterialColorHelper.SetBaseAndEmissionColor(renderer.material, color);
+        MaterialColorHelper.SetBaseAndEmissionColor(renderer.sharedMaterial, color);
     }
 
     private void UpdatePitMarker()
@@ -315,8 +302,8 @@ public sealed class ArenaWarningPresenter
         if (warningMarker != null)
         {
             Vector3 baseScale = pitObject == null ? warningMarker.transform.localScale : pitObject.transform.localScale;
-                float pulse = PitMarkerScaleBase
-                    + Mathf.PingPong(Time.time * PitMarkerPulseFrequencyHz, PitMarkerPulseAmount);
+            float pulse = PitMarkerScaleBase
+                + Mathf.PingPong(Time.time * PitMarkerPulseFrequencyHz, PitMarkerPulseAmount);
             warningMarker.transform.localScale = new Vector3(
                 baseScale.x * PitMarkerScale * pulse,
                 PitMarkerHeightMeters,
@@ -324,7 +311,9 @@ public sealed class ArenaWarningPresenter
 
             float alpha = PitMarkerAlphaBase
                 + Mathf.PingPong(Time.time * PitMarkerAlphaPulseFrequencyHz, PitMarkerAlphaPulseAmount);
-            SetObjectMaterialColor(warningMarker, new Color(1f, 0f, 0f, alpha));
+            Color markerColor = PitMarkerColor;
+            markerColor.a = alpha;
+            SetObjectMaterialColor(warningMarker, markerColor);
         }
 
         if (warningRing != null)
