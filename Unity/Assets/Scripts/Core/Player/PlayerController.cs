@@ -35,6 +35,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     private const float FallDurationSeconds = 0.6f;
     private const float FallCenterImpulseMeters = 2f;
     private const float FallDistanceMeters = 6f;
+    private const string GamepadControlSchemeName = "Gamepad";
 
     private static readonly object UnattributedSlowdownSource = new object();
 
@@ -42,6 +43,8 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     public float velocidadMovimiento = 8f;
     public float gravedad = -20f;
     public float sensibilidadMouse = 0.5f;
+    [Tooltip("Velocidad de giro de la cámara con el stick derecho, en grados por segundo a fondo.")]
+    [SerializeField, Min(0f)] private float gamepadLookSpeedDegreesPerSecond = 180f;
     [Header("Salto")]
     public float alturaSalto = 1.8f;
     public float coyoteTime = 0.12f;
@@ -204,7 +207,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
 
     void ManejarMirada(PlayerCommand command)
     {
-        Vector2 lookDelta = new Vector2(command.LookX, command.LookY) * sensibilidadMouse;
+        Vector2 lookDelta = new Vector2(command.LookX, command.LookY) * EscalaDeMirada();
         rotacionX = Mathf.Clamp(rotacionX - lookDelta.y, -MaximumLookAngleDegrees, MaximumLookAngleDegrees);
 
         if (camaraJugador != null)
@@ -214,6 +217,14 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
             if (puntoDisparo != null)
                 puntoDisparo.rotation = camaraJugador.transform.rotation;
         }
+    }
+
+    // El mouse entrega un desplazamiento por frame; el stick, una posición entre -1 y 1 que debe
+    // convertirse en velocidad (grados por segundo) para no depender de los FPS.
+    float EscalaDeMirada()
+    {
+        bool usaGamepad = playerInput != null && playerInput.currentControlScheme == GamepadControlSchemeName;
+        return usaGamepad ? gamepadLookSpeedDegreesPerSecond * Time.deltaTime : sensibilidadMouse;
     }
 
     void ManejarMovimiento(PlayerCommand command)
