@@ -21,6 +21,7 @@ public static class HudUiFactory
     private static readonly Vector2 Center = new Vector2(0.5f, 0.5f);
     private static readonly Vector2 BottomCenter = new Vector2(0.5f, 0f);
     private static readonly Vector2 BottomRight = new Vector2(1f, 0f);
+    private static readonly Vector2 BottomLeft = new Vector2(0f, 0f);
 
     /// <summary>Configures a scaler so the HUD keeps its proportions at any resolution or viewport.</summary>
     public static void ConfigureScaler(CanvasScaler scaler)
@@ -104,6 +105,12 @@ public static class HudUiFactory
     public static void AnchorBottomRight(RectTransform rect, Vector2 offsetFromEdges, Vector2 size)
     {
         Anchor(rect, BottomRight, new Vector2(-offsetFromEdges.x, offsetFromEdges.y), size);
+    }
+
+    /// <summary>Anchors to the bottom-left corner; the offset is measured inward from the edges.</summary>
+    public static void AnchorBottomLeft(RectTransform rect, Vector2 offsetFromEdges, Vector2 size)
+    {
+        Anchor(rect, BottomLeft, offsetFromEdges, size);
     }
 
     /// <summary>Anchors the background of a bar created with <see cref="CreateBar"/>.</summary>

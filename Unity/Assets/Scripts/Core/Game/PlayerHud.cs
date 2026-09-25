@@ -59,6 +59,7 @@ public sealed class PlayerHud : MonoBehaviour
     private Text statusText;
     private Text crosshairText;
     private float crosshairTimer;
+    private bool layoutMirrored;
 
     /// <summary>Gets the player this HUD belongs to.</summary>
     public PlayerController Player => player;
@@ -93,12 +94,16 @@ public sealed class PlayerHud : MonoBehaviour
         energy = target.GetComponent<EnergySystem>();
         weapons = target.GetComponent<WeaponSystem>();
         BuildCanvas();
-        CombatFeedback.OnCombatHit += FlashCrosshair;
+
+        // Solo los impactos de las armas de este jugador hacen parpadear su mira.
+        if (weapons != null)
+            weapons.OnImpactoConfirmado += FlashCrosshair;
     }
 
     private void OnDestroy()
     {
-        CombatFeedback.OnCombatHit -= FlashCrosshair;
+        if (weapons != null)
+            weapons.OnImpactoConfirmado -= FlashCrosshair;
     }
 
     private void BuildCanvas()
@@ -113,21 +118,13 @@ public sealed class PlayerHud : MonoBehaviour
 
         Transform root = transform;
         identityText = HudUiFactory.CreateText(root, "Identidad", IdentityFontSize, TextAnchor.UpperLeft);
-        HudUiFactory.AnchorTopLeft(identityText.rectTransform, IdentityOffset, LabelSize);
         healthText = HudUiFactory.CreateText(root, "Vida", StatFontSize, TextAnchor.UpperLeft);
-        HudUiFactory.AnchorTopLeft(healthText.rectTransform, HealthTextOffset, LabelSize);
         healthBar = HudUiFactory.CreateBar(root, "BarraVida");
-        HudUiFactory.AnchorBar(healthBar, rect => HudUiFactory.AnchorTopLeft(rect, HealthBarOffset, BarSize));
         energyText = HudUiFactory.CreateText(root, "Energia", StatFontSize, TextAnchor.UpperLeft);
-        HudUiFactory.AnchorTopLeft(energyText.rectTransform, EnergyTextOffset, LabelSize);
         energyBar = HudUiFactory.CreateBar(root, "BarraEnergia");
         energyBar.color = EnergyColor;
-        HudUiFactory.AnchorBar(energyBar, rect => HudUiFactory.AnchorTopLeft(rect, EnergyBarOffset, BarSize));
-
         ammoText = HudUiFactory.CreateText(root, "Municion", AmmoFontSize, TextAnchor.LowerRight);
-        HudUiFactory.AnchorBottomRight(ammoText.rectTransform, AmmoOffset, LabelSize);
         weaponText = HudUiFactory.CreateText(root, "Arma", WeaponFontSize, TextAnchor.LowerRight);
-        HudUiFactory.AnchorBottomRight(weaponText.rectTransform, WeaponOffset, LabelSize);
 
         variantText = HudUiFactory.CreateText(root, "Variante", VariantFontSize, TextAnchor.MiddleCenter);
         variantText.color = VariantColor;
@@ -137,6 +134,55 @@ public sealed class PlayerHud : MonoBehaviour
         crosshairText = HudUiFactory.CreateText(root, "Crosshair", CrosshairFontSize, TextAnchor.MiddleCenter);
         crosshairText.text = CrosshairGlyph;
         HudUiFactory.AnchorCenter(crosshairText.rectTransform, 0f, CrosshairSize);
+
+        ApplyLayout(false);
+    }
+
+    // Jugadores pares (P2, P4): estadísticas arriba a la derecha y munición abajo a la izquierda,
+    // para no quedar debajo de la barra del Pilar, que está centrada entre las pantallas.
+    private void ApplyLayout(bool mirrored)
+    {
+        layoutMirrored = mirrored;
+        TextAnchor statsAlignment = mirrored ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+        TextAnchor weaponAlignment = mirrored ? TextAnchor.LowerLeft : TextAnchor.LowerRight;
+        AnchorStat(identityText.rectTransform, IdentityOffset, LabelSize, mirrored);
+        AnchorStat(healthText.rectTransform, HealthTextOffset, LabelSize, mirrored);
+        HudUiFactory.AnchorBar(healthBar, rect => AnchorStat(rect, HealthBarOffset, BarSize, mirrored));
+        AnchorStat(energyText.rectTransform, EnergyTextOffset, LabelSize, mirrored);
+        HudUiFactory.AnchorBar(energyBar, rect => AnchorStat(rect, EnergyBarOffset, BarSize, mirrored));
+        identityText.alignment = statsAlignment;
+        healthText.alignment = statsAlignment;
+        energyText.alignment = statsAlignment;
+
+        AnchorWeapon(ammoText.rectTransform, AmmoOffset, mirrored);
+        AnchorWeapon(weaponText.rectTransform, WeaponOffset, mirrored);
+        ammoText.alignment = weaponAlignment;
+        weaponText.alignment = weaponAlignment;
+
+        // La barra se llena desde el borde de la pantalla (UiFill usa layoutMirrored al refrescar).
+        SetFillOrigin(healthBar, mirrored);
+        SetFillOrigin(energyBar, mirrored);
+    }
+
+    private static void AnchorStat(RectTransform rect, Vector2 offset, Vector2 size, bool mirrored)
+    {
+        if (mirrored)
+            HudUiFactory.AnchorTopRight(rect, offset, size);
+        else
+            HudUiFactory.AnchorTopLeft(rect, offset, size);
+    }
+
+    private static void AnchorWeapon(RectTransform rect, Vector2 offset, bool mirrored)
+    {
+        if (mirrored)
+            HudUiFactory.AnchorBottomLeft(rect, offset, LabelSize);
+        else
+            HudUiFactory.AnchorBottomRight(rect, offset, LabelSize);
+    }
+
+    private static void SetFillOrigin(Image bar, bool fromRight)
+    {
+        bar.fillOrigin = fromRight ? (int)Image.OriginHorizontal.Right : (int)Image.OriginHorizontal.Left;
     }
 
     private void Update()
@@ -146,6 +192,10 @@ public sealed class PlayerHud : MonoBehaviour
 
         GameManager manager = GameManager.Instance;
         int slot = FindSlot(manager);
+        bool mirrored = slot % 2 == 1;
+        if (mirrored != layoutMirrored)
+            ApplyLayout(mirrored);
+
         RefreshIdentity(slot);
         RefreshHealth();
         RefreshEnergy();
@@ -181,7 +231,7 @@ public sealed class PlayerHud : MonoBehaviour
             ? "Vida: DERRIBADO"
             : $"Vida: {player.vidaActual:F0}/{player.vidaMaxima:F0}";
         healthText.color = player.estaDerribado ? Color.red : Color.white;
-        UiFill.Set(healthBar, player.estaDerribado ? 0f : player.vidaActual / player.vidaMaxima);
+        UiFill.Set(healthBar, player.estaDerribado ? 0f : player.vidaActual / player.vidaMaxima, layoutMirrored);
         healthBar.color = player.estaDerribado ? Color.red : Color.green;
     }
 
@@ -191,7 +241,7 @@ public sealed class PlayerHud : MonoBehaviour
             return;
 
         energyText.text = $"Energía: {energy.energiaActual:F0}/{energy.energiaMaxima:F0}";
-        UiFill.Set(energyBar, energy.energiaActual / energy.energiaMaxima);
+        UiFill.Set(energyBar, energy.energiaActual / energy.energiaMaxima, layoutMirrored);
     }
 
     private void RefreshWeapon()

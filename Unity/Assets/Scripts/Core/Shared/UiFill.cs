@@ -12,7 +12,8 @@ namespace UltimoPilar.Core.Shared
         /// <summary>Applies the fill fraction to a bar image.</summary>
         /// <param name="bar">The bar fill image, stretched inside its background.</param>
         /// <param name="fraction">The fill fraction; values outside 0–1 are clamped.</param>
-        public static void Set(Image bar, float fraction)
+        /// <param name="fromRight">Whether the bar fills from the right edge instead of the left.</param>
+        public static void Set(Image bar, float fraction, bool fromRight = false)
         {
             if (bar == null)
             {
@@ -27,8 +28,8 @@ namespace UltimoPilar.Core.Shared
             }
 
             RectTransform rect = bar.rectTransform;
-            rect.anchorMin = new Vector2(0f, rect.anchorMin.y);
-            rect.anchorMax = new Vector2(clamped, rect.anchorMax.y);
+            rect.anchorMin = new Vector2(fromRight ? 1f - clamped : 0f, rect.anchorMin.y);
+            rect.anchorMax = new Vector2(fromRight ? 1f : clamped, rect.anchorMax.y);
         }
     }
 }

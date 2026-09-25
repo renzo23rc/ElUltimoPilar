@@ -162,6 +162,12 @@ public class WeaponSystem : MonoBehaviour
     public event Action<Vector3> OnDecoyRequested;
     public event Action<Enemy, float> OnSlowdownRequested;
 
+    /// <summary>
+    /// Raised once per attack of this weapon system that damages at least one enemy.
+    /// The argument says whether any of the damaged enemies died.
+    /// </summary>
+    public event Action<bool> OnImpactoConfirmado;
+
     private readonly WeaponFeedbackVfx vfx = new WeaponFeedbackVfx();
     private PlayerController player;
     private bool hasSemanticVariant;
@@ -177,9 +183,20 @@ public class WeaponSystem : MonoBehaviour
     /// <summary>Gets whether the active variant multiplies damage, as opposed to a utility effect.</summary>
     public bool VariantMultipliesDamage => VarianteActiva && activeVariantEffect == VariantEffect.DamageMultiplier;
 
-    private static void ApplyDamage(IDamageable target, float amount)
+    // Devuelve si el golpe mató al enemigo (el Explosivo muere al detonar, pero su vida ya llega a 0).
+    private static bool ApplyDamage(Enemy target, float amount)
     {
-        target.ReceiveDamage(new DamageRequest(amount));
+        bool wasAlive = !target.EstaMuerto && target.vidaActual > 0f;
+        ((IDamageable)target).ReceiveDamage(new DamageRequest(amount));
+        return wasAlive && (target.EstaMuerto || target.vidaActual <= 0f);
+    }
+
+    private void ReportImpact(bool anyHit, bool anyKilled)
+    {
+        if (anyHit)
+        {
+            OnImpactoConfirmado?.Invoke(anyKilled);
+        }
     }
 
     void Start()
@@ -391,7 +408,7 @@ public class WeaponSystem : MonoBehaviour
             Enemy enemy = aimHit.collider.GetComponentInParent<Enemy>();
             if (enemy != null)
             {
-                ApplyDamage(enemy, DañoEfectivo(arma));
+                ReportImpact(true, ApplyDamage(enemy, DañoEfectivo(arma)));
                 vfx.CreateImpact(aimHit.point, aimHit.normal, Color.red, DirectHitImpactSizeMeters, true);
             }
             else
@@ -442,10 +459,13 @@ public class WeaponSystem : MonoBehaviour
         if (!IsAreaVariantActive(VariantEffect.Decoy))
         {
             float daño = DañoEfectivo(arma);
+            bool anyKilled = false;
             foreach (Enemy enemy in afectados)
             {
-                ApplyDamage(enemy, daño);
+                anyKilled |= ApplyDamage(enemy, daño);
             }
+
+            ReportImpact(afectados.Count > 0, anyKilled);
         }
 
         ApplyAreaVariantEffect(afectados, puntoImpacto);
@@ -464,11 +484,15 @@ public class WeaponSystem : MonoBehaviour
     {
         float daño = DañoEfectivo(arma);
         Vector3 centro = transform.position + transform.forward * MeleeForwardOffsetMeters;
-        foreach (Enemy enemy in OverlapQuery.FindUniqueInSphere<Enemy>(centro, arma.radioArea))
+        List<Enemy> afectados = OverlapQuery.FindUniqueInSphere<Enemy>(centro, arma.radioArea);
+        bool anyKilled = false;
+        foreach (Enemy enemy in afectados)
         {
-            ApplyDamage(enemy, daño);
+            anyKilled |= ApplyDamage(enemy, daño);
             ApplyMeleeKnockback(enemy, arma);
         }
+
+        ReportImpact(afectados.Count > 0, anyKilled);
     }
 
     private bool IsAreaVariantActive(VariantEffect effect)
