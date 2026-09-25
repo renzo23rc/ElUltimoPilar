@@ -22,6 +22,7 @@ public sealed class PlayerInputAdapter : IInputAdapter
     private const string WeaponSlot1ActionName = "WeaponSlot1";
     private const string WeaponSlot2ActionName = "WeaponSlot2";
     private const string WeaponSlot3ActionName = "WeaponSlot3";
+    private const string PauseActionName = "Pause";
 
     private readonly PlayerInput playerInput;
     private InputActionMap playerActionMap;
@@ -37,6 +38,7 @@ public sealed class PlayerInputAdapter : IInputAdapter
     private InputAction weaponSlot1Action;
     private InputAction weaponSlot2Action;
     private InputAction weaponSlot3Action;
+    private InputAction pauseAction;
     private bool playerActionsConfigured;
 
     /// <summary>Creates an adapter for the supplied PlayerInput component.</summary>
@@ -99,7 +101,8 @@ public sealed class PlayerInputAdapter : IInputAdapter
                 WasPressed(abilityAction),
                 WasPressed(previousWeaponAction),
                 WasPressed(nextWeaponAction),
-                ReadWeaponSlot());
+                ReadWeaponSlot(),
+                WasPressed(pauseAction));
         }
         catch (System.InvalidOperationException)
         {
@@ -135,6 +138,7 @@ public sealed class PlayerInputAdapter : IInputAdapter
         weaponSlot1Action = null;
         weaponSlot2Action = null;
         weaponSlot3Action = null;
+        pauseAction = null;
         playerActionsConfigured = false;
         JoinAction = null;
 
@@ -157,6 +161,8 @@ public sealed class PlayerInputAdapter : IInputAdapter
             weaponSlot1Action = playerActionMap.FindAction(WeaponSlot1ActionName, false);
             weaponSlot2Action = playerActionMap.FindAction(WeaponSlot2ActionName, false);
             weaponSlot3Action = playerActionMap.FindAction(WeaponSlot3ActionName, false);
+            // Opcional: un asset sin Pause sigue siendo válido para jugar.
+            pauseAction = playerActionMap.FindAction(PauseActionName, false);
             playerActionsConfigured = moveAction != null &&
                 lookAction != null &&
                 jumpAction != null &&

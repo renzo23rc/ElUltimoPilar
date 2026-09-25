@@ -459,7 +459,7 @@ public class Hud : MonoBehaviour
             if (estado == MatchState.WaitingToStart)
                 textoMenu.text = "ÚLTIMO PILAR\nMovete o dispará para iniciar\nWASD + Mouse (P1) · Start en gamepad (P2-P4)";
             else if (estado == MatchState.Paused)
-                textoMenu.text = "PAUSA\nEsc: continuar · Enter: reiniciar";
+                textoMenu.text = "PAUSA\nEsc / Options: continuar · Enter: reiniciar";
             else
                 textoMenu.text = string.Empty;
         }
@@ -529,13 +529,8 @@ public class Hud : MonoBehaviour
     void AtajosMenu()
     {
         if (gameManager == null || Keyboard.current == null) return;
+        // La pausa (Esc / Options) llega por la acción Pause del Input System y la resuelve GameManager.
         MatchState estado = gameManager.EstadoActual;
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
-        {
-            if (estado == MatchState.Playing) gameManager.PausarJuego();
-            else if (estado == MatchState.Paused) gameManager.ReanudarJuego();
-        }
-
         if (Keyboard.current.enterKey.wasPressedThisFrame
             && (estado == MatchState.Victory || estado == MatchState.Defeat || estado == MatchState.Paused))
         {

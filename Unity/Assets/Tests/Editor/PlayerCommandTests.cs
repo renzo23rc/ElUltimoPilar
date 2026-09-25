@@ -19,6 +19,18 @@ public class PlayerCommandTests
         Assert.That(command.PreviousWeapon, Is.False);
         Assert.That(command.NextWeapon, Is.False);
         Assert.That(command.WeaponSlot, Is.Null);
+        Assert.That(command.Pause, Is.False);
+    }
+
+    [Test]
+    public void PauseIsPreservedAndIndependentFromOtherButtons()
+    {
+        var command = new PlayerCommand(0f, 0f, 0f, 0f, pause: true);
+
+        Assert.That(command.Pause, Is.True);
+        Assert.That(command.Fire, Is.False);
+        Assert.That(command.Jump, Is.False);
+        Assert.That(command.WeaponSlot, Is.Null);
     }
 
     [Test]

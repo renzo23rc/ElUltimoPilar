@@ -84,6 +84,7 @@ public class GameManager : MonoBehaviour
     public event Action<PlayerController> OnPlayerUnregistered;
 
     private float timerEntreOleadas = 0f;
+    private int ultimoFrameDePausa = -1;
     private bool esperandoOleada = false;
 
     void Awake()
@@ -244,6 +245,18 @@ public class GameManager : MonoBehaviour
     {
         if (!matchFlow.Resume()) return;
         Time.timeScale = InitialTimeScale;
+    }
+
+    // Cualquier jugador puede pausar o reanudar; si dos lo piden en el mismo frame, cuenta una vez.
+    void AlternarPausa()
+    {
+        if (ultimoFrameDePausa == Time.frameCount) return;
+        ultimoFrameDePausa = Time.frameCount;
+
+        if (EstadoActual == MatchState.Playing)
+            PausarJuego();
+        else if (EstadoActual == MatchState.Paused)
+            ReanudarJuego();
     }
 
     /// <summary>Restarts the match.</summary>
@@ -436,6 +449,9 @@ public class GameManager : MonoBehaviour
 
     void OnJugadorCommandIssued(PlayerController jugador, PlayerCommand command)
     {
+        if (command.Pause)
+            AlternarPausa();
+
         if (jugador != player) return;
         if (EstadoActual != MatchState.WaitingToStart || !esperandoInputInicial) return;
         if (!DetectarInputInicio(command)) return;

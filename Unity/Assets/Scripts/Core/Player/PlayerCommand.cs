@@ -18,7 +18,8 @@ public readonly struct PlayerCommand
         bool ability = false,
         bool previousWeapon = false,
         bool nextWeapon = false,
-        int? weaponSlot = null)
+        int? weaponSlot = null,
+        bool pause = false)
     {
         MoveX = moveX;
         MoveY = moveY;
@@ -32,6 +33,7 @@ public readonly struct PlayerCommand
         PreviousWeapon = previousWeapon;
         NextWeapon = nextWeapon;
         WeaponSlot = weaponSlot;
+        Pause = pause;
     }
 
     /// <summary>Horizontal movement input.</summary>
@@ -58,4 +60,6 @@ public readonly struct PlayerCommand
     public bool NextWeapon { get; }
     /// <summary>The selected weapon slot, when one was pressed.</summary>
     public int? WeaponSlot { get; }
+    /// <summary>Whether pause was pressed this frame.</summary>
+    public bool Pause { get; }
 }
