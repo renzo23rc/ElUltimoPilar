@@ -88,9 +88,9 @@ public class Pilar : MonoBehaviour
         EnsurePhaseCoordinator();
         EnsureVisualPresenter();
 
-        if (GameManager.Instance != null)
+        if (GameManager.Instance == null)
         {
-            return;
+            RestaurarVida();
         }
     }   
 
@@ -184,6 +184,23 @@ public class Pilar : MonoBehaviour
         if (vidaActual <= MinimumHealth)
         {
             GameManager.Instance?.Derrota();
+        }
+    }
+
+    /// <summary>Restores health, phase, turrets, and visual state to the initial phase.</summary>
+    public void RestaurarVida()
+    {
+        CacheRenderer();
+        turretSpawner.Clear();
+        torretasActivas = false;
+        vidaActual = vidaMaxima;
+        faseActual = InitialPhase;
+        EnsurePhaseCoordinator().ResetTo(InitialPhase);
+        OnVidaCambiada?.Invoke(vidaActual);
+
+        if (rend != null)
+        {
+            rend.material.color = colorFase1;
         }
     }
 
