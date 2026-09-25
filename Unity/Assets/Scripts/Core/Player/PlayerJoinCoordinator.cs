@@ -58,12 +58,7 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
 
     private void OnDisable()
     {
-        if (joinActionSubscribed && joinAction != null)
-            joinAction.performed -= HandleJoinPerformed;
-
-        joinActionSubscribed = false;
-        if (joinAction != null)
-            joinAction.Disable();
+        ReleaseJoinAction();
 
         if (subscribedGameManager != null)
             subscribedGameManager.OnPlayerUnregistered -= HandlePlayerUnregistered;
@@ -80,12 +75,31 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
 
     private void ResolveJoinAction()
     {
-        joinAction = null;
+        ReleaseJoinAction();
         if (inputActionAsset == null)
             return;
 
         var joinActionMap = inputActionAsset.FindActionMap(JoinActionMapName, false);
-        joinAction = joinActionMap?.FindAction(JoinActionName, false);
+        InputAction assetJoinAction = joinActionMap?.FindAction(JoinActionName, false);
+
+        // Copia independiente del asset: el PlayerInput del jugador 1 comparte ese asset y lo
+        // restringe a sus dispositivos (teclado y mouse), con lo que la acción original nunca
+        // escucharía a los gamepads que quieren unirse.
+        joinAction = assetJoinAction?.Clone();
+    }
+
+    private void ReleaseJoinAction()
+    {
+        if (joinAction == null)
+            return;
+
+        if (joinActionSubscribed)
+            joinAction.performed -= HandleJoinPerformed;
+
+        joinActionSubscribed = false;
+        joinAction.Disable();
+        joinAction.Dispose();
+        joinAction = null;
     }
 
     private void SubscribeJoinAction()
