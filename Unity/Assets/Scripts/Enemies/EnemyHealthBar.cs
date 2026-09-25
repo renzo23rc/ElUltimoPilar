@@ -156,7 +156,9 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void CreateBar()
     {
-        var canvasObject = new GameObject("HealthBarCanvas");
+        // Se crea con RectTransform: agregar un Canvas a un Transform común lo reemplaza y deja
+        // inválida cualquier referencia previa al Transform.
+        var canvasObject = new GameObject("HealthBarCanvas", typeof(RectTransform));
         canvasTransform = canvasObject.transform;
         canvasTransform.SetParent(transform, false);
         canvasTransform.localRotation = Quaternion.identity;
