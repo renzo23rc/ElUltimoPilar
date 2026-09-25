@@ -107,6 +107,20 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember
     /// <summary>Gets whether the player is downed.</summary>
     public bool IsDowned => estaDerribado;
 
+    /// <summary>Gets the defender role shown in the HUD (identity only for now).</summary>
+    public DefenderRole Role { get; private set; }
+
+    /// <summary>Gets whether a defender role was assigned.</summary>
+    public bool HasRole { get; private set; }
+
+    /// <summary>Assigns the defender role; it is kept for the rest of the session.</summary>
+    /// <param name="role">The role to assign.</param>
+    public void AssignRole(DefenderRole role)
+    {
+        Role = role;
+        HasRole = true;
+    }
+
     /// <summary>Gets the position where the player appears and returns after a pit fall or restart.</summary>
     public Vector3 SpawnPosition => posicionAparicion;
 

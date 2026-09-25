@@ -275,7 +275,7 @@ public class GameManager : MonoBehaviour
         if (!matchFlow.TryStartNextWave()) return;
 
         int wave = matchFlow.CurrentWave;
-        spawner?.IniciarOleada(wave);
+        spawner?.IniciarOleada(wave, PlayerCount);
         OnOleadaIniciada?.Invoke(wave);
 
         Debug.Log($"[GameManager] Oleada {wave}/{totalOleadas} iniciada");
@@ -398,9 +398,19 @@ public class GameManager : MonoBehaviour
         if (!playerRoster.Register(jugador)) return false;
 
         if (player == null) player = jugador;
+        if (!jugador.HasRole) jugador.AssignRole(DefenderRoleCatalog.FirstAvailable(RolesAsignados(jugador)));
         SuscribirEventosJugador(jugador);
         OnPlayerRegistered?.Invoke(jugador);
         return true;
+    }
+
+    IEnumerable<DefenderRole> RolesAsignados(PlayerController excepto)
+    {
+        foreach (PlayerController registrado in Players)
+        {
+            if (registrado != null && registrado != excepto && registrado.HasRole)
+                yield return registrado.Role;
+        }
     }
 
     /// <summary>Unregisters a player.</summary>

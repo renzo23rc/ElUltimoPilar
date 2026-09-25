@@ -58,6 +58,10 @@ public class EnemySpawner : MonoBehaviour
     
     [Header("Radio de Spawn (si no hay puntos definidos)")]
     public float radioSpawn = 25f;
+
+    [Header("Escalado cooperativo")]
+    [Tooltip("Enemigos extra por cada jugador además del primero (0.35 = +35% por jugador). Nidos y Colosos no escalan.")]
+    [SerializeField, Range(0f, 1f)] private float extraEnemiesPerPlayerRatio = 0.35f;
     
     [Header("Estado")]
     public bool OleadaEnProgreso { get; private set; }
@@ -115,6 +119,14 @@ public class EnemySpawner : MonoBehaviour
 
     public void IniciarOleada(int numero)
     {
+        IniciarOleada(numero, 1);
+    }
+
+    /// <summary>Starts a wave scaled for the number of registered players.</summary>
+    /// <param name="numero">The wave number.</param>
+    /// <param name="cantidadJugadores">The number of registered players.</param>
+    public void IniciarOleada(int numero, int cantidadJugadores)
+    {
         oleadaActual = numero;
         enemigosSpawned = 0;
         // Limpiar solo nulos; los vivos de oleada anterior ya deben estar muertos (incluye crías de Nido)
@@ -132,12 +144,13 @@ public class EnemySpawner : MonoBehaviour
         }
         // Clonar para no mutar la config original (evita bug de decrementar contadores)
         configActualCache = ClonarConfig(config);
+        WaveDifficultyScaler.Apply(configActualCache, cantidadJugadores, extraEnemiesPerPlayerRatio);
         
         enemigosPorSpawnear = configActualCache.cantidadTotal;
         OleadaEnProgreso = true;
         timerSpawn = 0f;
         
-        Debug.Log($"[Spawner] Oleada {numero} iniciada. Enemigos: {enemigosPorSpawnear} (config cacheada: C{configActualCache.corredores} A{configActualCache.artilleros} E{configActualCache.explosivos} T{configActualCache.tejedores} N{configActualCache.nidos} Col{configActualCache.colosos})");
+        Debug.Log($"[Spawner] Oleada {numero} iniciada para {cantidadJugadores} jugador(es). Enemigos: {enemigosPorSpawnear} (config cacheada: C{configActualCache.corredores} A{configActualCache.artilleros} E{configActualCache.explosivos} T{configActualCache.tejedores} N{configActualCache.nidos} Col{configActualCache.colosos})");
     }
 
     ConfigOleada ClonarConfig(ConfigOleada src)
