@@ -27,7 +27,7 @@ New scripts land directly in the matching folder. Existing files move only with 
 1. One public class, enum, or interface per file; filename matches the type.
 2. Choose the folder by feature ownership (who changes together), not by technical kind. A player damage rule belongs with `Player/`, not with `Combat/`, when only player logic changes it.
 3. Pure model files stay free of `UnityEngine`, scenes, and devices regardless of folder.
-4. New pure-model files may use file-scoped namespaces; existing files keep their current namespace-free shape.
+4. New pure-model files may use block-scoped namespaces (Unity 6 compiles C# 9, so file-scoped namespaces fail with CS8773); existing files keep their current namespace-free shape.
 
 ## Migration risks and approval gates
 

@@ -37,9 +37,20 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 
 ## Reinicio determinista de estado propio
 
-`GameManager` centraliza el reinicio compartido por `ReiniciarJuego()` y el nuevo inicio. `Start` prepara ese estado una sola vez; si el inicio espera input, `IniciarJuego()` lo reutiliza y no repite la limpieza. Los reinicios y nuevos partidos posteriores a un estado previo vuelven a ejecutar la misma secuencia. Antes de iniciar la oleada 1 restaura `Time.timeScale`, reinicia `MatchFlow`, resultado, temporizadores y flags, limpia `EnemySpawner`, detiene y reinicia `ArenaTransform`, restaura `Pilar` y sus torretas dinámicas, y finalmente reinicia jugadores, armas y energía. El roster, las suscripciones y las transformaciones de los jugadores se conservan porque todavía no existe un ancla formal de aparición.
+`GameManager` centraliza el reinicio compartido por `ReiniciarJuego()` y el nuevo inicio. `Start` prepara ese estado una sola vez; si el inicio espera input, `IniciarJuego()` lo reutiliza y no repite la limpieza. Los reinicios y nuevos partidos posteriores a un estado previo vuelven a ejecutar la misma secuencia. Antes de iniciar la oleada 1 restaura `Time.timeScale`, reinicia `MatchFlow`, resultado, temporizadores y flags, limpia `EnemySpawner`, detiene y reinicia `ArenaTransform`, restaura `Pilar` y sus torretas dinámicas, y finalmente reinicia jugadores, armas y energía. El roster y las suscripciones se conservan. Cada `PlayerController` captura su punto de aparición (posición y rotación) al despertar; el reinicio lo devuelve ahí, y una caída al pozo lo deja derribado en ese mismo punto, fuera del pozo, para que un aliado pueda reanimarlo.
 
 `WeaponSystem` es la fuente de verdad de la munición configurada; al reiniciar repone sus armas base, sincroniza las representaciones heredadas de `PlayerController` y libera el cooldown. El reinicio no realiza limpieza global de proyectiles, pickups ni `WeaverZones` sin un propietario coordinado; esa limpieza queda diferida a una slice posterior.
+
+## Servicios compartidos de runtime
+
+- `SlowdownTracker` (`Core/Combat`, puro): ralentizaciones temporizadas por fuente, sin stack (gana la más fuerte). `Enemy` y `PlayerController` lo usan; `AplicarRalentizacion(fuente, factor, duración)` y `QuitarRalentizacion(fuente)` permiten que una zona o habilidad retire solo su efecto. Las sobrecargas sin fuente se conservan por compatibilidad.
+- `OverlapQuery` (`Core/Shared`): devuelve cada componente una sola vez aunque tenga varios colliders; toda área de daño lo usa para no duplicar impactos.
+- `RuntimeMaterialFactory` y `OwnedMaterialCleanup` (`Core/Shared`): los materiales procedurales se crean con el shader resuelto una vez y se destruyen junto con su objeto.
+- `RendererFlash` (`Core/Shared`): el flash de daño usa un property block y nunca pisa el color del material.
+- `UiFill` (`Core/Shared`): aplica el relleno de barras, también en imágenes sin sprite, donde `fillAmount` no tiene efecto.
+- `PlayerLocator` y `MuzzleTransformResolver` (`Core/Player`): búsqueda del jugador más cercano y del punto de disparo, compartidas por enemigos, pickups, reanimación y armas.
+- `Enemy.Active`: registro de enemigos habilitados; torretas y pozo lo consultan en lugar de buscar en la escena cada frame.
+- `TestSceneSetup` configura copias de escena de los prefabs de `Resources` bajo un contenedor inactivo (`PlantillasRuntime`); nunca modifica los assets.
 
 ## Estándar de implementación
 
@@ -58,7 +69,7 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 - Cada transición determinista del modelo debe tener pruebas EditMode y cubrir también transiciones inválidas y estados terminales.
 - La integración con `MonoBehaviour`, eventos de escena, spawner y tiempo debe cubrirse con pruebas PlayMode cuando se implemente.
 - Aplicar TDD: RED (prueba primero), GREEN (mínimo cambio), TRIANGULATE (casos alternativos y negativos) y REFACTOR.
-- Una prueba no se considera pasada sin evidencia del runner de Unity correspondiente.
+- Una prueba no se considera pasada sin evidencia del runner de Unity correspondiente. `tools/run-editmode-tests.sh` compila el proyecto y corre la suite EditMode en batchmode (con el Editor cerrado); el resultado queda en `Unity/Logs/TestRuns/`.
 
 ## Estado actual y migración
 

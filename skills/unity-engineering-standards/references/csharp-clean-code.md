@@ -40,13 +40,14 @@ namespace CoolStuff.AwesomeFeature
 }
 ```
 
-- Prefer file-scoped namespaces for new pure-model files. Keep existing files namespace-free unless a migration is explicitly authorized; adding a namespace to an existing `MonoBehaviour` is allowed only with a serialization check.
+- Use block-scoped namespaces for new pure-model files. Unity 6 compiles C# 9, so file-scoped namespaces (`namespace X;`) fail with CS8773. Keep existing files namespace-free unless a migration is explicitly authorized; adding a namespace to an existing `MonoBehaviour` is allowed only with a serialization check.
 
 ```csharp
-namespace UltimoPilar.Core.Match;
-
-public sealed class ScorePolicy
+namespace UltimoPilar.Core.Match
 {
+    public sealed class ScorePolicy
+    {
+    }
 }
 ```
 
@@ -62,7 +63,7 @@ if ((startX > endX) && (startX > previousX))
 ## Type safety and readability
 
 - Use language aliases (`string`, `int`, `float`, `bool`), never runtime names (`System.String`, `System.Int32`).
-- Use `var` only when the type is obvious from the right side (`new`, cast, literal, collection expression). Otherwise write the explicit type so reviewers without IDE hover can read the code.
+- Use `var` only when the type is obvious from the right side (`new`, cast, literal). Otherwise write the explicit type so reviewers without IDE hover can read the code.
 
 ```csharp
 var roster = new PlayerRoster<PlayerController>(); // Obvious: keep var.
@@ -70,10 +71,11 @@ int playerCount = roster.Count; // Not obvious from the name alone: explicit typ
 ```
 
 - Prefer string interpolation for short strings; use `StringBuilder` for text built in loops.
-- Prefer collection expressions for initialization:
+- Prefer concise initializers supported by C# 9 (array initializers and target-typed `new()`). Collection expressions are C# 12 and do not compile in Unity 6:
 
 ```csharp
-string[] vowels = ["a", "e", "i", "o", "u"];
+string[] vowels = { "a", "e", "i", "o", "u" };
+private readonly List<Enemy> enemies = new();
 ```
 
 - Name LINQ query variables by meaning, filter with `where` before ordering or projecting, and rename ambiguous projected properties:
