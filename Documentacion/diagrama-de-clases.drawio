@@ -1,4 +1,267 @@
-<mxfile host="app.diagrams.net" pages="6">
+<mxfile host="app.diagrams.net" pages="7">
+  <diagram id="tree" name="00 Arbol jerarquia (una pagina)">
+    <mxGraphModel dx="2388" dy="1252" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t-title" parent="1" style="text;html=1;fontSize=18;fontStyle=1;align=left;" value="Ultimo Pilar — Arbol de jerarquia" vertex="1">
+          <mxGeometry height="30" width="900" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t-gm" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=13;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontStyle=1;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;GameManager&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;match hub: waves, roster, results&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;IniciarJuego() / ReiniciarJuego() / CurrentResult&lt;/p&gt;" vertex="1">
+          <mxGeometry height="110" width="260" x="1170" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="t-flow" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;MatchFlow&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;State + CurrentWave / TotalWaves&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Start() / Pause() / SetVictory() / SetDefeat()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="40" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-ms" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;MatchState&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;WaitingToStart / Playing / Paused&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Victory / Defeat&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="40" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-mr" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;MatchResult&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Outcome + PilarHealth + Score: int&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;MatchResult(state, snapshot)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="40" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="t-snap" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PilarHealthSnapshot&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Remaining / Maximum / IsValid&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;RemainingRatio / RemainingPercentage&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="40" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="t-sp" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ScorePolicy&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Calculate(snapshot): int&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Calculate(float): int&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="40" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="t-pc" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerController&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;vida / municion / IsDowned&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;RecibirDaño(float) / OnCommandIssued&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="280" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-pia" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerInputAdapter&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;AssignedPlayerInput: PlayerInput&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;CurrentCommand / Enable() / Disable()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="280" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-roster" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerRoster&amp;lt;TPlayer&amp;gt;&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Capacity / Count / AreAllDowned&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Register() / Unregister() / ReplenishWaveAmmo()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="280" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="t-ii" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;IInputAdapter&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;CurrentCommand: PlayerCommand&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Enable() / Disable()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="280" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="t-cmd" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerCommand&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Move / Look / Jump / Fire&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Heal / Ability / Weapon switch&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="280" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="t-pi" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerInput&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;actions asset / action map&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;control scheme&lt;/p&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="280" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="t-iplayer" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;IPlayerRosterMember&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;IsDowned: bool&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;ReplenishWaveAmmo(): void&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="280" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="t-tss" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;TestSceneSetup&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;generarAlIniciar: bool&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;GenerarEscenaDePrueba(): void&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="520" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-join" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;PlayerJoinCoordinator&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Configure(asset, template, manager)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;TryJoin(Gamepad): bool&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="520" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-split" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;SplitScreenCameraCoordinator&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Configure(manager)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;ApplyViewports()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="520" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="t-weapon" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;WeaponSystem&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;armaEquipada / daño / cadencia&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;ConsumeCommand() / Disparar() / ApplyVariant()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="760" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-dr" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;DamageRequest&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Amount: float&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;DamageRequest(float)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="760" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-idmg" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#D5E8D4;strokeColor=#82B366;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;IDamageable&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;&amp;lt;&amp;lt;interface&amp;gt;&amp;gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;ReceiveDamage(DamageRequest): void&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="760" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="t-enemy" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Enemy&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;vida / dañoAlPilar / dañoAlJugador&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;RecibirDaño(float) / ReceiveDamage()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="1000" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-variants" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#F5F5F5;strokeColor=#666666;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Enemy variants&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Runner / Artillery / Explosive&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Weaver / Nest / Colossus&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="1000" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-varpick" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;WeaponVariantPickup&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;tipoPotenciado / multiplicadorDaño&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;duracionSegundos&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="1240" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-epick" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;EnergyPickup&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;cantidad: float&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;recogible en arena&lt;/p&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="1000" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="t-energy" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;EnergySystem&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;energiaActual / Maxima&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;RecolectarEnergia() / GastarEnCuracion()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="90" width="200" x="1000" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="t-fb" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#FFE6CC;strokeColor=#D79B00;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;CombatFeedback&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;NotifyShot() / NotifyHit(bool)&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;event OnCombatHit(bool)&lt;/p&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="1240" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="t-pilar" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Pilar&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;vidaActual / vidaMaxima / faseActual&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;RecibirDaño(float) / OnFaseCambiada&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="1240" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-spawner" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;EnemySpawner&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;OleadaEnProgreso / EnemigosVivos&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;IniciarOleada(int) / EnemigoEliminado()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="1480" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-arena" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#DAE8FC;strokeColor=#6C8EBF;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;ArenaTransform&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;pilar / sueloBase / pozoCentral&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;faseActual / transformaciones&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="1720" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-acollab" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#F5F5F5;strokeColor=#666666;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Arena collaborators&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;ArenaPhaseState / IArenaPhaseHandler&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Pit / Gravity / Emergency + efectos + avisos&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="220" x="1720" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="t-hud" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#FFE6CC;strokeColor=#D79B00;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;Hud&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;filas por jugador / overlays / resultado&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;MostrarMensaje() / FlashCrosshair()&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="1980" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-audio" parent="1" style="verticalAlign=top;align=left;overflow=fill;fontSize=12;fontFamily=Helvetica;html=1;whiteSpace=wrap;fillColor=#FFE6CC;strokeColor=#D79B00;" value="&lt;p style=&quot;margin:0px;margin-top:4px;text-align:center;&quot;&gt;&lt;b&gt;AudioAdapter&lt;/b&gt;&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;SFX procedurales reactivos&lt;/p&gt;&lt;hr size=&quot;1&quot;/&gt;&lt;p style=&quot;margin:0px;margin-left:4px;&quot;&gt;Play(Sfx) / suscrito a eventos&lt;/p&gt;" vertex="1">
+          <mxGeometry height="100" width="200" x="2220" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e01" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=diamond;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-flow" value="owns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e02" edge="1" parent="1" source="t-pc" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-gm" value="RegisterPlayer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e03" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pc" value="registers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e04" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pilar" value="reads + restores">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e05" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-spawner" value="IniciarOleada(int)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e06" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-hud" value="OnMatchResult">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e07" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-audio" value="OnVictoria">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e08" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=diamond;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-roster" value="owns roster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e09" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-tss" value="composes coop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e10" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-arena" value="transforms arena">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e11" edge="1" parent="1" source="t-gm" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-mr" value="publishes result">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e12" edge="1" parent="1" source="t-flow" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-ms" value="State">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e13" edge="1" parent="1" source="t-mr" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-ms" value="Outcome">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e14" edge="1" parent="1" source="t-mr" style="curved=1;rounded=1;html=1;endArrow=diamond;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-snap" value="contains">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e15" edge="1" parent="1" source="t-mr" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-sp" value="Calculate()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e16" edge="1" parent="1" source="t-sp" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-snap" value="reads %">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e17" edge="1" parent="1" source="t-pc" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pia" value="reads snapshot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e18" edge="1" parent="1" source="t-pia" style="curved=1;rounded=1;html=1;endArrow=block;endFill=0;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-ii" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e19" edge="1" parent="1" source="t-pia" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-cmd" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e20" edge="1" parent="1" source="t-ii" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-cmd" value="returns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e21" edge="1" parent="1" source="t-pia" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pi" value="wraps">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e22" edge="1" parent="1" source="t-pc" style="curved=1;rounded=1;html=1;endArrow=block;endFill=0;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-iplayer" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e23" edge="1" parent="1" source="t-roster" style="curved=1;rounded=1;html=1;endArrow=block;endFill=0;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-iplayer" value="constrains">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e24" edge="1" parent="1" source="t-pc" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-weapon" value="ConsumeCommand">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e25" edge="1" parent="1" source="t-tss" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-join" value="Configure()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e26" edge="1" parent="1" source="t-tss" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-split" value="Configure()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e27" edge="1" parent="1" source="t-tss" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pc" value="instantiates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e28" edge="1" parent="1" source="t-join" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-gm" value="RegisterPlayer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e29" edge="1" parent="1" source="t-join" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pi" value="pairs gamepad">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e30" edge="1" parent="1" source="t-split" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-gm" value="reads roster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e31" edge="1" parent="1" source="t-split" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pc" value="configures camera">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e32" edge="1" parent="1" source="t-weapon" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-dr" value="creates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e33" edge="1" parent="1" source="t-dr" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-idmg" value="as param">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e34" edge="1" parent="1" source="t-weapon" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-idmg" value="DamageRequest">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e35" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=block;endFill=0;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-idmg" value="implements">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e36" edge="1" parent="1" source="t-variants" style="curved=1;rounded=1;html=1;endArrow=block;endFill=0;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-enemy" value="inherits">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e37" edge="1" parent="1" source="t-spawner" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-enemy" value="spawns">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e38" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-varpick" value="drops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e39" edge="1" parent="1" source="t-varpick" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-weapon" value="ApplyVariant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e40" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-epick" value="drops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e41" edge="1" parent="1" source="t-epick" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-energy" value="RecolectarEnergia">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e42" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-fb" value="NotifyHit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e43" edge="1" parent="1" source="t-weapon" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-fb" value="NotifyShot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e44" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pc" value="RecibirDaño">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e45" edge="1" parent="1" source="t-enemy" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-pilar" value="RecibirDaño">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e46" edge="1" parent="1" source="t-arena" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-pilar" value="OnFaseCambiada">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e47" edge="1" parent="1" source="t-arena" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;" target="t-acollab" value="delegates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e48" edge="1" parent="1" source="t-acollab" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-hud" value="MostrarAdvertencia">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e49" edge="1" parent="1" source="t-hud" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-gm" value="subscribes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e50" edge="1" parent="1" source="t-hud" style="rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;edgeStyle=entityRelationEdgeStyle;" target="t-mr" value="shows score">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e51" edge="1" parent="1" source="t-hud" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-pc" value="player rows">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e52" edge="1" parent="1" source="t-audio" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-gm" value="subscribes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="t-e53" edge="1" parent="1" source="t-audio" style="curved=1;rounded=1;html=1;endArrow=classic;endFill=1;strokeWidth=2;labelBackgroundColor=#ffffff;fontSize=11;dashed=1;" target="t-pilar" value="OnDañoRecibido">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
   <diagram id="p00" name="00 Overview">
     <mxGraphModel dx="1629" dy="1057" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1100" math="0" shadow="0">
       <root>
