@@ -56,7 +56,8 @@ public static class WeaponAim
 
         for (int i = 0; i < MaxSelfIgnoreIterations; i++)
         {
-            if (!Physics.Raycast(currentRay, out RaycastHit candidate, remaining, effectiveMask))
+            // Los triggers (zona de gravedad, pozo, pickups) no son superficies: el disparo los atraviesa.
+            if (!Physics.Raycast(currentRay, out RaycastHit candidate, remaining, effectiveMask, QueryTriggerInteraction.Ignore))
             {
                 return false;
             }

@@ -96,7 +96,7 @@ public class Artillery : Enemy
     {
         // Raycast hacia el Pilar para verificar si hay obstáculos
         Vector3 dir = pilarObjetivo.AimPoint - puntoDisparo.position;
-        if (Physics.Raycast(puntoDisparo.position, dir.normalized, out RaycastHit hit, dir.magnitude))
+        if (Physics.Raycast(puntoDisparo.position, dir.normalized, out RaycastHit hit, dir.magnitude, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
             tieneLineaVision = hit.collider.GetComponentInParent<Pilar>() != null;
         }
