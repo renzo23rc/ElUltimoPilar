@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Synthesizes procedural sound effects from domain and application events.
+/// Plays procedural sound effects in reaction to domain and application events.
+/// The samples come from <see cref="ProceduralSfxSynthesizer"/>; this adapter only subscribes and plays.
 /// </summary>
 public class AudioAdapter : MonoBehaviour
 {
@@ -22,18 +23,23 @@ public class AudioAdapter : MonoBehaviour
         Defeat,
         Heal,
         Ability,
-        Variant
+        Variant,
+        RifleFire,
+        RocketFire,
+        RocketExplosion,
+        MeleeSwing
     }
 
     private const float DefaultVolume = 0.5f;
     private const int SampleRateHz = 44100;
-    private const float WaveformPhaseRadians = 2f;
-    private const float NoiseRange = 2.0f;
+    private const int MonoChannels = 1;
     private const float ArpeggioAmplitude = 0.6f;
     private const string GeneratedToneName = "tono";
     private const string GeneratedNoiseName = "ruido";
     private const string GeneratedArpeggioName = "arpegio";
     private const int NoiseSeed = 1234;
+    private const float RocketExplosionDelaySeconds = 0.25f;
+    private const string WeaponResourceFolder = "Audio/Armas/";
     private const float FireStartFrequencyHz = 880f;
     private const float FireEndFrequencyHz = 660f;
     private const float FireDurationSeconds = 0.09f;
@@ -114,6 +120,11 @@ public class AudioAdapter : MonoBehaviour
         fuente.playOnAwake = false;
         fuente.spatialBlend = 0f;
         GenerarClips();
+        CargarClipsDeArchivo();
+        if (GetComponent<PhaseMusicPlayer>() == null)
+        {
+            gameObject.AddComponent<PhaseMusicPlayer>();
+        }
 
         CombatFeedback.OnCombatHit += ManejarImpacto;
         GameManager manager = FindFirstObjectByType<GameManager>();
@@ -291,7 +302,41 @@ public class AudioAdapter : MonoBehaviour
 
     private void ManejarDisparo(WeaponSystem.Arma arma)
     {
-        Reproducir(arma != null && arma.tipo == WeaponSystem.TipoArma.Area ? Sfx.Explosion : Sfx.Fire);
+        WeaponSystem.TipoArma tipo = arma != null ? arma.tipo : WeaponSystem.TipoArma.Directa;
+        switch (tipo)
+        {
+            case WeaponSystem.TipoArma.Area:
+                ReproducirDisparoArea();
+                break;
+            case WeaponSystem.TipoArma.CuerpoACuerpo:
+                ReproducirConRespaldo(Sfx.MeleeSwing, Sfx.Fire);
+                break;
+            default:
+                ReproducirConRespaldo(Sfx.RifleFire, Sfx.Fire);
+                break;
+        }
+    }
+
+    private void ReproducirDisparoArea()
+    {
+        if (!clips.ContainsKey(Sfx.RocketFire))
+        {
+            Reproducir(Sfx.Explosion);
+            return;
+        }
+
+        Reproducir(Sfx.RocketFire);
+        Invoke(nameof(ReproducirExplosionCohete), RocketExplosionDelaySeconds);
+    }
+
+    private void ReproducirExplosionCohete()
+    {
+        Reproducir(Sfx.RocketExplosion);
+    }
+
+    private void ReproducirConRespaldo(Sfx preferido, Sfx respaldo)
+    {
+        Reproducir(clips.ContainsKey(preferido) ? preferido : respaldo);
     }
 
     private void ManejarHabilidad()
@@ -359,6 +404,23 @@ public class AudioAdapter : MonoBehaviour
         clips[Sfx.Variant] = CrearArpegio(VariantFrequenciesHz, VariantNoteDurationSeconds);
     }
 
+    private void CargarClipsDeArchivo()
+    {
+        CargarClip(Sfx.RifleFire, "rifle_fire");
+        CargarClip(Sfx.RocketFire, "rocket_fire");
+        CargarClip(Sfx.RocketExplosion, "rocket_explosion");
+        CargarClip(Sfx.MeleeSwing, "melee_swing");
+    }
+
+    private void CargarClip(Sfx efecto, string nombre)
+    {
+        AudioClip clip = Resources.Load<AudioClip>($"{WeaponResourceFolder}{nombre}");
+        if (clip != null)
+        {
+            clips[efecto] = clip;
+        }
+    }
+
     private AudioClip CrearTono(
         float frecuenciaInicial,
         float frecuenciaFinal,
@@ -366,58 +428,29 @@ public class AudioAdapter : MonoBehaviour
         float amplitud,
         bool cuadrada)
     {
-        int muestras = Mathf.Max(1, Mathf.RoundToInt(SampleRateHz * duracion));
-        float[] datos = new float[muestras];
-        float fase = 0f;
-        for (int i = 0; i < muestras; i++)
-        {
-            float p = (float)i / muestras;
-            float frecuencia = Mathf.Lerp(frecuenciaInicial, frecuenciaFinal, p);
-            fase += WaveformPhaseRadians * Mathf.PI * frecuencia / SampleRateHz;
-            float onda = cuadrada ? Mathf.Sign(Mathf.Sin(fase)) : Mathf.Sin(fase);
-            float envolvente = Mathf.Sin(Mathf.PI * p);
-            datos[i] = onda * envolvente * amplitud;
-        }
-
-        AudioClip clip = AudioClip.Create(GeneratedToneName, muestras, 1, SampleRateHz, false);
-        clip.SetData(datos, 0);
-        return clip;
+        return CrearClip(
+            GeneratedToneName,
+            ProceduralSfxSynthesizer.Tone(frecuenciaInicial, frecuenciaFinal, duracion, amplitud, cuadrada, SampleRateHz));
     }
 
     private AudioClip CrearRuido(float duracion, float amplitud)
     {
-        int muestras = Mathf.Max(1, Mathf.RoundToInt(SampleRateHz * duracion));
-        float[] datos = new float[muestras];
-        System.Random azar = new System.Random(NoiseSeed);
-        for (int i = 0; i < muestras; i++)
-        {
-            float p = (float)i / muestras;
-            float envolvente = 1f - p;
-            datos[i] = (float)(azar.NextDouble() * NoiseRange - 1.0f) * envolvente * amplitud;
-        }
-
-        AudioClip clip = AudioClip.Create(GeneratedNoiseName, muestras, 1, SampleRateHz, false);
-        clip.SetData(datos, 0);
-        return clip;
+        return CrearClip(
+            GeneratedNoiseName,
+            ProceduralSfxSynthesizer.Noise(duracion, amplitud, NoiseSeed, SampleRateHz));
     }
 
     private AudioClip CrearArpegio(float[] frecuencias, float duracionNota)
     {
-        int porNota = Mathf.Max(1, Mathf.RoundToInt(SampleRateHz * duracionNota));
-        float[] datos = new float[porNota * frecuencias.Length];
-        for (int n = 0; n < frecuencias.Length; n++)
-        {
-            float fase = 0f;
-            for (int i = 0; i < porNota; i++)
-            {
-                float p = (float)i / porNota;
-                fase += WaveformPhaseRadians * Mathf.PI * frecuencias[n] / SampleRateHz;
-                datos[n * porNota + i] = Mathf.Sin(fase) * Mathf.Sin(Mathf.PI * p) * ArpeggioAmplitude;
-            }
-        }
+        return CrearClip(
+            GeneratedArpeggioName,
+            ProceduralSfxSynthesizer.Arpeggio(frecuencias, duracionNota, ArpeggioAmplitude, SampleRateHz));
+    }
 
-        AudioClip clip = AudioClip.Create(GeneratedArpeggioName, datos.Length, 1, SampleRateHz, false);
-        clip.SetData(datos, 0);
+    private static AudioClip CrearClip(string nombre, float[] muestras)
+    {
+        AudioClip clip = AudioClip.Create(nombre, muestras.Length, MonoChannels, SampleRateHz, false);
+        clip.SetData(muestras, 0);
         return clip;
     }
 }

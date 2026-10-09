@@ -199,6 +199,52 @@ public class PoolManager : MonoBehaviour
         return gameObject;
     }
 
+    /// <summary>
+    /// Gets an active object from the shared pool, or instantiates the fallback prefab
+    /// when there is no pool manager or the key is unknown.
+    /// </summary>
+    /// <param name="key">The pool key.</param>
+    /// <param name="fallbackPrefab">The prefab instantiated when the pool cannot provide an object.</param>
+    /// <param name="pos">The world position.</param>
+    /// <param name="rot">The world rotation.</param>
+    /// <returns>An active object, or null when neither the pool nor the prefab can provide one.</returns>
+    public static GameObject Spawn(string key, GameObject fallbackPrefab, Vector3 pos, Quaternion rot)
+    {
+        GameObject spawned = Instance != null ? Instance.Get(key, pos, rot) : null;
+        if (spawned == null)
+        {
+            if (fallbackPrefab == null)
+            {
+                return null;
+            }
+
+            spawned = Instantiate(fallbackPrefab, pos, rot);
+        }
+
+        spawned.SetActive(true);
+        return spawned;
+    }
+
+    /// <summary>Returns a pooled object to its pool, or destroys it when it is not pooled.</summary>
+    /// <param name="go">The object to release.</param>
+    public static void ReleaseOrDestroy(GameObject go)
+    {
+        if (go == null)
+        {
+            return;
+        }
+
+        if (Instance != null
+            && go.TryGetComponent(out PooledObject pooledObject)
+            && !string.IsNullOrEmpty(pooledObject.poolKey))
+        {
+            Instance.Release(pooledObject.poolKey, go);
+            return;
+        }
+
+        Destroy(go);
+    }
+
     private void OnDestroy()
     {
         if (Instance == this)

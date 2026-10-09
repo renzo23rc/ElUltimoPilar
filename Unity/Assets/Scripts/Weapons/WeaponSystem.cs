@@ -1,7 +1,8 @@
 /**
  * WeaponSystem.cs
  * Gestiona las 3 armas base del jugador: Directa, Área, Cuerpo a cuerpo.
- * Incluye variantes temporales como drops.
+ * Incluye variantes temporales como drops. Delega la puntería en WeaponAim, el catálogo de
+ * variantes en WeaponVariantCatalog, el empuje en KnockbackMath y el feedback en WeaponFeedbackVfx.
  *
  * Colocar en el mismo GameObject que PlayerController.
  */
@@ -16,10 +17,8 @@ public class WeaponSystem : MonoBehaviour
     private const int FirstWeaponSlot = 1;
     private const int SecondWeaponSlot = 2;
     private const int ThirdWeaponSlot = 3;
-    private const float CrosshairViewportCenter = 0.5f;
-    private const float AimSelfIgnoreOffsetMeters = 0.05f;
-    private const int MaxAimSelfIgnoreIterations = 3;
     private const float ProjectileSpeedMetersPerSecond = 50f;
+    private const float MinimumShotVectorSquaredMeters = 0.0001f;
     private const float MeleeForwardOffsetMeters = 1.5f;
     private const float MinimumVariantMultiplier = 1f;
     private const float DirectHitImpactSizeMeters = 0.35f;
@@ -62,16 +61,10 @@ public class WeaponSystem : MonoBehaviour
         public string DisplayName { get; }
     }
 
+    /// <summary>Gets the definition of a weapon variant.</summary>
     public static VariantDefinition GetVariantDefinition(WeaponVariant variant)
     {
-        return variant switch
-        {
-            WeaponVariant.PrecisionRifle => new VariantDefinition(TipoArma.Directa, VariantEffect.DamageMultiplier, "Rifle de precisión"),
-            WeaponVariant.Decoy => new VariantDefinition(TipoArma.Area, VariantEffect.Decoy, "Señuelo"),
-            WeaponVariant.Slowdown => new VariantDefinition(TipoArma.Area, VariantEffect.Slowdown, "Ralentización"),
-            WeaponVariant.PushStrike => new VariantDefinition(TipoArma.CuerpoACuerpo, VariantEffect.Push, "Golpe de empuje"),
-            _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, "Unsupported weapon variant.")
-        };
+        return WeaponVariantCatalog.GetDefinition(variant);
     }
 
     [Serializable]
@@ -255,59 +248,32 @@ public class WeaponSystem : MonoBehaviour
 
     Ray GetAimRay()
     {
-        if (camara != null)
-        {
-            return camara.ViewportPointToRay(new Vector3(CrosshairViewportCenter, CrosshairViewportCenter, 0f));
-        }
-
-        Transform origin = puntoDisparo != null ? puntoDisparo : transform;
-        return new Ray(origin.position, origin.forward);
+        return WeaponAim.GetAimRay(camara, puntoDisparo, transform);
     }
 
     bool TryRaycastAim(Ray aimRay, float maxDistance, out RaycastHit hit)
     {
-        hit = default;
-        LayerMask effectiveMask = capasImpacto.value == 0 ? Physics.DefaultRaycastLayers : capasImpacto;
-        Ray currentRay = aimRay;
-        float remaining = maxDistance;
-
-        for (int i = 0; i < MaxAimSelfIgnoreIterations; i++)
-        {
-            if (!Physics.Raycast(currentRay, out RaycastHit candidate, remaining, effectiveMask))
-            {
-                return false;
-            }
-
-            // Ignorar el propio cuerpo y el punto de disparo: el rayo nace dentro del jugador.
-            bool isSelf = candidate.collider.GetComponentInParent<PlayerController>() == player
-                || (puntoDisparo != null && candidate.collider.transform == puntoDisparo);
-            if (!isSelf)
-            {
-                hit = candidate;
-                return true;
-            }
-
-            float advance = candidate.distance + AimSelfIgnoreOffsetMeters;
-            if (advance >= remaining)
-            {
-                return false;
-            }
-
-            currentRay = new Ray(candidate.point + currentRay.direction * AimSelfIgnoreOffsetMeters, currentRay.direction);
-            remaining -= advance;
-        }
-
-        return false;
+        return WeaponAim.TryRaycast(aimRay, maxDistance, capasImpacto, player, puntoDisparo, out hit);
     }
 
     Vector3 GetMuzzlePosition()
     {
-        if (puntoDisparo != null)
-        {
-            return puntoDisparo.position;
-        }
+        return WeaponAim.GetMuzzlePosition(camara, puntoDisparo, transform);
+    }
 
-        return camara != null ? camara.transform.position : transform.position;
+    // Dirección del punto de disparo al objetivo; si coinciden, la de la mira.
+    static Vector3 ResolveShotDirection(Vector3 muzzlePosition, Vector3 targetPoint, Vector3 fallbackDirection)
+    {
+        Vector3 toTarget = targetPoint - muzzlePosition;
+        return toTarget.sqrMagnitude > MinimumShotVectorSquaredMeters ? toTarget.normalized : fallbackDirection;
+    }
+
+    void OrientMuzzle(Vector3 direction)
+    {
+        if (puntoDisparo != null && direction.sqrMagnitude > MinimumShotVectorSquaredMeters)
+        {
+            puntoDisparo.rotation = Quaternion.LookRotation(direction);
+        }
     }
 
     void Update()
@@ -403,6 +369,11 @@ public class WeaponSystem : MonoBehaviour
         Ray aimRay = GetAimRay();
         bool hasHit = TryRaycastAim(aimRay, arma.alcance, out RaycastHit aimHit);
 
+        // El punto de disparo está en las manos, no en el ojo: el tiro apunta desde ahí al punto de la mira.
+        Vector3 targetPoint = hasHit ? aimHit.point : aimRay.origin + (aimRay.direction * arma.alcance);
+        Vector3 shotDirection = ResolveShotDirection(muzzlePos, targetPoint, aimRay.direction);
+        OrientMuzzle(shotDirection);
+
         if (hasHit)
         {
             Enemy enemy = aimHit.collider.GetComponentInParent<Enemy>();
@@ -425,9 +396,8 @@ public class WeaponSystem : MonoBehaviour
         }
         else
         {
-            Vector3 missPoint = aimRay.origin + aimRay.direction * arma.alcance;
-            vfx.CreateTracer(muzzlePos, muzzlePos + aimRay.direction * arma.alcance, MissTracerColor);
-            vfx.CreateImpact(missPoint, -aimRay.direction, Color.gray, MissImpactSizeMeters, false);
+            vfx.CreateTracer(muzzlePos, targetPoint, MissTracerColor);
+            vfx.CreateImpact(targetPoint, -aimRay.direction, Color.gray, MissImpactSizeMeters, false);
         }
 
         if (arma.prefabProyectil == null)
@@ -436,12 +406,10 @@ public class WeaponSystem : MonoBehaviour
             return;
         }
 
-        Quaternion spawnRot = puntoDisparo != null ? puntoDisparo.rotation : Quaternion.LookRotation(aimRay.direction);
-        GameObject proj = Instantiate(arma.prefabProyectil, muzzlePos, spawnRot);
+        GameObject proj = Instantiate(arma.prefabProyectil, muzzlePos, Quaternion.LookRotation(shotDirection));
         if (proj.TryGetComponent(out Rigidbody rb))
         {
-            Vector3 dir = hasHit ? (aimHit.point - muzzlePos).normalized : aimRay.direction;
-            rb.linearVelocity = dir * ProjectileSpeedMetersPerSecond;
+            rb.linearVelocity = shotDirection * ProjectileSpeedMetersPerSecond;
         }
     }
 
@@ -470,6 +438,7 @@ public class WeaponSystem : MonoBehaviour
 
         ApplyAreaVariantEffect(afectados, puntoImpacto);
 
+        OrientMuzzle(ResolveShotDirection(muzzlePos, puntoImpacto, aimRay.direction));
         vfx.CreateAreaExplosion(puntoImpacto, arma.radioArea, afectados.Count > 0 ? Color.yellow : EmptyAreaExplosionColor);
         vfx.CreateTracer(muzzlePos, puntoImpacto, Color.yellow);
         if (arma.prefabImpacto != null)
@@ -561,21 +530,12 @@ public class WeaponSystem : MonoBehaviour
         float speedMetersPerSecond,
         float liftRatio)
     {
-        Vector3 direction = targetPosition - attackerPosition;
-        direction.y = 0f;
-        if (direction.sqrMagnitude < Mathf.Epsilon)
-        {
-            direction = attackerForward;
-            direction.y = 0f;
-        }
-
-        if (direction.sqrMagnitude < Mathf.Epsilon)
-        {
-            return Vector3.zero;
-        }
-
-        Vector3 horizontal = direction.normalized * speedMetersPerSecond;
-        return horizontal + (Vector3.up * (speedMetersPerSecond * liftRatio));
+        return KnockbackMath.CalculateVelocity(
+            attackerPosition,
+            attackerForward,
+            targetPosition,
+            speedMetersPerSecond,
+            liftRatio);
     }
 
     public void CambiarArma(TipoArma tipo)

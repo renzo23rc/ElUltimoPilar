@@ -3,7 +3,9 @@
  * Clase base para todos los enemigos del Enjambre.
  * Gestiona vida, movimiento básico hacia el Pilar, y drops de energía.
  *
- * Heredar de esta clase para crear tipos específicos (Runner, Artillery, etc.)
+ * Heredar de esta clase para crear tipos específicos (Runner, Artillery, etc.).
+ * Las subclases ajustan el daño con los ganchos PuedeRecibirDaño y AlQuedarSinVida
+ * en vez de reescribir RecibirDaño.
  */
 using System;
 using System.Collections;
@@ -13,7 +15,7 @@ using UltimoPilar.Core.Shared;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-public class Enemy : MonoBehaviour, IDamageable
+public class Enemy : MonoBehaviour, IDamageable, ISlowable
 {
     private const float TurretDiversionDistanceMeters = 8f;
     private const float TurretSearchDistanceMeters = 15f;
@@ -21,7 +23,9 @@ public class Enemy : MonoBehaviour, IDamageable
     private const float DropHeightMeters = 0.5f;
     private const float DamageFlashDurationSeconds = 0.05f;
     private const float DestroyDelaySeconds = 0.1f;
+    private const float MinimumAnimationReferenceSpeed = 0.5f;
     private const string EnergyPickupPoolKey = "EnergyPickup";
+    private const string PlayerTag = "Player";
 
     private static readonly List<Enemy> ActiveEnemies = new List<Enemy>();
     private static readonly object UnattributedSlowdownSource = new object();
@@ -30,8 +34,8 @@ public class Enemy : MonoBehaviour, IDamageable
     public float vidaMaxima = 30f;
     public float vidaActual = 30f;
     public float velocidadMovimiento = 2.5f;
-    public float dañoAlPilar = 10f;
-    public float dañoAlJugador = 15f;
+    public float dañoAlPilar = 4f;
+    public float dañoAlJugador = 6f;
     public int energiaDrop = 2;
 
     [Header("Variante temporal")]
@@ -109,6 +113,23 @@ public class Enemy : MonoBehaviour, IDamageable
         }
 
         EnsureHealthBar();
+        if (GetComponent<EnemyGrowl>() == null)
+        {
+            gameObject.AddComponent<EnemyGrowl>();
+        }
+
+        EnsureLocomotionAnimator();
+    }
+
+    private void EnsureLocomotionAnimator()
+    {
+        if (GetComponent<ProceduralLocomotionAnimator>() != null)
+        {
+            return;
+        }
+
+        var animator = gameObject.AddComponent<ProceduralLocomotionAnimator>();
+        animator.Configure(modeloVisual, Mathf.Max(velocidadMovimiento, MinimumAnimationReferenceSpeed));
     }
 
     private void EnsureHealthBar()
@@ -229,7 +250,7 @@ public class Enemy : MonoBehaviour, IDamageable
 
             // Si torreta está a mitad de camino hacia pilar y cerca, desviarse
             if (distTorreta < TurretDiversionDistanceMeters
-                && distTorreta < Vector3.Distance(transform.position, pilarObjetivo.transform.position))
+                && distTorreta < OffsetToPilar().magnitude)
             {
                 MoverHacia(dirTorreta.normalized);
                 return;
@@ -237,8 +258,7 @@ public class Enemy : MonoBehaviour, IDamageable
         }
 
         // Comportamiento base: moverse hacia el Pilar
-        Vector3 direccion = pilarObjetivo.transform.position - transform.position;
-        direccion.y = 0;
+        Vector3 direccion = OffsetToPilar();
         float distancia = direccion.magnitude;
 
         if (distancia > rangoAtaque)
@@ -251,12 +271,17 @@ public class Enemy : MonoBehaviour, IDamageable
         }
     }
 
+    /// <summary>Gets the horizontal vector to the nearest point of the Pilar's surface.</summary>
+    protected Vector3 OffsetToPilar()
+    {
+        return pilarObjetivo.FlatOffsetFrom(transform.position);
+    }
+
     Torreta BuscarTorretaCercana()
     {
-        Torreta[] torretas = FindObjectsByType<Torreta>(FindObjectsSortMode.None);
         Torreta cercana = null;
         float minDist = TurretSearchDistanceMeters;
-        foreach (Torreta torreta in torretas)
+        foreach (Torreta torreta in Torreta.Active)
         {
             if (torreta == null)
             {
@@ -304,11 +329,13 @@ public class Enemy : MonoBehaviour, IDamageable
             transform.position += desplazamiento;
         }
 
-        if (direccion != Vector3.zero)
+        // Solo gira sobre Y: una dirección con componente vertical inclinaría al enemigo.
+        Vector3 flatDirection = new Vector3(direccion.x, 0f, direccion.z);
+        if (flatDirection != Vector3.zero)
         {
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
-                Quaternion.LookRotation(direccion),
+                Quaternion.LookRotation(flatDirection),
                 Time.deltaTime * RotationSharpness);
         }
     }
@@ -335,7 +362,7 @@ public class Enemy : MonoBehaviour, IDamageable
 
     public virtual void RecibirDaño(float cantidad)
     {
-        if (estaMuerto)
+        if (!PuedeRecibirDaño)
         {
             return;
         }
@@ -350,8 +377,17 @@ public class Enemy : MonoBehaviour, IDamageable
 
         if (isLethal)
         {
-            Morir();
+            AlQuedarSinVida();
         }
+    }
+
+    /// <summary>Gets whether damage is currently accepted; subclasses may add conditions.</summary>
+    protected virtual bool PuedeRecibirDaño => !estaMuerto;
+
+    /// <summary>Runs when damage leaves the enemy without health; by default it dies with rewards.</summary>
+    protected virtual void AlQuedarSinVida()
+    {
+        Morir();
     }
 
     /// <summary>Kills the enemy ignoring resistances, keeping the normal death rewards.</summary>
@@ -378,9 +414,15 @@ public class Enemy : MonoBehaviour, IDamageable
 
         DropearEnergia();
         DropearVariante();
-        EnemySpawner.Instance?.EnemigoEliminado(this);
+        NotificarEliminacion();
 
         Destroy(gameObject, DestroyDelaySeconds);
+    }
+
+    /// <summary>Tells the wave spawner that this enemy no longer counts as alive.</summary>
+    protected void NotificarEliminacion()
+    {
+        EnemySpawner.Instance?.EnemigoEliminado(this);
     }
 
     protected void ResolverJugadorCercano()
@@ -396,15 +438,7 @@ public class Enemy : MonoBehaviour, IDamageable
         }
 
         Vector3 posicion = transform.position + Vector3.up * DropHeightMeters;
-        GameObject drop = PoolManager.Instance != null
-            ? PoolManager.Instance.Get(EnergyPickupPoolKey, posicion, Quaternion.identity)
-            : null;
-        if (drop == null)
-        {
-            drop = Instantiate(prefabEnergia, posicion, Quaternion.identity);
-        }
-
-        drop.SetActive(true);
+        GameObject drop = PoolManager.Spawn(EnergyPickupPoolKey, prefabEnergia, posicion, Quaternion.identity);
         if (drop.TryGetComponent(out EnergyPickup pickup))
         {
             pickup.cantidad = energiaDrop;
@@ -484,7 +518,7 @@ public class Enemy : MonoBehaviour, IDamageable
 
     protected virtual void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Player"))
+        if (collision.gameObject.CompareTag(PlayerTag))
         {
             var player = collision.gameObject.GetComponent<PlayerController>();
             if (player != null && timerAtaque <= 0f)

@@ -6,8 +6,11 @@ public static class MuzzleTransformResolver
     /// <summary>The name of the muzzle child object.</summary>
     public const string MuzzleObjectName = "PuntoDisparo";
 
-    private const float MuzzleForwardOffsetMeters = 0.9f;
-    private const float MuzzleHeightMeters = 0.8f;
+    /// <summary>The muzzle height above the player center: the hands, not the head.</summary>
+    public const float HandHeightMeters = 0.1f;
+
+    /// <summary>The muzzle distance in front of the player center.</summary>
+    public const float HandForwardMeters = 0.5f;
 
     /// <summary>Gets whether the candidate is a usable muzzle distinct from the camera.</summary>
     /// <param name="candidate">The candidate muzzle.</param>
@@ -42,13 +45,7 @@ public static class MuzzleTransformResolver
 
         var muzzle = new GameObject(MuzzleObjectName);
         muzzle.transform.SetParent(owner);
-        float height = camera.transform.localPosition.y;
-        if (Mathf.Approximately(height, 0f))
-        {
-            height = MuzzleHeightMeters;
-        }
-
-        muzzle.transform.localPosition = new Vector3(0f, height, MuzzleForwardOffsetMeters);
+        muzzle.transform.localPosition = new Vector3(0f, HandHeightMeters, HandForwardMeters);
         muzzle.transform.rotation = camera.transform.rotation;
         muzzle.transform.localScale = Vector3.one;
         return muzzle.transform;

@@ -2,47 +2,32 @@ using System.Collections;
 
 namespace UltimoPilar.Arena
 {
-
-/// <summary>Handles the emergency arena phase transition.</summary>
-public sealed class EmergencyPhaseHandler : IArenaPhaseHandler
-{
-    private const int EmergencyPhaseNumber = 4;
-
-    private readonly ArenaWarningPresenter warningPresenter;
-    private readonly ArenaPhaseEffects phaseEffects;
-
-    /// <summary>Initializes an emergency phase handler.</summary>
-    /// <param name="warningPresenter">The warning presenter for this transition.</param>
-    /// <param name="phaseEffects">The effect service for this transition.</param>
-    public EmergencyPhaseHandler(ArenaWarningPresenter warningPresenter, ArenaPhaseEffects phaseEffects)
+    /// <summary>Handles the emergency phase transition.</summary>
+    public sealed class EmergencyPhaseHandler : ArenaPhaseHandler
     {
-        this.warningPresenter = warningPresenter;
-        this.phaseEffects = phaseEffects;
-    }
+        private const int EmergencyPhaseNumber = 4;
 
-    /// <inheritdoc />
-    public int Phase => EmergencyPhaseNumber;
-
-    /// <inheritdoc />
-    public IEnumerator Warn(float durationSeconds)
-    {
-        if (warningPresenter == null)
+        /// <summary>Initializes the emergency phase handler.</summary>
+        /// <param name="warningPresenter">The warning presenter for this transition.</param>
+        /// <param name="phaseEffects">The effect service for this transition.</param>
+        public EmergencyPhaseHandler(ArenaWarningPresenter warningPresenter, ArenaPhaseEffects phaseEffects)
+            : base(warningPresenter, phaseEffects)
         {
-            yield break;
         }
 
-        yield return warningPresenter.PresentEmergencyWarning(durationSeconds);
-    }
+        /// <inheritdoc />
+        public override int Phase => EmergencyPhaseNumber;
 
-    /// <inheritdoc />
-    public IEnumerator Activate()
-    {
-        if (phaseEffects == null)
+        /// <inheritdoc />
+        protected override IEnumerator PresentWarning(ArenaWarningPresenter presenter, float durationSeconds)
         {
-            yield break;
+            return presenter.PresentEmergencyWarning(durationSeconds);
         }
 
-        yield return phaseEffects.ActivateEmergency();
+        /// <inheritdoc />
+        protected override IEnumerator ActivateEffects(ArenaPhaseEffects effects)
+        {
+            return effects.ActivateEmergency();
+        }
     }
-}
 }
