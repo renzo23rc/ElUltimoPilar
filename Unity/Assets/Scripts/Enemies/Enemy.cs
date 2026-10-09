@@ -34,8 +34,8 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
     public float vidaMaxima = 30f;
     public float vidaActual = 30f;
     public float velocidadMovimiento = 2.5f;
-    public float dañoAlPilar = 5f;
-    public float dañoAlJugador = 8f;
+    public float dañoAlPilar = 4f;
+    public float dañoAlJugador = 6f;
     public int energiaDrop = 2;
 
     [Header("Variante temporal")]

@@ -9,7 +9,7 @@ public class Runner : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 3.5f;
     private const float MaximumHealth = 20f;
-    private const float PilarDamage = 4f;
+    private const float PilarDamage = 3f;
     private const int EnergyDropAmount = 2;
 
     [Header("Runner Específico")]

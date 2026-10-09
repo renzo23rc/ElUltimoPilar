@@ -10,8 +10,8 @@ public class Colossus : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 0.9f;
     private const float MaximumHealth = 180f;
-    private const float PilarDamage = 11f;
-    private const float PlayerDamage = 9f;
+    private const float PilarDamage = 9f;
+    private const float PlayerDamage = 7f;
     private const int EnergyDropAmount = 20;
 
     [Header("Coloso Específico")]

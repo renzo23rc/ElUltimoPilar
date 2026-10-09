@@ -9,8 +9,8 @@ public class Artillery : Enemy
 {
     private const float DefaultMovementSpeedMetersPerSecond = 1f;
     private const float DefaultHealth = 40f;
-    private const float PilarDamage = 8f;
-    private const float PlayerDamage = 5f;
+    private const float PilarDamage = 6f;
+    private const float PlayerDamage = 4f;
     private const int EnergyDropAmount = 3;
     private const float PlayerTargetRangeMultiplier = 1.5f;
     private const float RotationSharpness = 5f;

@@ -10,7 +10,7 @@ public class Explosive : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 2f;
     private const float MaximumHealth = 25f;
-    private const float PilarDamage = 15f;
+    private const float PilarDamage = 12f;
     private const int EnergyDropAmount = 5;
     // Detona al tocar el Pilar: se mide desde el borde del modelo, no desde su centro.
     private const float AttackRangeMeters = 1.5f;
@@ -18,7 +18,7 @@ public class Explosive : Enemy
 
     [Header("Explosivo Específico")]
     public float radioExplosion = 5f;
-    public float dañoExplosion = 20f;
+    public float dañoExplosion = 16f;
     public float tiempoDetonacion = 0.5f;
     public GameObject prefabExplosion;
     public Color colorAdvertencia = Color.red;
