@@ -92,6 +92,7 @@ public class TestSceneSetup : MonoBehaviour
 
         pilar.prefabTorreta = CargarPlantilla("Torreta") ?? TestScenePrefabFactory.CreateTurret();
         GameObject suelo = TestSceneArenaBuilder.CreateFloor(matSuelo);
+        TestSceneArenaBuilder.CreateBoundaryWalls();
         GameObject pozo = TestSceneArenaBuilder.CreatePit();
         GameObject zonaGravedad = TestSceneArenaBuilder.CreateGravityZone();
 

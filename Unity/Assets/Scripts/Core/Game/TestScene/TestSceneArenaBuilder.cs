@@ -18,6 +18,14 @@ public static class TestSceneArenaBuilder
     // Mata si y <= pozo.y + 1.5: permite caminar sobre el borde sin morir, solo al caer.
     private const float PitKillHeightMeters = 1.5f;
     private const float PitEmissionIntensity = 0.3f;
+    // Borde del mapa de la escena (el suelo visible mide 87.5 m): los muros quedan apenas adentro.
+    private const float BoundaryHalfExtentMeters = 43.5f;
+    private const float BoundaryThicknessMeters = 2f;
+    // Alto de sobra para que ni el salto ni la zona de gravedad permitan pasar por arriba.
+    private const float BoundaryHeightMeters = 60f;
+    private const int BoundarySideCount = 4;
+    private const float HalfFactor = 0.5f;
+    private const string BoundaryRootName = "LimitesMapa";
     private const float GravityZoneColliderRadius = 0.5f;
     private const float GravityZoneLiftForce = 18f;
     private const float GravityZoneEffectRadiusMeters = 5f;
@@ -99,6 +107,32 @@ public static class TestSceneArenaBuilder
         }
 
         return floor;
+    }
+
+    /// <summary>Creates four invisible walls around the map so players cannot fall off its edge.</summary>
+    /// <returns>The parent object that holds the wall colliders.</returns>
+    public static GameObject CreateBoundaryWalls()
+    {
+        var root = new GameObject(BoundaryRootName);
+        float wallCenterOffset = BoundaryHalfExtentMeters + (BoundaryThicknessMeters * HalfFactor);
+        float wallLength = (BoundaryHalfExtentMeters * 2f) + (BoundaryThicknessMeters * 2f);
+        for (int side = 0; side < BoundarySideCount; side++)
+        {
+            bool alongX = side < BoundarySideCount / 2;
+            float sign = side % 2 == 0 ? 1f : -1f;
+            var wall = new GameObject($"Limite_{side}");
+            wall.transform.SetParent(root.transform);
+            wall.transform.position = new Vector3(
+                alongX ? 0f : sign * wallCenterOffset,
+                BoundaryHeightMeters * HalfFactor,
+                alongX ? sign * wallCenterOffset : 0f);
+            var collider = wall.AddComponent<BoxCollider>();
+            collider.size = alongX
+                ? new Vector3(wallLength, BoundaryHeightMeters, BoundaryThicknessMeters)
+                : new Vector3(BoundaryThicknessMeters, BoundaryHeightMeters, wallLength);
+        }
+
+        return root;
     }
 
     /// <summary>Creates the inactive central pit with its lethal <see cref="PozoKill"/> trigger.</summary>
