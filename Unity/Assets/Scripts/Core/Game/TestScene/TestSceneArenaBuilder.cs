@@ -1,5 +1,5 @@
+using UltimoPilar.Core.Shared;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 /// <summary>
 /// Builds the procedural arena of the test scene: Pilar, floor, central pit, gravity zone, and lights.
@@ -21,21 +21,13 @@ public static class TestSceneArenaBuilder
     private const float GravityZoneColliderRadius = 0.5f;
     private const float GravityZoneLiftForce = 18f;
     private const float GravityZoneEffectRadiusMeters = 5f;
-    private const float StandardTransparentMode = 3f;
-    private const int TransparentRenderQueue = 3000;
     private const int FloatingParticleCount = 15;
     private const float FloatingParticleSpreadRadius = 0.4f;
-    private const float FloatingParticleMinimumSize = 0.08f;
-    private const float FloatingParticleMaximumSize = 0.18f;
+    private const float FloatingParticleMinimumSizeMeters = 0.12f;
+    private const float FloatingParticleMaximumSizeMeters = 0.3f;
     private const string BaseColorProperty = "_BaseColor";
     private const string ColorProperty = "_Color";
     private const string EmissionColorProperty = "_EmissionColor";
-    private const string ModeProperty = "_Mode";
-    private const string SourceBlendProperty = "_SrcBlend";
-    private const string DestinationBlendProperty = "_DstBlend";
-    private const string DepthWriteProperty = "_ZWrite";
-    private const string AlphaTestKeyword = "_ALPHATEST_ON";
-    private const string AlphaBlendKeyword = "_ALPHABLEND_ON";
     private static readonly Vector3 PilarPosition = new Vector3(0f, 2f, 0f);
     private static readonly Vector3 PilarScale = new Vector3(4f, 2f, 4f);
     // 100 x 100 unidades.
@@ -46,8 +38,8 @@ public static class TestSceneArenaBuilder
     private static readonly Vector3 PitScale = new Vector3(10f, 0.5f, 10f);
     private static readonly Vector3 GravityZonePosition = new Vector3(8f, 0.5f, 0f);
     private static readonly Vector3 GravityZoneScale = new Vector3(10f, 4f, 10f);
-    private static readonly Color GravityZoneColor = new Color(0.6f, 0.1f, 1f, 0.35f);
-    private static readonly Color FloatingParticleColor = new Color(0.8f, 0.4f, 1f, 0.9f);
+    private static readonly Color GravityZoneColor = new Color(0.6f, 0.1f, 1f, 0.1f);
+    private static readonly Color FloatingParticleColor = new Color(0.8f, 0.4f, 1f, 0.5f);
     private static readonly Quaternion SunRotation = Quaternion.Euler(50f, -30f, 0f);
 
     /// <summary>Creates the Pilar with its emergency turret points and its ambient light.</summary>
@@ -149,7 +141,7 @@ public static class TestSceneArenaBuilder
         // Más grande y achatada (exagerado).
         zone.transform.localScale = GravityZoneScale;
         Renderer renderer = zone.GetComponent<Renderer>();
-        if (renderer != null) renderer.material = CreateTransparentMaterial(GravityZoneColor);
+        if (renderer != null) OwnedMaterialCleanup.Assign(renderer, RuntimeMaterialFactory.CreateTransparentUnlit(GravityZoneColor));
 
         var effect = zone.AddComponent<ZonaGravedadEffect>();
         effect.fuerzaAscenso = GravityZoneLiftForce;
@@ -169,22 +161,6 @@ public static class TestSceneArenaBuilder
         sunObject.transform.rotation = SunRotation;
     }
 
-    private static Material CreateTransparentMaterial(Color color)
-    {
-        var material = new Material(
-            Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default"));
-        if (material.HasProperty(ColorProperty)) material.color = color;
-        else if (material.HasProperty(BaseColorProperty)) material.SetColor(BaseColorProperty, color);
-        if (material.HasProperty(ModeProperty)) material.SetFloat(ModeProperty, StandardTransparentMode);
-        if (material.HasProperty(SourceBlendProperty)) material.SetInt(SourceBlendProperty, (int)BlendMode.SrcAlpha);
-        if (material.HasProperty(DestinationBlendProperty)) material.SetInt(DestinationBlendProperty, (int)BlendMode.OneMinusSrcAlpha);
-        if (material.HasProperty(DepthWriteProperty)) material.SetInt(DepthWriteProperty, 0);
-        material.DisableKeyword(AlphaTestKeyword);
-        material.EnableKeyword(AlphaBlendKeyword);
-        material.renderQueue = TransparentRenderQueue;
-        return material;
-    }
-
     private static void AddFloatingParticles(Transform zone)
     {
         for (int i = 0; i < FloatingParticleCount; i++)
@@ -194,8 +170,11 @@ public static class TestSceneArenaBuilder
             Object.Destroy(particle.GetComponent<Collider>());
             particle.transform.SetParent(zone);
             particle.transform.localPosition = Random.insideUnitSphere * FloatingParticleSpreadRadius;
-            particle.transform.localScale = Vector3.one * Random.Range(FloatingParticleMinimumSize, FloatingParticleMaximumSize);
-            particle.GetComponent<Renderer>().material.color = FloatingParticleColor;
+            // La zona está escalada y achatada: se compensa para que la partícula sea un cubo chico en el mundo.
+            float worldSize = Random.Range(FloatingParticleMinimumSizeMeters, FloatingParticleMaximumSizeMeters);
+            Vector3 zoneScale = zone.lossyScale;
+            particle.transform.localScale = new Vector3(worldSize / zoneScale.x, worldSize / zoneScale.y, worldSize / zoneScale.z);
+            OwnedMaterialCleanup.Assign(particle.GetComponent<Renderer>(), RuntimeMaterialFactory.CreateTransparentUnlit(FloatingParticleColor));
             particle.AddComponent<ParticulaFlotante>();
         }
     }

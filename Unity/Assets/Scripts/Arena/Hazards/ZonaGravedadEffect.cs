@@ -15,9 +15,9 @@ public class ZonaGravedadEffect : MonoBehaviour
     private const float VisualPulseBase = 1f;
     private const float VisualPulseSpeed = 1.8f;
     private const float VisualPulseAmount = 0.07f;
-    private const float VisualAlphaBase = 0.35f;
+    private const float VisualAlphaBase = 0.1f;
     private const float VisualAlphaSpeed = 2.2f;
-    private const float VisualAlphaAmount = 0.12f;
+    private const float VisualAlphaAmount = 0.04f;
     private const float VisualWidthMeters = 10f;
     private const float VisualHeightMeters = 4f;
     private const float TornadoFrequency = 2f;

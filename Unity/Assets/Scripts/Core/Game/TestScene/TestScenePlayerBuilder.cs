@@ -13,6 +13,8 @@ public static class TestScenePlayerBuilder
     private const string UntaggedCameraTag = "Untagged";
     private const string MainCameraTag = "MainCamera";
     private const float CameraHeightMeters = 0.8f;
+    // Adelantada para que la cámara no quede dentro de los lentes del modelo.
+    private const float CameraForwardMeters = 0.3f;
     private const float CameraNearClipMeters = 0.1f;
     private const float ControllerRadiusMeters = 0.5f;
     private const float ControllerHeightMeters = 2f;
@@ -207,7 +209,7 @@ public static class TestScenePlayerBuilder
     {
         var cameraObject = new GameObject("Camera");
         cameraObject.transform.SetParent(player);
-        cameraObject.transform.localPosition = new Vector3(0f, CameraHeightMeters, 0f);
+        cameraObject.transform.localPosition = new Vector3(0f, CameraHeightMeters, CameraForwardMeters);
         var camera = cameraObject.AddComponent<Camera>();
         camera.nearClipPlane = CameraNearClipMeters;
         camera.tag = UntaggedCameraTag;

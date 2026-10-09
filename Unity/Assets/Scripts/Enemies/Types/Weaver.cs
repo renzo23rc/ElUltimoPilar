@@ -17,7 +17,7 @@ public class Weaver : Enemy
     private const float RotationSharpness = 3f;
     private const float FieldHeightMeters = 0.1f;
     private const float FieldThicknessMeters = 0.1f;
-    private static readonly Color FieldColor = new Color(0.5f, 0f, 0.5f, 0.3f);
+    private static readonly Color FieldColor = new Color(0.5f, 0f, 0.5f, 0.15f);
 
     [Header("Tejedor Específico")]
     public GameObject prefabCampo;
@@ -106,7 +106,7 @@ public class Weaver : Enemy
         Destroy(campo.GetComponent<Collider>()); // No necesitamos collider físico
         campo.transform.position = posicion + Vector3.up * FieldHeightMeters;
         campo.transform.localScale = new Vector3(radioCampo * 2f, FieldThicknessMeters, radioCampo * 2f);
-        OwnedMaterialCleanup.Assign(campo.GetComponent<Renderer>(), RuntimeMaterialFactory.CreateLit(FieldColor));
+        OwnedMaterialCleanup.Assign(campo.GetComponent<Renderer>(), RuntimeMaterialFactory.CreateTransparentUnlit(FieldColor));
 
         ConfigurarZona(campo.AddComponent<WeaverZone>());
     }
