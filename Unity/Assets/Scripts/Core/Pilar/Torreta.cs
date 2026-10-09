@@ -9,10 +9,11 @@
  * Funciona sin prefab serializado: Pilar crea fallback procedural si prefabTorreta es null.
  */
 using System.Collections;
+using System.Collections.Generic;
 using UltimoPilar.Core.Shared;
 using UnityEngine;
 
-public class Torreta : MonoBehaviour
+public class Torreta : MonoBehaviour, IDamageable
 {
     private const float RotationSmoothing = 8f;
     private const float MinimumAimDirectionSqr = 0.01f;
@@ -28,14 +29,6 @@ public class Torreta : MonoBehaviour
     private const float SpawnPointForwardMeters = 0.8f;
     private const float SpawnPointHeightMeters = 0.5f;
     private const float ProjectileLifetimeSeconds = 4f;
-    private const float ProjectileScale = 0.6f;
-    private const float ProjectileColliderRadiusMeters = 0.5f;
-    private const float ProjectileEmissionMultiplier = 1.2f;
-    private const float ProjectileTrailSeconds = 0.4f;
-    private const float ProjectileTrailStartWidthMeters = 0.25f;
-    private const float ProjectileTrailEndWidthMeters = 0.05f;
-    private const float ProjectileLightRangeMeters = 4f;
-    private const float ProjectileLightIntensity = 2f;
     private const float NoPlayerDamage = 0f;
     private const float DamageFlashSeconds = 0.07f;
     private const float DestroyedColorRatio = 0.6f;
@@ -45,8 +38,8 @@ public class Torreta : MonoBehaviour
     private const string ProjectilePoolKey = "Proyectil";
     private const string SpawnPointName = "PuntoDisparo";
     private const string FallbackProjectileName = "ProyectilTorreta";
-    private static readonly Color ProjectileColor = new Color(1f, 0.5f, 0f);
-    private static readonly Color ProjectileTrailEndColor = new Color(1f, 0.5f, 0f, 0.2f);
+
+    private static readonly List<Torreta> ActiveTurrets = new List<Torreta>();
 
     [Header("Torreta - Configuración")]
     public float rango = 22f;
@@ -77,12 +70,33 @@ public class Torreta : MonoBehaviour
     private float timerBusqueda = 0f;
     private bool activa = true;
     private Enemy objetivoActual;
+    private List<Collider> colisionadoresIgnorados;
     private Renderer rendCache;
     private Light lightCache;
     private Color colorBase;
     private BoxCollider colCache;
     private Coroutine flashCoroutine;
     private GameManager managerSuscrito;
+
+    /// <summary>Gets the turrets that are currently enabled in the scene.</summary>
+    public static IReadOnlyList<Torreta> Active => ActiveTurrets;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetRegistry()
+    {
+        ActiveTurrets.Clear();
+    }
+
+    void OnEnable()
+    {
+        if (!ActiveTurrets.Contains(this))
+            ActiveTurrets.Add(this);
+    }
+
+    void OnDisable()
+    {
+        ActiveTurrets.Remove(this);
+    }
 
     void Start()
     {
@@ -133,6 +147,7 @@ public class Torreta : MonoBehaviour
 
     void OnDestroy()
     {
+        ActiveTurrets.Remove(this);
         if (managerSuscrito != null)
         {
             managerSuscrito.OnVictoria -= Desactivar;
@@ -270,80 +285,63 @@ public class Torreta : MonoBehaviour
 
         municionActual = Mathf.Max(0, municionActual - 1);
 
-        GameObject proj = CrearProyectil();
-        if (proj.TryGetComponent(out Rigidbody rb))
-        {
-            Vector3 dir = (objetivo.transform.position + Vector3.up * TargetAimHeightMeters - puntoDisparo.position).normalized;
-            rb.linearVelocity = dir * velocidadProyectil;
-            rb.useGravity = false;
-        }
-
-        if (proj.TryGetComponent(out Projectile projComp))
-        {
-            projComp.daño = daño;
-            projComp.dañoJugador = NoPlayerDamage; // La torreta no daña jugadores.
-            if (PoolManager.Instance != null && proj.TryGetComponent(out PooledObject pooled))
-                pooled.ScheduleRelease(projComp.tiempoVida);
-        }
+        Vector3 puntoObjetivo = objetivo.transform.position + Vector3.up * TargetAimHeightMeters;
+        DispararDesde(puntoDisparo, puntoObjetivo);
 
         if (municionActual <= 0)
             IniciarRecarga();
     }
 
-    GameObject CrearProyectil()
+    void DispararDesde(Transform boca, Vector3 puntoObjetivo)
     {
-        if (prefabProyectil == null)
-            return CrearProyectilFallback();
+        Vector3 dir = (puntoObjetivo - boca.position).normalized;
+        GameObject proj = CrearProyectil(boca.position, Quaternion.LookRotation(dir));
+        IgnorarColisionesPropias(proj);
+        if (proj.TryGetComponent(out Rigidbody rb))
+        {
+            rb.linearVelocity = dir * velocidadProyectil;
+            rb.useGravity = false;
+        }
 
-        GameObject proj = PoolManager.Instance != null
-            ? PoolManager.Instance.Get(ProjectilePoolKey, puntoDisparo.position, puntoDisparo.rotation)
-            : null;
-        if (proj == null)
-            proj = Instantiate(prefabProyectil, puntoDisparo.position, puntoDisparo.rotation);
-
-        proj.SetActive(true);
-        return proj;
+        // La torreta no daña jugadores.
+        if (proj.TryGetComponent(out Projectile projComp))
+            projComp.ConfigurarDaño(daño, NoPlayerDamage);
     }
 
-    GameObject CrearProyectilFallback()
+    // La torreta defiende al Pilar: sus proyectiles atraviesan al Pilar y a la propia torreta
+    // (la boca queda sobre el modelo) en vez de dañarlos.
+    void IgnorarColisionesPropias(GameObject proj)
     {
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.name = FallbackProjectileName;
-        go.transform.SetPositionAndRotation(puntoDisparo.position, puntoDisparo.rotation);
-        go.transform.localScale = Vector3.one * ProjectileScale;
+        if (colisionadoresIgnorados == null)
+        {
+            var lista = new List<Collider>(GetComponentsInChildren<Collider>());
+            Pilar pilar = FindFirstObjectByType<Pilar>();
+            if (pilar != null) lista.AddRange(pilar.GetComponentsInChildren<Collider>());
+            colisionadoresIgnorados = lista;
+        }
 
-        var col = go.GetComponent<SphereCollider>();
-        col.isTrigger = true;
-        col.radius = ProjectileColliderRadiusMeters;
+        foreach (Collider disparo in proj.GetComponentsInChildren<Collider>())
+        {
+            foreach (Collider ignorado in colisionadoresIgnorados)
+            {
+                if (ignorado != null) Physics.IgnoreCollision(disparo, ignorado);
+            }
+        }
+    }
 
-        Material mat = RuntimeMaterialFactory.CreateLit(ProjectileColor, ProjectileEmissionMultiplier);
-        OwnedMaterialCleanup.Assign(go.GetComponent<Renderer>(), mat);
+    GameObject CrearProyectil(Vector3 posicion, Quaternion rotacion)
+    {
+        if (prefabProyectil == null)
+        {
+            return ProjectileFactory.CreateFallback(
+                FallbackProjectileName,
+                posicion,
+                rotacion,
+                daño,
+                ProjectileLifetimeSeconds).gameObject;
+        }
 
-        var rb = go.AddComponent<Rigidbody>();
-        rb.useGravity = false;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
-
-        var trail = go.AddComponent<TrailRenderer>();
-        trail.time = ProjectileTrailSeconds;
-        trail.startWidth = ProjectileTrailStartWidthMeters;
-        trail.endWidth = ProjectileTrailEndWidthMeters;
-        trail.sharedMaterial = mat;
-        trail.startColor = ProjectileColor;
-        trail.endColor = ProjectileTrailEndColor;
-
-        var proj = go.AddComponent<Projectile>();
-        proj.daño = daño;
-        proj.tiempoVida = ProjectileLifetimeSeconds;
-        proj.destruirAlImpactar = true;
-
-        var light = go.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = ProjectileColor;
-        light.range = ProjectileLightRangeMeters;
-        light.intensity = ProjectileLightIntensity;
-
-        return go;
+        return PoolManager.Spawn(ProjectilePoolKey, prefabProyectil, posicion, rotacion);
     }
 
     public void RecibirDaño(float cantidad)
@@ -359,6 +357,11 @@ public class Torreta : MonoBehaviour
 
         if (vidaActual <= 0)
             Destruir();
+    }
+
+    void IDamageable.ReceiveDamage(DamageRequest request)
+    {
+        RecibirDaño(request.Amount);
     }
 
     IEnumerator FlashDaño()

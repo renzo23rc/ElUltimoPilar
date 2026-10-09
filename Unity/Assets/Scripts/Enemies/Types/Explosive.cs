@@ -10,15 +10,15 @@ public class Explosive : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 2f;
     private const float MaximumHealth = 25f;
-    private const float PilarDamage = 30f;
+    private const float PilarDamage = 15f;
     private const int EnergyDropAmount = 5;
-    // Detona al tocar el Pilar: radio del Pilar (2) + medio cuerpo (0.5) + margen.
-    private const float AttackRangeMeters = 3.5f;
+    // Detona al tocar el Pilar: se mide desde el borde del modelo, no desde su centro.
+    private const float AttackRangeMeters = 1.5f;
     private const float PlayerDamageMultiplier = 0.5f;
 
     [Header("Explosivo Específico")]
     public float radioExplosion = 5f;
-    public float dañoExplosion = 40f;
+    public float dañoExplosion = 20f;
     public float tiempoDetonacion = 0.5f;
     public GameObject prefabExplosion;
     public Color colorAdvertencia = Color.red;
@@ -56,8 +56,7 @@ public class Explosive : Enemy
             return;
         }
 
-        Vector3 direccion = pilarObjetivo.transform.position - transform.position;
-        direccion.y = 0;
+        Vector3 direccion = OffsetToPilar();
         float distancia = direccion.magnitude;
 
         if (distancia > rangoAtaque)
@@ -124,27 +123,17 @@ public class Explosive : Enemy
 
         // Al explotar no dropea energía (no pasa por Morir), para no duplicar el drop.
         estaMuerto = true;
-        EnemySpawner.Instance?.EnemigoEliminado(this);
+        NotificarEliminacion();
         Destroy(gameObject);
     }
 
-    public override void RecibirDaño(float cantidad)
+    // Mientras detona ignora el daño: la explosión ya está en marcha.
+    protected override bool PuedeRecibirDaño => base.PuedeRecibirDaño && !detonando;
+
+    // Detona sin pasar por base.Morir(), que dropearía energía.
+    protected override void AlQuedarSinVida()
     {
-        if (estaMuerto || detonando)
-        {
-            return;
-        }
-
-        vidaActual -= cantidad;
-        NotificarDañoRecibido(cantidad);
-        CombatFeedback.NotifyHit(vidaActual <= 0);
-        IniciarFlashDaño();
-
-        if (vidaActual <= 0)
-        {
-            // Detona sin pasar por base.Morir(), que dropearía energía.
-            IniciarDetonacion();
-        }
+        IniciarDetonacion();
     }
 
     protected override void Morir()

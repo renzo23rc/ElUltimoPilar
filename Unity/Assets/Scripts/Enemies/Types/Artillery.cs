@@ -9,8 +9,8 @@ public class Artillery : Enemy
 {
     private const float DefaultMovementSpeedMetersPerSecond = 1f;
     private const float DefaultHealth = 40f;
-    private const float PilarDamage = 15f;
-    private const float PlayerDamage = 10f;
+    private const float PilarDamage = 8f;
+    private const float PlayerDamage = 5f;
     private const int EnergyDropAmount = 3;
     private const float PlayerTargetRangeMultiplier = 1.5f;
     private const float RotationSharpness = 5f;
@@ -52,8 +52,7 @@ public class Artillery : Enemy
         if (!tieneLineaVision)
         {
             // Moverse para reposicionarse si no tiene línea de visión
-            Vector3 dirPilar = (pilarObjetivo.transform.position - transform.position).normalized;
-            MoverHacia(dirPilar);
+            MoverHacia(OffsetToPilar().normalized);
             return;
         }
         
@@ -61,10 +60,10 @@ public class Artillery : Enemy
         Transform objetivo = SeleccionarObjetivo();
         if (objetivo == null) return;
         
-        float distancia = Vector3.Distance(transform.position, objetivo.position);
+        float distancia = Vector3.Distance(transform.position, AimPositionOf(objetivo));
         
         // Mirar al objetivo
-        Vector3 dir = objetivo.position - transform.position;
+        Vector3 dir = AimPositionOf(objetivo) - transform.position;
         dir.y = 0;
         if (dir != Vector3.zero)
             transform.rotation = Quaternion.Slerp(transform.rotation, 
@@ -87,10 +86,16 @@ public class Artillery : Enemy
         }
     }
 
+    // El artillero solo gira sobre Y: cualquier inclinación (física, empujes) se descarta.
+    private void LateUpdate()
+    {
+        transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+    }
+
     void VerificarLineaVision()
     {
         // Raycast hacia el Pilar para verificar si hay obstáculos
-        Vector3 dir = pilarObjetivo.transform.position - puntoDisparo.position;
+        Vector3 dir = pilarObjetivo.AimPoint - puntoDisparo.position;
         if (Physics.Raycast(puntoDisparo.position, dir.normalized, out RaycastHit hit, dir.magnitude))
         {
             tieneLineaVision = hit.collider.GetComponentInParent<Pilar>() != null;
@@ -101,13 +106,19 @@ public class Artillery : Enemy
         }
     }
 
+    // El Pilar se apunta en su eje, no en el pivote del modelo (que puede quedar bajo el suelo).
+    Vector3 AimPositionOf(Transform objetivo)
+    {
+        return objetivo.GetComponent<Pilar>() != null ? pilarObjetivo.AimPoint : objetivo.position;
+    }
+
     Transform SeleccionarObjetivo()
     {
         // Priorizar jugador si está cerca y visible
         if (jugadorObjetivo != null)
         {
             float distJugador = Vector3.Distance(transform.position, jugadorObjetivo.transform.position);
-            float distPilar = Vector3.Distance(transform.position, pilarObjetivo.transform.position);
+            float distPilar = Vector3.Distance(transform.position, pilarObjetivo.AimPoint);
             
             if (distJugador < distPilar && distJugador < rangoDisparo * PlayerTargetRangeMultiplier)
                 return jugadorObjetivo.transform;
@@ -128,33 +139,21 @@ public class Artillery : Enemy
         }
         
         Vector3 origen = puntoDisparo.position;
-        Quaternion rotacion = Quaternion.LookRotation(objetivo.position - origen);
-        GameObject proj = PoolManager.Instance != null
-            ? PoolManager.Instance.Get(ProjectilePoolKey, origen, rotacion)
-            : null;
-        if (proj == null)
-        {
-            proj = Instantiate(prefabProyectil, origen, rotacion);
-        }
-
-        proj.SetActive(true);
+        Vector3 destino = AimPositionOf(objetivo);
+        Quaternion rotacion = Quaternion.LookRotation(destino - origen);
+        GameObject proj = PoolManager.Spawn(ProjectilePoolKey, prefabProyectil, origen, rotacion);
 
         var rb = proj.GetComponent<Rigidbody>();
         if (rb != null)
         {
-            rb.linearVelocity = (objetivo.position - puntoDisparo.position).normalized * velocidadProyectil;
+            rb.linearVelocity = (destino - puntoDisparo.position).normalized * velocidadProyectil;
         }
-        
-        // Configurar daño del proyectil
+
+        // El proyectil daña al Pilar y a los jugadores con los valores de este artillero.
         var projComp = proj.GetComponent<Projectile>();
         if (projComp != null)
         {
-            projComp.daño = dañoAlPilar;
-            projComp.dañoJugador = dañoAlJugador;
-            // Si está en pool, asegurar auto-release programado
-            var pooled = proj.GetComponent<PooledObject>();
-            if (pooled != null && PoolManager.Instance != null)
-                pooled.ScheduleRelease(projComp.tiempoVida);
+            projComp.ConfigurarDaño(dañoAlPilar, dañoAlJugador);
         }
     }
 }

@@ -25,7 +25,7 @@ public class Weaver : Enemy
     public float cooldownCampo = 5f;
     public float duracionCampo = 8f;
     public float radioCampo = 6f;
-    public float dañoPorSegundo = 5f;
+    public float dañoPorSegundo = 3f;
     public float factorRalentizacion = 0.5f;
 
     private float timerCampo = 0f;

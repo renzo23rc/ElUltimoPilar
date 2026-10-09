@@ -27,7 +27,7 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
         SubscribeToGameManager();
     }
 
-        private void OnEnable()
+    private void OnEnable()
     {
         ResolveGameManager();
         SubscribeToGameManager();
@@ -184,5 +184,3 @@ public sealed class SplitScreenCameraCoordinator : MonoBehaviour
         }
     }
 }
-
-

@@ -11,7 +11,6 @@
 using System.Collections.Generic;
 using UltimoPilar.Core.Shared;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
@@ -23,7 +22,6 @@ public class Hud : MonoBehaviour
     private const float VictoryMessageDurationSeconds = 5f;
     private const float WaveMessageDurationSeconds = 2f;
     private const float DownedMessageDurationSeconds = 3f;
-    private const float DebugPilarDamage = 10f;
     private const int OverlaySortingOrder = 20;
 
     private const float PilarLabelOffset = 10f;
@@ -69,6 +67,7 @@ public class Hud : MonoBehaviour
     private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
     private readonly List<PlayerController> jugadoresARetirar = new List<PlayerController>();
     private GameManager managerSuscrito;
+    private readonly MatchShortcuts atajos = new MatchShortcuts();
 
     void Start()
     {
@@ -92,8 +91,7 @@ public class Hud : MonoBehaviour
         ActualizarPilar();
         ActualizarOleada();
         ActualizarOverlays();
-        AtajosMenu();
-        ProcesarAtajoDebug();
+        atajos.Process(gameManager, pilar);
     }
 
     // ===== EVENTOS =====
@@ -267,37 +265,6 @@ public class Hud : MonoBehaviour
         }
     }
 
-    void AtajosMenu()
-    {
-        if (gameManager == null || Keyboard.current == null) return;
-
-        // La pausa (Esc / Options) llega por la acción Pause del Input System y la resuelve GameManager.
-        MatchState estado = gameManager.EstadoActual;
-        if (Keyboard.current.enterKey.wasPressedThisFrame
-            && (estado == MatchState.Victory || estado == MatchState.Defeat || estado == MatchState.Paused))
-        {
-            gameManager.ReiniciarJuego();
-        }
-    }
-
-    // R daña el Pilar para probar las fases. Solo existe en el Editor y en Development builds.
-    [System.Diagnostics.Conditional("UNITY_EDITOR"), System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
-    void ProcesarAtajoDebug()
-    {
-        if (Keyboard.current == null || !Keyboard.current.rKey.wasPressedThisFrame) return;
-        if (pilar == null)
-        {
-            Debug.LogWarning("[Hud] R: Pilar no encontrado (¿generación no completada?)");
-            return;
-        }
-
-        // Fuerza el inicio para que arena y torretas reaccionen al daño de prueba.
-        if (gameManager != null && !gameManager.juegoActivo)
-            gameManager.IniciarJuego();
-        pilar.RecibirDaño(DebugPilarDamage);
-        Debug.Log($"[Hud] R: Pilar dañado -> {pilar.PorcentajeVida:F0}% fase {pilar.faseActual}");
-    }
-
     Color ObtenerColorFase(int fase)
     {
         return fase switch
@@ -312,12 +279,10 @@ public class Hud : MonoBehaviour
 
     // ===== API PÚBLICA =====
 
+    /// <summary>Returns the variant display name only while it is active.</summary>
     public static string GetVariantDisplayName(bool variantIsActive, string semanticDisplayName)
     {
-        if (!variantIsActive || string.IsNullOrEmpty(semanticDisplayName))
-            return string.Empty;
-
-        return semanticDisplayName;
+        return VariantLabelFormatter.GetDisplayName(variantIsActive, semanticDisplayName);
     }
 
     /// <summary>Formats the variant label; only damage variants show their multiplier.</summary>
@@ -328,11 +293,7 @@ public class Hud : MonoBehaviour
     /// <returns>The label, or an empty string without a display name.</returns>
     public static string FormatVariantLabel(string displayName, bool multipliesDamage, float multiplier, float remainingSeconds)
     {
-        if (string.IsNullOrEmpty(displayName))
-            return string.Empty;
-
-        string prefix = multipliesDamage ? $"x{multiplier:F0} " : string.Empty;
-        return $"¡{prefix}{displayName}! {remainingSeconds:F0}s";
+        return VariantLabelFormatter.FormatLabel(displayName, multipliesDamage, multiplier, remainingSeconds);
     }
 
     /// <summary>Flashes every player's crosshair for a hit or kill.</summary>

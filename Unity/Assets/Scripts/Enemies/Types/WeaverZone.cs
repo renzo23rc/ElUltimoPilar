@@ -16,7 +16,7 @@ public class WeaverZone : MonoBehaviour
     private const float RadiusFromScaleRatio = 0.5f;
     private static readonly Color GizmoColor = new Color(0.6f, 0.2f, 1f, 0.3f);
 
-    public float dañoPorSegundo = 5f;
+    public float dañoPorSegundo = 3f;
     public float factorRalentizacion = 0.5f;
     public float duracion = 8f;
 
@@ -71,51 +71,34 @@ public class WeaverZone : MonoBehaviour
             }
         }
 
-        foreach (PlayerController player in playersDentro)
-        {
-            if (playersRalentizados.Add(player))
-            {
-                player.AplicarRalentizacion(this, factorRalentizacion, timer);
-            }
-        }
-
-        foreach (Enemy enemy in enemigosDentro)
-        {
-            if (enemigosRalentizados.Add(enemy))
-            {
-                enemy.AplicarRalentizacion(this, factorRalentizacion, timer);
-            }
-        }
-
-        playersRalentizados.RemoveWhere(player => ReleaseIfOutside(player, playersDentro));
-        enemigosRalentizados.RemoveWhere(enemy => ReleaseIfOutside(enemy, enemigosDentro));
+        SincronizarRalentizados(playersRalentizados, playersDentro);
+        SincronizarRalentizados(enemigosRalentizados, enemigosDentro);
     }
 
-    bool ReleaseIfOutside(PlayerController player, HashSet<PlayerController> inside)
+    // Ralentiza a quien entró y libera a quien salió; jugadores y enemigos comparten la regla.
+    void SincronizarRalentizados<T>(HashSet<T> ralentizados, HashSet<T> dentro) where T : Component, ISlowable
     {
-        if (player != null && inside.Contains(player))
+        foreach (T objetivo in dentro)
+        {
+            if (ralentizados.Add(objetivo))
+            {
+                objetivo.AplicarRalentizacion(this, factorRalentizacion, timer);
+            }
+        }
+
+        ralentizados.RemoveWhere(objetivo => ReleaseIfOutside(objetivo, dentro));
+    }
+
+    bool ReleaseIfOutside<T>(T objetivo, HashSet<T> dentro) where T : Component, ISlowable
+    {
+        if (objetivo != null && dentro.Contains(objetivo))
         {
             return false;
         }
 
-        if (player != null)
+        if (objetivo != null)
         {
-            player.QuitarRalentizacion(this);
-        }
-
-        return true;
-    }
-
-    bool ReleaseIfOutside(Enemy enemy, HashSet<Enemy> inside)
-    {
-        if (enemy != null && inside.Contains(enemy))
-        {
-            return false;
-        }
-
-        if (enemy != null)
-        {
-            enemy.QuitarRalentizacion(this);
+            objetivo.QuitarRalentizacion(this);
         }
 
         return true;
@@ -123,24 +106,21 @@ public class WeaverZone : MonoBehaviour
 
     void RestaurarTodos()
     {
-        foreach (PlayerController player in playersRalentizados)
+        Liberar(playersRalentizados);
+        Liberar(enemigosRalentizados);
+    }
+
+    void Liberar<T>(HashSet<T> ralentizados) where T : Component, ISlowable
+    {
+        foreach (T objetivo in ralentizados)
         {
-            if (player != null)
+            if (objetivo != null)
             {
-                player.QuitarRalentizacion(this);
+                objetivo.QuitarRalentizacion(this);
             }
         }
 
-        foreach (Enemy enemy in enemigosRalentizados)
-        {
-            if (enemy != null)
-            {
-                enemy.QuitarRalentizacion(this);
-            }
-        }
-
-        playersRalentizados.Clear();
-        enemigosRalentizados.Clear();
+        ralentizados.Clear();
     }
 
     void OnDestroy()

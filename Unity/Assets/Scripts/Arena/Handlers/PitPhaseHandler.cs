@@ -2,47 +2,32 @@ using System.Collections;
 
 namespace UltimoPilar.Arena
 {
-
-/// <summary>Handles the central pit phase transition.</summary>
-public sealed class PitPhaseHandler : IArenaPhaseHandler
-{
-    private const int PitPhaseNumber = 2;
-
-    private readonly ArenaWarningPresenter warningPresenter;
-    private readonly ArenaPhaseEffects phaseEffects;
-
-    /// <summary>Initializes a central pit phase handler.</summary>
-    /// <param name="warningPresenter">The warning presenter for this transition.</param>
-    /// <param name="phaseEffects">The effect service for this transition.</param>
-    public PitPhaseHandler(ArenaWarningPresenter warningPresenter, ArenaPhaseEffects phaseEffects)
+    /// <summary>Handles the central pit phase transition.</summary>
+    public sealed class PitPhaseHandler : ArenaPhaseHandler
     {
-        this.warningPresenter = warningPresenter;
-        this.phaseEffects = phaseEffects;
-    }
+        private const int PitPhaseNumber = 2;
 
-    /// <inheritdoc />
-    public int Phase => PitPhaseNumber;
-
-    /// <inheritdoc />
-    public IEnumerator Warn(float durationSeconds)
-    {
-        if (warningPresenter == null)
+        /// <summary>Initializes the central pit phase handler.</summary>
+        /// <param name="warningPresenter">The warning presenter for this transition.</param>
+        /// <param name="phaseEffects">The effect service for this transition.</param>
+        public PitPhaseHandler(ArenaWarningPresenter warningPresenter, ArenaPhaseEffects phaseEffects)
+            : base(warningPresenter, phaseEffects)
         {
-            yield break;
         }
 
-        yield return warningPresenter.PresentPitWarning(durationSeconds);
-    }
+        /// <inheritdoc />
+        public override int Phase => PitPhaseNumber;
 
-    /// <inheritdoc />
-    public IEnumerator Activate()
-    {
-        if (phaseEffects == null)
+        /// <inheritdoc />
+        protected override IEnumerator PresentWarning(ArenaWarningPresenter presenter, float durationSeconds)
         {
-            yield break;
+            return presenter.PresentPitWarning(durationSeconds);
         }
 
-        yield return phaseEffects.ActivatePit();
+        /// <inheritdoc />
+        protected override IEnumerator ActivateEffects(ArenaPhaseEffects effects)
+        {
+            return effects.ActivatePit();
+        }
     }
-}
 }

@@ -253,8 +253,8 @@ public sealed class PlayerHud : MonoBehaviour
         ammoText.text = weapon.municionMaxima < 0 ? "∞" : $"{weapon.municionActual}/{weapon.municionMaxima}";
         weaponText.text = weapon.nombre;
 
-        string displayName = Hud.GetVariantDisplayName(weapons.VarianteActiva, weapons.ActiveVariantDisplayName);
-        variantText.text = Hud.FormatVariantLabel(
+        string displayName = VariantLabelFormatter.GetDisplayName(weapons.VarianteActiva, weapons.ActiveVariantDisplayName);
+        variantText.text = VariantLabelFormatter.FormatLabel(
             displayName,
             weapons.VariantMultipliesDamage,
             weapons.multiplicadorVariante,

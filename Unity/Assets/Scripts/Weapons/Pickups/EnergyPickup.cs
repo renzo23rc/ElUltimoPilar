@@ -9,8 +9,6 @@ using UnityEngine;
 
 public class EnergyPickup : MonoBehaviour
 {
-    private static readonly float FullCircleRadians = Mathf.PI * 2f;
-
     [Header("Configuración")]
     public float cantidad = 2f;
     public float velocidadRotacion = 100f;
@@ -26,20 +24,14 @@ public class EnergyPickup : MonoBehaviour
     void Start()
     {
         posicionInicial = transform.position;
-        tiempo = Random.Range(0f, FullCircleRadians);
+        tiempo = PickupMotion.RandomPhase();
     }
 
     void Update()
     {
         tiempo += Time.deltaTime;
-        
-        // Rotación
-        transform.Rotate(Vector3.up, velocidadRotacion * Time.deltaTime);
-        
-        // Levitación
-        float y = posicionInicial.y + Mathf.Sin(tiempo * velocidadLevitacion) * alturaLevitacion;
-        transform.position = new Vector3(transform.position.x, y, transform.position.z);
-        
+        PickupMotion.SpinAndBob(transform, posicionInicial.y, tiempo, velocidadRotacion, velocidadLevitacion, alturaLevitacion);
+
         // Atracción hacia jugador cercano
         AtraccionJugador();
     }
@@ -74,11 +66,7 @@ public class EnergyPickup : MonoBehaviour
             }
             
             // Si está en pool, liberar en vez de Destroy
-            var pooled = GetComponent<PooledObject>();
-            if (pooled != null && !string.IsNullOrEmpty(pooled.poolKey) && PoolManager.Instance != null)
-                PoolManager.Instance.Release(pooled.poolKey, gameObject);
-            else
-                Destroy(gameObject);
+            PoolManager.ReleaseOrDestroy(gameObject);
         }
     }
 
@@ -90,13 +78,8 @@ public class EnergyPickup : MonoBehaviour
         var col = GetComponent<SphereCollider>();
         if (col != null) col.isTrigger = true;
         // Asegurar que trigger funcione con CharacterController (necesita Rigidbody en trigger)
-        var rb = GetComponent<Rigidbody>();
-        if (rb == null)
-        {
-            rb = gameObject.AddComponent<Rigidbody>();
-            rb.isKinematic = true;
-            rb.useGravity = false;
-        }
+        if (GetComponent<Rigidbody>() == null)
+            PickupMotion.EnsureKinematicBody(gameObject);
     }
 
     void OnTriggerStay(Collider other)

@@ -9,7 +9,7 @@ using System;
 public class WeaponVariantPickup : MonoBehaviour
 {
     private const float MinimumHorizontalDirectionSqr = 0.001f;
-    private static readonly float FullCircleRadians = Mathf.PI * 2f;
+    private const string EmissionColorProperty = "_EmissionColor";
     private static readonly Color PickupColor = new Color(1f, 0.55f, 0.1f);
     private static readonly Color PickupEmissionColor = new Color(1f, 0.4f, 0f) * 0.8f;
 
@@ -38,13 +38,13 @@ public class WeaponVariantPickup : MonoBehaviour
     void Start()
     {
         posicionInicial = transform.position;
-        tiempo = UnityEngine.Random.Range(0f, FullCircleRadians);
+        tiempo = PickupMotion.RandomPhase();
         var rend = GetComponent<Renderer>();
         if (rend != null)
         {
             rend.material.color = PickupColor;
-            if (rend.material.HasProperty("_EmissionColor"))
-                rend.material.SetColor("_EmissionColor", PickupEmissionColor);
+            if (rend.material.HasProperty(EmissionColorProperty))
+                rend.material.SetColor(EmissionColorProperty, PickupEmissionColor);
         }
     }
 
@@ -58,9 +58,7 @@ public class WeaponVariantPickup : MonoBehaviour
     void Update()
     {
         tiempo += Time.deltaTime;
-        transform.Rotate(Vector3.up, velocidadRotacion * Time.deltaTime);
-        float y = posicionInicial.y + Mathf.Sin(tiempo * velocidadLevitacion) * alturaLevitacion;
-        transform.position = new Vector3(transform.position.x, y, transform.position.z);
+        PickupMotion.SpinAndBob(transform, posicionInicial.y, tiempo, velocidadRotacion, velocidadLevitacion, alturaLevitacion);
         AtraerHaciaJugador();
     }
 
@@ -70,18 +68,7 @@ public class WeaponVariantPickup : MonoBehaviour
         if (col == null) col = gameObject.AddComponent<SphereCollider>();
         col.isTrigger = true;
         if (radioTrigger > 0f) col.radius = radioTrigger;
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb == null)
-        {
-            rb = gameObject.AddComponent<Rigidbody>();
-            rb.isKinematic = true;
-            rb.useGravity = false;
-        }
-        else
-        {
-            rb.isKinematic = true;
-            rb.useGravity = false;
-        }
+        PickupMotion.EnsureKinematicBody(gameObject);
     }
 
     void AtraerHaciaJugador()

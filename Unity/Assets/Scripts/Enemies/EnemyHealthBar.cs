@@ -3,34 +3,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UI;
 
-internal static class EnemyHealthFraction
-{
-    private const float EmptyFraction = 0f;
-    private const float FullFraction = 1f;
-
-    public static float Calculate(float currentHealth, float maximumHealth)
-    {
-        if (!IsValidMaximum(maximumHealth) || float.IsNaN(currentHealth) || currentHealth <= EmptyFraction)
-        {
-            return EmptyFraction;
-        }
-
-        if (currentHealth >= maximumHealth)
-        {
-            return FullFraction;
-        }
-
-        return Mathf.Clamp01(currentHealth / maximumHealth);
-    }
-
-    private static bool IsValidMaximum(float maximumHealth)
-    {
-        return !float.IsNaN(maximumHealth)
-            && !float.IsInfinity(maximumHealth)
-            && maximumHealth > EmptyFraction;
-    }
-}
-
 /// <summary>
 /// World-space health bar above an enemy. It faces every camera right before that camera renders,
 /// so it reads correctly in split-screen without searching for cameras each frame.

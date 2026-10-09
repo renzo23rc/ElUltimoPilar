@@ -128,3 +128,6 @@ ServerData
 *.ulf
 
 .superpowers/
+
+# Notas de trabajo propias (no son documentación del proyecto)
+Documentacion/animar-personajes.md

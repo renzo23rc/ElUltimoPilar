@@ -1,7 +1,7 @@
 /**
  * GameManager.cs
- * Controla el flujo de la partida: oleadas, estado del juego,
- * victoria/derrota, y comunicación entre sistemas.
+ * Hub de la partida: traduce el modelo puro (MatchFlow, PlayerRoster, MatchResult,
+ * WaveIntermission) a la escena, coordina oleadas, jugadores y el resultado final.
  *
  * Colocar en un GameObject vacío "GameManager" en la escena.
  */
@@ -58,6 +58,8 @@ public class GameManager : MonoBehaviour
     private MatchFlow matchFlow;
     private PlayerRoster<PlayerController> playerRoster;
     private ArenaTransform arenaTransform;
+    private Pilar pilarSuscrito;
+    private readonly WaveIntermission intermedioOleada = new WaveIntermission();
     private readonly HashSet<PlayerController> jugadoresSuscritos = new HashSet<PlayerController>();
 
     /// <summary>Gets the registered players.</summary>
@@ -83,9 +85,7 @@ public class GameManager : MonoBehaviour
     /// <summary>Raised when a player is unregistered.</summary>
     public event Action<PlayerController> OnPlayerUnregistered;
 
-    private float timerEntreOleadas = 0f;
     private int ultimoFrameDePausa = -1;
-    private bool esperandoOleada = false;
 
     void Awake()
     {
@@ -135,6 +135,7 @@ public class GameManager : MonoBehaviour
             Debug.LogError("[GameManager] No se encontró el Pilar en la escena.");
             return;
         }
+        SuscribirPilar();
         if (spawner == null)
         {
             Debug.LogWarning("[GameManager] No se encontró el Spawner. Las oleadas no funcionarán.");
@@ -171,14 +172,10 @@ public class GameManager : MonoBehaviour
         if (!juegoActivo) return;
         if (juegoPausado) return;
 
-        if (esperandoOleada)
+        if (intermedioOleada.IsWaiting)
         {
-            timerEntreOleadas -= Time.deltaTime;
-            if (timerEntreOleadas <= 0)
-            {
-                esperandoOleada = false;
+            if (intermedioOleada.Tick(Time.deltaTime))
                 IniciarSiguienteOleada();
-            }
         }
         else if (spawner != null && !spawner.OleadaEnProgreso && spawner.EnemigosVivos == 0)
         {
@@ -209,8 +206,7 @@ public class GameManager : MonoBehaviour
         matchFlow.Reset();
         CurrentResult = null;
         esperandoInputInicial = false;
-        esperandoOleada = false;
-        timerEntreOleadas = 0f;
+        intermedioOleada.Cancel();
 
         if (spawner == null)
             spawner = FindFirstObjectByType<EnemySpawner>();
@@ -220,17 +216,39 @@ public class GameManager : MonoBehaviour
         // Detener actores de la partida antes de restaurar sus fuentes de estado.
         spawner?.LimpiarTodos();
         arenaTransform?.ResetState();
+        SuscribirPilar();
         pilar?.RestaurarVida();
 
-        // El roster y sus suscripciones sobreviven al reinicio; solo se reinicia su estado propio.
+        // El roster y sus suscripciones sobreviven al reinicio; cada jugador reinicia sus propios sistemas.
         foreach (var jugadorRegistrado in Players)
         {
-            if (jugadorRegistrado == null) continue;
-
-            jugadorRegistrado.ResetState();
-            jugadorRegistrado.GetComponent<WeaponSystem>()?.ResetState();
-            jugadorRegistrado.GetComponent<EnergySystem>()?.ResetState();
+            if (jugadorRegistrado != null)
+                jugadorRegistrado.ResetState();
         }
+    }
+
+    void SuscribirPilar()
+    {
+        if (pilar == pilarSuscrito) return;
+
+        DesuscribirPilar();
+        pilarSuscrito = pilar;
+        if (pilarSuscrito != null)
+            pilarSuscrito.OnVidaCambiada += OnVidaPilarCambiada;
+    }
+
+    void DesuscribirPilar()
+    {
+        if (pilarSuscrito != null)
+            pilarSuscrito.OnVidaCambiada -= OnVidaPilarCambiada;
+        pilarSuscrito = null;
+    }
+
+    // El Pilar solo informa su vida; decidir la derrota es responsabilidad de la partida.
+    void OnVidaPilarCambiada(float vidaActual)
+    {
+        if (pilarSuscrito != null && !pilarSuscrito.EstaVivo)
+            Derrota();
     }
 
     /// <summary>Pauses the active match.</summary>
@@ -295,8 +313,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            esperandoOleada = true;
-            timerEntreOleadas = tiempoEntreOleadas;
+            intermedioOleada.Begin(tiempoEntreOleadas);
         }
     }
 
@@ -464,7 +481,7 @@ public class GameManager : MonoBehaviour
 
         if (jugador != player) return;
         if (EstadoActual != MatchState.WaitingToStart || !esperandoInputInicial) return;
-        if (!DetectarInputInicio(command)) return;
+        if (!MatchStartInputPolicy.IsStartInput(command, NoInputLookThreshold)) return;
 
         esperandoInputInicial = false;
         IniciarJuego();
@@ -485,20 +502,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    bool DetectarInputInicio(PlayerCommand command)
-    {
-        if (command.MoveX != 0f || command.MoveY != 0f)
-            return true;
-        if (new Vector2(command.LookX, command.LookY).magnitude > NoInputLookThreshold)
-            return true;
-        return command.Jump || command.Fire;
-    }
-
     void OnDestroy()
     {
         foreach (var jugador in new List<PlayerController>(jugadoresSuscritos))
             DesuscribirEventosJugador(jugador);
         jugadoresSuscritos.Clear();
+        DesuscribirPilar();
 
         if (Instance == this)
         {

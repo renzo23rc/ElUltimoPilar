@@ -1,24 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UltimoPilar.Core.Shared;
 
 namespace UltimoPilar.Core.Pilar
 {
     /// <summary>Creates, configures, and cleans up Pilar emergency turrets.</summary>
     public sealed class PilarTurretSpawner
 {
-    private const float FallbackWidthMeters = 1.4f;
-    private const float FallbackHeightMeters = 2.2f;
-    private const float DefaultEmissionMultiplier = 1f;
-    private const float FallbackColorRed = 1f;
-    private const float FallbackColorGreen = 0.85f;
-    private const float FallbackColorBlue = 0.1f;
-    private const float FallbackLightRangeMeters = 6f;
-    private const float FallbackLightIntensity = 2f;
-    private const float SpawnPointForwardMeters = 0.8f;
-    private const float SpawnPointHeightMeters = 0.6f;
-    private const float FirePointHeightMeters = 1.3f;
-
     private readonly List<GameObject> spawnedTurrets = new List<GameObject>();
     private readonly float spawnHeightMeters;
     private readonly float rangeMeters;
@@ -124,47 +111,8 @@ namespace UltimoPilar.Core.Pilar
 
     private GameObject CreateFallback(Transform point)
     {
-        GameObject turret = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        turret.transform.position = new Vector3(point.position.x, spawnHeightMeters, point.position.z);
-        turret.transform.rotation = point.rotation;
-        turret.transform.localScale = new Vector3(FallbackWidthMeters, FallbackHeightMeters, FallbackWidthMeters);
-        ConfigureFallbackVisuals(turret);
-        ConfigureFallbackComponent(turret);
-        return turret;
-    }
-
-    private void ConfigureFallbackVisuals(GameObject turret)
-    {
-        Color color = new Color(FallbackColorRed, FallbackColorGreen, FallbackColorBlue);
-        OwnedMaterialCleanup.Assign(
-            turret.GetComponent<Renderer>(),
-            RuntimeMaterialFactory.CreateLit(color, DefaultEmissionMultiplier));
-
-        var light = turret.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.color = color;
-        light.range = FallbackLightRangeMeters;
-        light.intensity = FallbackLightIntensity;
-    }
-
-    private void ConfigureFallbackComponent(GameObject turret)
-    {
-        // El cubo primitivo ya trae BoxCollider: se reutiliza en vez de destruirlo y recrearlo.
-        if (!turret.TryGetComponent(out BoxCollider collider))
-            collider = turret.AddComponent<BoxCollider>();
-        collider.isTrigger = false;
-        collider.center = Vector3.zero;
-        collider.size = Vector3.one;
-
-        Torreta turretComponent = turret.AddComponent<Torreta>();
-
-        GameObject firePoint = new GameObject("PuntoDisparo");
-        firePoint.transform.SetParent(turret.transform);
-        firePoint.transform.localPosition = Vector3.forward * SpawnPointForwardMeters
-            + Vector3.up * FirePointHeightMeters;
-        firePoint.transform.localRotation = Quaternion.identity;
-        firePoint.transform.localScale = Vector3.one;
-        turretComponent.puntoDisparo = firePoint.transform;
+        Vector3 position = new Vector3(point.position.x, spawnHeightMeters, point.position.z);
+        return TurretFallbackFactory.Create(position, point.rotation);
     }
 }
 }

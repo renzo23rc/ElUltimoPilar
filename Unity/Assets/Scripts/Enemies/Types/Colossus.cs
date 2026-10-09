@@ -10,8 +10,8 @@ public class Colossus : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 0.9f;
     private const float MaximumHealth = 180f;
-    private const float PilarDamage = 22f;
-    private const float PlayerDamage = 18f;
+    private const float PilarDamage = 11f;
+    private const float PlayerDamage = 9f;
     private const int EnergyDropAmount = 20;
 
     [Header("Coloso Específico")]
@@ -42,8 +42,7 @@ public class Colossus : Enemy
             return;
         }
 
-        Vector3 direccion = pilarObjetivo.transform.position - transform.position;
-        direccion.y = 0;
+        Vector3 direccion = OffsetToPilar();
         float distancia = direccion.magnitude;
 
         if (distancia <= rangoAtaque)

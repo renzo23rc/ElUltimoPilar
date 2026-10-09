@@ -6,6 +6,7 @@ using UnityEngine;
 /// </summary>
 public class PooledObject : MonoBehaviour
 {
+    /// <summary>The key of the pool this object returns to.</summary>
     public string poolKey;
     private Coroutine releaseCo;
 
@@ -26,14 +27,7 @@ public class PooledObject : MonoBehaviour
     private IEnumerator ReleaseAfter(float delay)
     {
         yield return new WaitForSeconds(delay);
-        if (PoolManager.Instance != null && !string.IsNullOrEmpty(poolKey))
-        {
-            PoolManager.Instance.Release(poolKey, gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        PoolManager.ReleaseOrDestroy(gameObject);
     }
 
     private void OnDisable()

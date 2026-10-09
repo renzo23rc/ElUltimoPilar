@@ -9,7 +9,7 @@ public class Runner : Enemy
 {
     private const float MovementSpeedMetersPerSecond = 3.5f;
     private const float MaximumHealth = 20f;
-    private const float PilarDamage = 8f;
+    private const float PilarDamage = 4f;
     private const int EnergyDropAmount = 2;
 
     [Header("Runner Específico")]
@@ -67,8 +67,7 @@ public class Runner : Enemy
             return;
         }
 
-        Vector3 direccion = pilarObjetivo.transform.position - transform.position;
-        direccion.y = 0;
+        Vector3 direccion = OffsetToPilar();
         float distancia = direccion.magnitude;
 
         if (distancia > rangoAtaque)

@@ -10,6 +10,24 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 - `Unity/Assets/Scripts/Arena/`: transformaciones y reglas específicas de la arena.
 - `Unity/Assets/Scripts/Enemies/`: enemigos, spawner y comportamiento del Enjambre.
 - `Unity/Assets/Scripts/Weapons/`: armas, energía y pickups.
+
+### Mapa de carpetas por feature
+
+| Carpeta | Contenido |
+|---|---|
+| `Core/Audio/` | `AudioAdapter` (suscripción y reproducción; usa clips de `Resources/Audio/Armas` con respaldo procedural), `PhaseMusicPlayer` (música en bucle por fase del Pilar, `Resources/Audio/Musica`), `ProceduralSfxSynthesizer` (muestras puras), `CombatFeedback`. |
+| `Core/Combat/` | `DamageRequest`, `IDamageable`, `ISlowable`, `SlowdownTracker`. |
+| `Core/Game/` | `GameManager`, `TestSceneSetup`; `TestScene/` con `TestSceneArenaBuilder`, `TestScenePlayerBuilder` y `TestScenePrefabFactory`. |
+| `Core/Hud/` | `Hud`, `PlayerHud`, `HudUiFactory`, `MatchShortcuts`. |
+| `Core/Match/` | `MatchFlow`, `MatchState`, `MatchResult`, `ScorePolicy`, `MatchStartInputPolicy`, `WaveIntermission`. |
+| `Core/Pilar/` | `Pilar`, `PilarHealthSnapshot`, `Torreta`; `Phases/`, `Presentation/`, `Spawning/` (`PilarTurretSpawner`, `TurretFallbackFactory`). |
+| `Core/Player/` | `PlayerController`, `PlayerLocator`, `MuzzleTransformResolver`; `Movement/` (`PlayerMotor`, `PlayerCameraLook`, `PlayerMovementSettings`), `Input/`, `Coop/`, `Roles/`. |
+| `Core/Shared/` | Pool, materiales runtime, overlaps, flash, relleno de barras. |
+| `Enemies/` | `Enemy`, `EnemyGrowl` (gruñido espacial por tipo, `Resources/Audio/Enemigos`), `EnemyHealthBar`, `EnemyHealthFraction`; `Types/` (subclases y `WeaverZone`), `Waves/` (`EnemySpawner`, `SpawnZone` y `SpawnZoneSelector` para las zonas de aparición configurables, `WaveDifficultyScaler`, `WaveEnemySelector`, `WaveEnemyType`, `AutomaticWaveConfigFactory`), `Projectiles/` (`Projectile`, `ProjectileFactory`). |
+| `Weapons/` | `WeaponSystem`, `WeaponAim`, `KnockbackMath`, `EnergySystem`; `Variants/`, `Pickups/`, `Vfx/`. |
+| `Arena/` | `ArenaTransform`; `State/`, `Handlers/` (base `ArenaPhaseHandler` + Pit/Gravity/Emergency + catálogo), `Effects/`, `Hazards/` (`PozoKill`, `ZonaGravedadEffect`). |
+
+Los scripts se movieron siempre junto con su `.meta`, por lo que escenas y prefabs conservan sus referencias.
 - `Unity/Assets/Tests/PlayMode/` (futuro): pruebas de integración con escenas y tiempo.
 - `Unity/Assets/Tests/Editor/`: pruebas EditMode para código puro.
 - `Unity/Assets/Tests/Scenes/` y `Prefabs/`: composición y configuración de Unity, no reglas de dominio.
@@ -25,19 +43,21 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 
 ## Frontera gradual de daño
 
-`DamageRequest` e `IDamageable` son tipos puros y no dependen de `UnityEngine`. En esta primera etapa, `Enemy` actúa como adaptador receptor explícito y `WeaponSystem` como primer adaptador llamador para los impactos existentes. La API pública `RecibirDaño(float)` se conserva como compatibilidad y mantiene el dispatch virtual de las subclases.
+`DamageRequest` e `IDamageable` son tipos puros y no dependen de `UnityEngine`. `Enemy`, `Pilar`, `PlayerController` y `Torreta` implementan `IDamageable` de forma explícita; `WeaponSystem` y `Projectile` son los llamadores que ya no distinguen el tipo concreto del objetivo (el proyectil solo usa un monto distinto para jugadores). La API pública `RecibirDaño(float)` se conserva como compatibilidad y mantiene el dispatch virtual de las subclases. En `Enemy`, las subclases ajustan el daño con los ganchos `PuedeRecibirDaño` y `AlQuedarSinVida` (por ejemplo, `Explosive` detona en lugar de morir) en vez de reescribir `RecibirDaño`.
+
+`ISlowable` agrupa `AplicarRalentizacion`/`QuitarRalentizacion` por fuente; `Enemy` y `PlayerController` lo implementan y `WeaverZone` aplica una sola regla a ambos.
 
 `DamageRequest` solo transporta `Amount` y preserva sus valores. Todavía no se agrega atribución de origen ni se incorporan reglas de facción, validación o semántica de muerte instantánea. La migración de otros receptores y llamadores queda diferida para una etapa posterior.
 
 ## Frontera de resultado de partida
 
-`GameManager.CurrentResult` es nulo antes de un resultado terminal y después de cada reinicio o nuevo inicio. Cuando `MatchFlow` acepta una transición terminal, `GameManager` captura el estado factual del Pilar y publica `OnMatchResult` una sola vez, sin retirar ni cambiar las firmas existentes de `OnVictoria` y `OnDerrota`. La derrota puede producirse porque el Pilar llega a cero o porque todos los jugadores registrados están derribados; el resultado no expone una causa. Si el Pilar falta o sus valores son inválidos, se registra el problema, se conservan la transición y los eventos existentes, y no se publica un resultado incompleto.
+`GameManager.CurrentResult` es nulo antes de un resultado terminal y después de cada reinicio o nuevo inicio. Cuando `MatchFlow` acepta una transición terminal, `GameManager` captura el estado factual del Pilar y publica `OnMatchResult` una sola vez, sin retirar ni cambiar las firmas existentes de `OnVictoria` y `OnDerrota`. El `Pilar` no conoce al `GameManager`: solo publica `OnVidaCambiada` y expone `EstaVivo`; el `GameManager` se suscribe y declara la derrota. La derrota puede producirse porque el Pilar llega a cero o porque todos los jugadores registrados están derribados; el resultado no expone una causa. Si el Pilar falta o sus valores son inválidos, se registra el problema, se conservan la transición y los eventos existentes, y no se publica un resultado incompleto.
 
 `RemainingPercentage` describe la salud factual en escala 0–100 y `RemainingRatio` la expresa entre 0 y 1; ninguno es un puntaje. `ScorePolicy` toma el porcentaje factual, lo limita a 0–100 y lo redondea al entero más cercano con los puntos medios hacia arriba. `MatchResult.Score` conserva ese valor calculado junto con el snapshot factual.
 
 ## Reinicio determinista de estado propio
 
-`GameManager` centraliza el reinicio compartido por `ReiniciarJuego()` y el nuevo inicio. `Start` prepara ese estado una sola vez; si el inicio espera input, `IniciarJuego()` lo reutiliza y no repite la limpieza. Los reinicios y nuevos partidos posteriores a un estado previo vuelven a ejecutar la misma secuencia. Antes de iniciar la oleada 1 restaura `Time.timeScale`, reinicia `MatchFlow`, resultado, temporizadores y flags, limpia `EnemySpawner`, detiene y reinicia `ArenaTransform`, restaura `Pilar` y sus torretas dinámicas, y finalmente reinicia jugadores, armas y energía. El roster y las suscripciones se conservan. Cada `PlayerController` captura su punto de aparición (posición y rotación) al despertar; el reinicio lo devuelve ahí, y una caída al pozo lo deja derribado en ese mismo punto, fuera del pozo, para que un aliado pueda reanimarlo.
+`GameManager` centraliza el reinicio compartido por `ReiniciarJuego()` y el nuevo inicio. `Start` prepara ese estado una sola vez; si el inicio espera input, `IniciarJuego()` lo reutiliza y no repite la limpieza. Los reinicios y nuevos partidos posteriores a un estado previo vuelven a ejecutar la misma secuencia. Antes de iniciar la oleada 1 restaura `Time.timeScale`, reinicia `MatchFlow`, resultado, temporizadores y flags, limpia `EnemySpawner`, detiene y reinicia `ArenaTransform`, restaura `Pilar` y sus torretas dinámicas, y finalmente reinicia jugadores; cada `PlayerController.ResetState()` reinicia su propio `WeaponSystem` y `EnergySystem`. La espera entre oleadas es un `WaveIntermission` puro y el input que inicia la partida lo decide `MatchStartInputPolicy`. El roster y las suscripciones se conservan. Cada `PlayerController` captura su punto de aparición (posición y rotación) al despertar; el reinicio lo devuelve ahí, y una caída al pozo lo deja derribado en ese mismo punto, fuera del pozo, para que un aliado pueda reanimarlo.
 
 `WeaponSystem` es la fuente de verdad de la munición configurada; al reiniciar repone sus armas base, sincroniza las representaciones heredadas de `PlayerController` y libera el cooldown. El reinicio no realiza limpieza global de proyectiles, pickups ni `WeaverZones` sin un propietario coordinado; esa limpieza queda diferida a una slice posterior.
 
@@ -49,7 +69,13 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 - `RendererFlash` (`Core/Shared`): el flash de daño usa un property block y nunca pisa el color del material.
 - `UiFill` (`Core/Shared`): aplica el relleno de barras, también en imágenes sin sprite, donde `fillAmount` no tiene efecto.
 - `PlayerLocator` y `MuzzleTransformResolver` (`Core/Player`): búsqueda del jugador más cercano y del punto de disparo, compartidas por enemigos, pickups, reanimación y armas.
-- `Enemy.Active`: registro de enemigos habilitados; torretas y pozo lo consultan en lugar de buscar en la escena cada frame.
+- `Enemy.Active` y `Torreta.Active`: registros de enemigos y torretas habilitados; torretas, pozo y enemigos los consultan en lugar de buscar en la escena cada frame.
+- `PoolManager.Spawn` y `PoolManager.ReleaseOrDestroy`: único punto para "pedir al pool o instanciar" y "devolver al pool o destruir"; `Projectile.ConfigurarDaño` fija el daño y programa la devolución.
+- `ProjectileFactory` y `TurretFallbackFactory`: proyectil y torreta procedurales de respaldo, compartidos por `TestSceneSetup`, `Torreta` y `PilarTurretSpawner`.
+- `PickupMotion` (`Weapons/Pickups`): giro, levitación y cuerpo kinemático compartidos por los pickups.
+- `PlayerMotor` y `PlayerCameraLook` (`Core/Player/Movement`): movimiento, gravedad, salto, zona de gravedad, mirada y FOV del jugador; `PlayerController` los coordina y conserva la vida, el derribo y la ralentización.
+- `WeaponAim`, `KnockbackMath` y `WeaponVariantCatalog` (`Weapons`): puntería con exclusión del propio cuerpo, empuje y catálogo de variantes; `WeaponSystem` conserva sus firmas públicas y delega.
+- `WaveEnemySelector` y `AutomaticWaveConfigFactory` (`Enemies/Waves`): elección del próximo enemigo y curva automática de oleadas, puras y con pruebas EditMode.
 - `TestSceneSetup` configura copias de escena de los prefabs de `Resources` bajo un contenedor inactivo (`PlantillasRuntime`); nunca modifica los assets.
 
 ## Estándar de implementación
@@ -62,7 +88,7 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 
 ## Límites de input, UI y audio
 
-`GameManager` expone operaciones de flujo y estado de solo lectura. La UI muestra ese estado y solicita comandos, pero no asigna campos internos. `PlayerController` ya resuelve su `PlayerInputAdapter`, lee un único `PlayerCommand` por frame y publica `OnCommandIssued`; `WeaponSystem` consume ese mismo snapshot para disparo y selección de arma, y `GameManager` usa el evento nombrado del jugador primario para el inicio. `TestSceneSetup` compone el jugador primario inactivo, clona una plantilla inactiva, configura `PlayerJoinCoordinator` y `SplitScreenCameraCoordinator`, y activa únicamente al primario al terminar la composición. Las cámaras se enlazan por referencias explícitas y permanecen sin tag `MainCamera`. `Hud` es el HUD definitivo: filas por jugador, overlays de inicio/pausa/resultado con puntaje, crosshair con flash y timer de variante. `CombatFeedback` centraliza shake por jugador y hitstop; `AudioAdapter` sintetiza efectos procedurales desde eventos; `Enemy` y `EnergyPickup` resuelven al jugador registrado más cercano. Quedan diferidos hotplug, lobby, HUD por jugador separado y el cambio de arma con rueda del mouse. Audio reaccionará a eventos de dominio/aplicación y no decidirá transiciones.
+`GameManager` expone operaciones de flujo y estado de solo lectura. La UI muestra ese estado y solicita comandos, pero no asigna campos internos. `PlayerController` ya resuelve su `PlayerInputAdapter`, lee un único `PlayerCommand` por frame y publica `OnCommandIssued`; `WeaponSystem` consume ese mismo snapshot para disparo y selección de arma, y `GameManager` usa el evento nombrado del jugador primario para el inicio. `TestSceneSetup` compone el jugador primario inactivo, clona una plantilla inactiva, configura `PlayerJoinCoordinator` y `SplitScreenCameraCoordinator`, y activa únicamente al primario al terminar la composición. Las cámaras se enlazan por referencias explícitas y permanecen sin tag `MainCamera`. `Hud` es el HUD definitivo: filas por jugador, overlays de inicio/pausa/resultado con puntaje, crosshair con flash y timer de variante. `CombatFeedback` centraliza shake por jugador y hitstop; `AudioAdapter` reproduce efectos procedurales desde eventos (las muestras las genera `ProceduralSfxSynthesizer`); `MatchShortcuts` resuelve Enter (reiniciar) y la tecla de depuración R fuera del `Hud`; `Enemy` y `EnergyPickup` resuelven al jugador registrado más cercano. Quedan diferidos hotplug, lobby, HUD por jugador separado y el cambio de arma con rueda del mouse. Audio reaccionará a eventos de dominio/aplicación y no decidirá transiciones.
 
 ## Pruebas
 

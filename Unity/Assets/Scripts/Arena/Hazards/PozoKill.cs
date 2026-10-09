@@ -122,7 +122,7 @@ public class PozoKill : MonoBehaviour
     void MatarJugador(PlayerController player)
     {
         if (player.estaDerribado) return;
-        player.CaerEnPozo(transform.position);
+        player.CaerEnPozo(transform.position, radioMortal);
     }
 
     void MatarColoso(Colossus colossus)

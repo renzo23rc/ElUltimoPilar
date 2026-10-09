@@ -10,7 +10,7 @@ using UltimoPilar.Core.Pilar;
  *
  * Colocar en el GameObject que representa al Pilar en el centro de la arena.
  */
-public class Pilar : MonoBehaviour
+public class Pilar : MonoBehaviour, IDamageable
 {
     private const float MinimumHealth = 0f;
     private const float PercentageScale = 100f;
@@ -26,13 +26,7 @@ public class Pilar : MonoBehaviour
     private const int TurretAmmo = 15;
     private const float TurretReloadSeconds = 10f;
     private const float TurretProjectileSpeedMetersPerSecond = 28f;
-    // Medidas solo para dibujar los gizmos del editor; no afectan al gameplay.
-    private const float TurretGizmoRadiusMeters = 25f;
-    private const float TurretGizmoWellRadiusMeters = 5f;
-    private const float TurretGizmoHeightMeters = 1.1f;
-    private const float TurretGizmoWidthMeters = 1.4f;
-    private const float TurretGizmoHeightSizeMeters = 2.2f;
-    private const float TurretGizmoDepthMeters = 1.4f;
+    private const float AimHeightAboveBaseMeters = 2f;
 
     [Header("Vida")]
     [Range(0, 100)]
@@ -52,18 +46,23 @@ public class Pilar : MonoBehaviour
     public Color colorFase3 = new Color(1f, 0.5f, 0f);
     public Color colorFase4 = Color.red;
 
+    [Tooltip("Tiñe el material con el color de la fase. Desactivar cuando el Pilar es un modelo con sus propios materiales.")]
+    [SerializeField] private bool tintByPhase = true;
+
     [Header("Torretas (Fase 4)")]
     // Flag para spawnear una sola vez al entrar en fase 4.
     public bool torretasActivas = false;
     public Transform[] puntosTorretas;
     public GameObject prefabTorreta;
 
-    // Eventos: la UI y el audio escuchan vida y daño; la Arena escucha los cambios de fase.
+    // Eventos: la UI y el audio escuchan vida y daño; la Arena escucha los cambios de fase;
+    // el GameManager escucha la vida para declarar la derrota (el Pilar no conoce al GameManager).
     public event Action<float> OnVidaCambiada;
     public event Action<int> OnFaseCambiada;
     public event Action<float> OnDañoRecibido;
 
     private Renderer rend;
+    private Collider body;
     // El constructor del spawner es puro (solo guarda valores), por eso se crea
     // acá: existe desde la construcción, incluso si RestaurarVida() corre antes del Start().
     private PilarTurretSpawner turretSpawner = new PilarTurretSpawner(
@@ -92,7 +91,7 @@ public class Pilar : MonoBehaviour
         {
             RestaurarVida();
         }
-    }   
+    }
 
     // Por frame: aplica los pasos de fase pendientes según la vida y suaviza el color.
     private void Update()
@@ -103,7 +102,10 @@ public class Pilar : MonoBehaviour
             ChangePhase(phase);
         }
 
-        EnsureVisualPresenter().Present(rend, faseActual, Time.deltaTime);
+        if (tintByPhase)
+        {
+            EnsureVisualPresenter().Present(rend, faseActual, Time.deltaTime);
+        }
     }
 
     // Aplica un paso de fase, avisa a la Arena y activa las torretas una sola vez al llegar a fase 4.
@@ -175,16 +177,15 @@ public class Pilar : MonoBehaviour
             return;
         }
 
-        // Resta con piso en cero y avisa a la UI (vida) y al audio (daño).
+        // Resta con piso en cero y avisa a la UI y al GameManager (vida) y al audio (daño).
         vidaActual = Mathf.Max(MinimumHealth, vidaActual - cantidad);
         OnVidaCambiada?.Invoke(vidaActual);
         OnDañoRecibido?.Invoke(cantidad);
+    }
 
-        // Sin vida: derrota.
-        if (vidaActual <= MinimumHealth)
-        {
-            GameManager.Instance?.Derrota();
-        }
+    void IDamageable.ReceiveDamage(DamageRequest request)
+    {
+        RecibirDaño(request.Amount);
     }
 
     /// <summary>Restores health, phase, turrets, and visual state to the initial phase.</summary>
@@ -198,7 +199,7 @@ public class Pilar : MonoBehaviour
         EnsurePhaseCoordinator().ResetTo(InitialPhase);
         OnVidaCambiada?.Invoke(vidaActual);
 
-        if (rend != null)
+        if (rend != null && tintByPhase)
         {
             rend.material.color = colorFase1;
         }
@@ -221,10 +222,56 @@ public class Pilar : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Gets the point enemies aim at: the Pilar's vertical axis at a fixed height above its base, so shots
+    /// are not aimed at the model's pivot, which can sit below the floor.
+    /// </summary>
+    public Vector3 AimPoint
+    {
+        get
+        {
+            Collider body = ResolveBody();
+            if (body == null)
+            {
+                return transform.position;
+            }
+
+            Bounds bounds = body.bounds;
+            return new Vector3(bounds.center.x, bounds.min.y + AimHeightAboveBaseMeters, bounds.center.z);
+        }
+    }
+
+    /// <summary>
+    /// Gets the horizontal vector from a point to the nearest point of the Pilar's surface, so reach is
+    /// measured from the edge of the model instead of its pivot. It is zero when the point touches the Pilar.
+    /// </summary>
+    /// <param name="origin">The world position to measure from.</param>
+    public Vector3 FlatOffsetFrom(Vector3 origin)
+    {
+        Collider body = ResolveBody();
+        Vector3 target = body != null ? body.ClosestPoint(origin) : transform.position;
+        Vector3 offset = target - origin;
+        offset.y = 0f;
+        return offset;
+    }
+
+    // Guarda el collider una sola vez; el modelo del Pilar puede traerlo en el mismo objeto.
+    private Collider ResolveBody()
+    {
+        if (body == null)
+        {
+            body = GetComponent<Collider>();
+        }
+
+        return body;
+    }
 
     /// <summary>Gets the current Pilar health.</summary>
     // Lectura para el GameManager (resultado de partida) y el Hud.
     public float VidaActual => vidaActual;
+
+    /// <summary>Gets whether the Pilar still has health left.</summary>
+    public bool EstaVivo => vidaActual > MinimumHealth;
 
     /// <summary>Gets the current health as a percentage.</summary>
     // Porcentaje 0-100 para la barra del Hud; protege contra división por cero.

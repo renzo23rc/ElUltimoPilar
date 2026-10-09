@@ -1,6 +1,6 @@
 # Unity Script Organization Proposal
 
-Status: proposal only. No file has been moved. This document maps the current flat `Unity/Assets/Scripts/Core/` folder (24 mixed files) to feature subfolders and states the migration risks. It becomes actionable only after explicit user approval.
+Status: applied. The feature folders below are live; the current full map is in `Documentacion/arquitectura-de-codigo.md` ("Mapa de carpetas por feature"). The rules and risks still apply to future moves.
 
 ## Why
 
@@ -13,14 +13,15 @@ New scripts land directly in the matching folder. Existing files move only with 
 | Folder | Files |
 | --- | --- |
 | `Core/Audio/` | `AudioAdapter.cs`, `CombatFeedback.cs` |
-| `Core/Game/` | `GameManager.cs`, `TestSceneSetup.cs`, `Hud.cs` |
+| `Core/Game/` | `GameManager.cs`, `TestSceneSetup.cs`, `TestScene/` builders |
+| `Core/Hud/` | `Hud.cs`, `PlayerHud.cs`, `HudUiFactory.cs`, `MatchShortcuts.cs` |
 | `Core/Match/` | `MatchFlow.cs`, `MatchState.cs`, `MatchResult.cs`, `ScorePolicy.cs` |
 | `Core/Pilar/` | `Pilar.cs`, `PilarHealthSnapshot.cs`, `Torreta.cs` |
-| `Core/Player/` | `PlayerController.cs`, `PlayerCommand.cs`, `PlayerInputAdapter.cs`, `IInputAdapter.cs`, `PlayerJoinCoordinator.cs`, `PlayerRoster.cs`, `IPlayerRosterMember.cs`, `SplitScreenCameraCoordinator.cs` |
+| `Core/Player/` | `PlayerController.cs`, `PlayerLocator.cs`, `MuzzleTransformResolver.cs`; `Movement/`, `Input/` (`PlayerCommand`, `IInputAdapter`, `PlayerInputAdapter`), `Coop/` (`PlayerJoinCoordinator`, `SplitScreenCameraCoordinator`, `PlayerRoster`, `IPlayerRosterMember`), `Roles/` |
 | `Core/Combat/` | `DamageRequest.cs`, `IDamageable.cs` |
 | `Core/Shared/` | `PoolManager.cs`, `PooledObject.cs` |
 
-`Enemies/`, `Weapons/`, `Arena/`, and `Editor/` stay as they are. `Enemies/` has several types but each enemy already owns its file, so no split is proposed there.
+`Enemies/` splits into `Types/`, `Waves/`, and `Projectiles/`; `Weapons/` into `Variants/`, `Pickups/`, and `Vfx/`; `Arena/` adds `Hazards/`. `Editor/` stays as it is.
 
 ## Placement rules for new scripts
 

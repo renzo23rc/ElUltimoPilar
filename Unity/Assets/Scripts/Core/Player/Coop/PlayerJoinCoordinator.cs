@@ -11,8 +11,8 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     private const string JoinActionName = "Join";
     private const string PlayerActionMapName = "Player";
     private const string GamepadControlSchemeName = "Gamepad";
-    private const int MinimumPlayerCapacity = 1;
-    private const int MaximumPlayerCapacity = 4;
+    private const int MinimumPlayerCapacity = PlayerRoster<PlayerController>.MinimumCapacity;
+    private const int MaximumPlayerCapacity = PlayerRoster<PlayerController>.MaximumCapacity;
     private const float SpawnHeightMeters = 1f;
     private const float SpawnRadiusMeters = 8f;
 
@@ -228,18 +228,8 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
 
         foreach (var player in gameManager.Players)
         {
-            if (player == null)
-                continue;
-
-            var playerInput = player.GetComponent<PlayerInput>();
-            if (playerInput == null)
-                continue;
-
-            for (var deviceIndex = 0; deviceIndex < playerInput.devices.Count; deviceIndex++)
-            {
-                if (playerInput.devices[deviceIndex] == gamepad)
-                    return true;
-            }
+            if (player != null && HasDevice(player.GetComponent<PlayerInput>(), gamepad))
+                return true;
         }
 
         return false;
@@ -293,14 +283,11 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
 
         foreach (var player in gameManager.Players)
         {
-            if (player == null || player.GetComponent<PlayerInput>() == playerInput)
+            if (player == null)
                 continue;
 
             var otherInput = player.GetComponent<PlayerInput>();
-            if (otherInput == null)
-                continue;
-
-            if (HasDevice(otherInput, gamepad))
+            if (otherInput != playerInput && HasDevice(otherInput, gamepad))
                 return false;
         }
 

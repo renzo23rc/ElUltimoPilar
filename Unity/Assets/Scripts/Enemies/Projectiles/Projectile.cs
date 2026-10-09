@@ -38,43 +38,34 @@ public class Projectile : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Sets the damage this shot deals and, when it comes from a pool, schedules its return.
+    /// </summary>
+    /// <param name="dañoObjetivos">The damage dealt to the Pilar, enemies, and turrets.</param>
+    /// <param name="dañoAJugadores">The damage dealt to players.</param>
+    public void ConfigurarDaño(float dañoObjetivos, float dañoAJugadores)
+    {
+        daño = dañoObjetivos;
+        dañoJugador = dañoAJugadores;
+        if (PoolManager.Instance != null && TryGetComponent(out PooledObject pooled))
+            pooled.ScheduleRelease(tiempoVida);
+    }
+
     void OnTriggerEnter(Collider other)
     {
         // Un proyectil impacta una sola vez aunque toque varios colliders en el mismo paso.
         if (impactado || other.GetComponentInParent<Projectile>() != null) return;
 
-        var pilar = other.GetComponentInParent<Pilar>();
-        if (pilar != null)
+        // Pilar, jugadores, enemigos y torretas reciben el daño por la misma frontera.
+        IDamageable objetivo = other.GetComponentInParent<IDamageable>();
+        if (objetivo != null)
         {
-            pilar.RecibirDaño(daño);
-            Impacto();
-            return;
-        }
-        
-        var player = other.GetComponentInParent<PlayerController>();
-        if (player != null)
-        {
-            player.RecibirDaño(dañoJugador);
-            Impacto();
-            return;
-        }
-        
-        var enemy = other.GetComponentInParent<Enemy>();
-        if (enemy != null)
-        {
-            enemy.RecibirDaño(daño);
+            float cantidad = objetivo is PlayerController ? dañoJugador : daño;
+            objetivo.ReceiveDamage(new DamageRequest(cantidad));
             Impacto();
             return;
         }
 
-        var torreta = other.GetComponentInParent<Torreta>();
-        if (torreta != null)
-        {
-            torreta.RecibirDaño(daño);
-            Impacto();
-            return;
-        }
-        
         // Impacto con cualquier otra cosa (pared, suelo, etc)
         if (!other.isTrigger)
         {
@@ -96,11 +87,7 @@ public class Projectile : MonoBehaviour
         if (destruirAlImpactar)
         {
             impactado = true;
-            var pooled = GetComponent<PooledObject>();
-            if (pooled != null && !string.IsNullOrEmpty(pooled.poolKey) && PoolManager.Instance != null)
-                PoolManager.Instance.Release(pooled.poolKey, gameObject);
-            else
-                Destroy(gameObject);
+            PoolManager.ReleaseOrDestroy(gameObject);
         }
     }
 }
