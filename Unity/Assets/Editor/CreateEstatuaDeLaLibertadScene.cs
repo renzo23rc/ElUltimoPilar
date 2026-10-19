@@ -127,6 +127,11 @@ public static class CreateEstatuaDeLaLibertadScene
             mapRoot.AddComponent<EstatuaPilarAnchor>();
         }
 
+        if (mapRoot.GetComponent<EstatuaPlayAreaLimiter>() == null)
+        {
+            mapRoot.AddComponent<EstatuaPlayAreaLimiter>();
+        }
+
         ConfigureMapPlacement(mapRoot);
 
         Transform statue = FindChildByName(mapRoot.transform, StatueChildName);

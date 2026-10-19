@@ -21,6 +21,9 @@ public class SpawnZone : MonoBehaviour
     [Tooltip("Altura sobre el Transform a la que aparecen los enemigos, en metros.")]
     [SerializeField, Min(0f)] private float spawnHeightMeters = DefaultSpawnHeightMeters;
 
+    /// <summary>Gets the local rectangle size in meters, before the Transform scale.</summary>
+    public Vector2 SizeMeters => sizeMeters;
+
     /// <summary>Gets the world-space area of the rectangle, used to weight the zone choice.</summary>
     public float Area
     {

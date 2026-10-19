@@ -25,7 +25,7 @@ public static class TestSceneArenaBuilder
     private const float BoundaryHeightMeters = 60f;
     private const int BoundarySideCount = 4;
     private const float HalfFactor = 0.5f;
-    private const string BoundaryRootName = "LimitesMapa";
+    public const string BoundaryRootName = "LimitesMapa";
     private const float GravityZoneColliderRadius = 0.5f;
     private const float GravityZoneLiftForce = 18f;
     private const float GravityZoneEffectRadiusMeters = 5f;
@@ -113,19 +113,33 @@ public static class TestSceneArenaBuilder
     /// <returns>The parent object that holds the wall colliders.</returns>
     public static GameObject CreateBoundaryWalls()
     {
+        return CreateBoundaryWalls(Vector3.zero, BoundaryHalfExtentMeters, BoundaryHalfExtentMeters);
+    }
+
+    /// <summary>Creates four invisible walls around a rectangular play area.</summary>
+    /// <param name="horizontalCenter">World XZ center of the play area.</param>
+    /// <param name="halfExtentXMeters">Half-width of the play area on X, in meters.</param>
+    /// <param name="halfExtentZMeters">Half-depth of the play area on Z, in meters.</param>
+    /// <returns>The parent object that holds the wall colliders.</returns>
+    public static GameObject CreateBoundaryWalls(
+        Vector3 horizontalCenter,
+        float halfExtentXMeters,
+        float halfExtentZMeters)
+    {
         var root = new GameObject(BoundaryRootName);
-        float wallCenterOffset = BoundaryHalfExtentMeters + (BoundaryThicknessMeters * HalfFactor);
-        float wallLength = (BoundaryHalfExtentMeters * 2f) + (BoundaryThicknessMeters * 2f);
+        float wallHeight = BoundaryHeightMeters * HalfFactor;
         for (int side = 0; side < BoundarySideCount; side++)
         {
             bool alongX = side < BoundarySideCount / 2;
             float sign = side % 2 == 0 ? 1f : -1f;
+            float wallLength = ((alongX ? halfExtentXMeters : halfExtentZMeters) * 2f)
+                + (BoundaryThicknessMeters * 2f);
             var wall = new GameObject($"Limite_{side}");
             wall.transform.SetParent(root.transform);
             wall.transform.position = new Vector3(
-                alongX ? 0f : sign * wallCenterOffset,
-                BoundaryHeightMeters * HalfFactor,
-                alongX ? sign * wallCenterOffset : 0f);
+                alongX ? horizontalCenter.x : horizontalCenter.x + (sign * (halfExtentXMeters + (BoundaryThicknessMeters * HalfFactor))),
+                wallHeight,
+                alongX ? horizontalCenter.z + (sign * (halfExtentZMeters + (BoundaryThicknessMeters * HalfFactor))) : horizontalCenter.z);
             var collider = wall.AddComponent<BoxCollider>();
             collider.size = alongX
                 ? new Vector3(wallLength, BoundaryHeightMeters, BoundaryThicknessMeters)
