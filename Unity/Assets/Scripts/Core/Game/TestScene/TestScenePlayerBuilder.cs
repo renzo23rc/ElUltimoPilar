@@ -25,7 +25,6 @@ public static class TestScenePlayerBuilder
     private const string PrimaryModelResource = "Models/Personajes/pj1_anims";
     private const string LocomotionControllerResource = "Animation/PlayerLocomotion";
     private const string SecondaryModelResource = "Models/Personajes/pj2";
-    private static readonly Vector3 PrimarySpawnPosition = new Vector3(0f, 1f, -8f);
     private static readonly Vector3 VisualScale = new Vector3(1f, 2f, 1f);
 
     /// <summary>
@@ -34,13 +33,18 @@ public static class TestScenePlayerBuilder
     /// <param name="actions">The input actions asset assigned to the player.</param>
     /// <param name="material">The optional body material.</param>
     /// <param name="gameManager">The manager used to keep registered cameras tagged.</param>
+    /// <param name="spawnPosition">The world spawn position of the primary player.</param>
     /// <returns>The primary player.</returns>
-    public static PlayerController CreatePrimary(InputActionAsset actions, Material material, GameManager gameManager)
+    public static PlayerController CreatePrimary(
+        InputActionAsset actions,
+        Material material,
+        GameManager gameManager,
+        Vector3 spawnPosition)
     {
         // GameObject vacío + hijo visual para evitar conflictos de colliders.
         var player = new GameObject("Jugador");
         player.SetActive(false);
-        player.transform.position = PrimarySpawnPosition;
+        player.transform.position = spawnPosition;
 
         CreateVisual(player.transform, PrimaryModelResource, material);
         AnimateVisual(player.transform);

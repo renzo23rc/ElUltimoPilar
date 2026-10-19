@@ -86,7 +86,8 @@ namespace UltimoPilar.Core.Pilar
     private void ConfigureTurret(GameObject turret, Transform point)
     {
         turret.name = $"Torreta_{point.name}";
-        turret.transform.position = new Vector3(point.position.x, spawnHeightMeters, point.position.z);
+        float spawnY = Mathf.Max(spawnHeightMeters, point.position.y);
+        turret.transform.position = new Vector3(point.position.x, spawnY, point.position.z);
 
         if (!turret.TryGetComponent<Torreta>(out Torreta turretComponent))
         {
@@ -111,7 +112,8 @@ namespace UltimoPilar.Core.Pilar
 
     private GameObject CreateFallback(Transform point)
     {
-        Vector3 position = new Vector3(point.position.x, spawnHeightMeters, point.position.z);
+        float spawnY = Mathf.Max(spawnHeightMeters, point.position.y);
+        Vector3 position = new Vector3(point.position.x, spawnY, point.position.z);
         return TurretFallbackFactory.Create(position, point.rotation);
     }
 }

@@ -60,6 +60,13 @@ public class TestSceneSetup : MonoBehaviour
     [Header("Input")]
     [SerializeField] private InputActionAsset inputActionAsset;
 
+    [Header("Ajuste de mapa")]
+    [Tooltip("Altura extra del piso de juego. 0 deja la arena como en SampleScene.")]
+    [SerializeField] private float arenaSurfaceHeightMeters;
+    [Tooltip("Oculta el plano gris generado para que se vea el mapa 3D.")]
+    [SerializeField] private bool hideGeneratedFloor;
+    [SerializeField] private Vector3 playerSpawnPosition = new Vector3(0f, 1f, -8f);
+
     void Start()
     {
         if (generarAlIniciar)
@@ -91,13 +98,26 @@ public class TestSceneSetup : MonoBehaviour
         }
 
         pilar.prefabTorreta = CargarPlantilla("Torreta") ?? TestScenePrefabFactory.CreateTurret();
-        GameObject suelo = TestSceneArenaBuilder.CreateFloor(matSuelo);
+        GameObject suelo = TestSceneArenaBuilder.CreateFloor(matSuelo, arenaSurfaceHeightMeters);
+        if (hideGeneratedFloor)
+        {
+            Renderer floorRenderer = suelo.GetComponent<Renderer>();
+            if (floorRenderer != null)
+            {
+                floorRenderer.enabled = false;
+            }
+        }
+
         TestSceneArenaBuilder.CreateBoundaryWalls();
-        GameObject pozo = TestSceneArenaBuilder.CreatePit();
-        GameObject zonaGravedad = TestSceneArenaBuilder.CreateGravityZone();
+        GameObject pozo = TestSceneArenaBuilder.CreatePit(arenaSurfaceHeightMeters);
+        GameObject zonaGravedad = TestSceneArenaBuilder.CreateGravityZone(arenaSurfaceHeightMeters);
 
         // Jugador primario (inactivo hasta terminar la composición) y plantilla para gamepads.
-        PlayerController jugador = TestScenePlayerBuilder.CreatePrimary(inputActionAsset, matJugador, gameManager);
+        PlayerController jugador = TestScenePlayerBuilder.CreatePrimary(
+            inputActionAsset,
+            matJugador,
+            gameManager,
+            playerSpawnPosition);
         PlayerController plantillaJugador = TestScenePlayerBuilder.CreateJoinTemplate(jugador);
 
         GameObject spawnerObject = new GameObject("Spawner");
@@ -193,7 +213,8 @@ public class TestSceneSetup : MonoBehaviour
     void PrepararVariantes(EnemySpawner spawner)
     {
         GameObject variantePrefab = TestScenePrefabFactory.CreateVariantPickup();
-        GameObject varianteEscena = Instantiate(variantePrefab, SceneVariantPickupPosition, Quaternion.identity);
+        Vector3 pickupPosition = SceneVariantPickupPosition + (Vector3.up * arenaSurfaceHeightMeters);
+        GameObject varianteEscena = Instantiate(variantePrefab, pickupPosition, Quaternion.identity);
         varianteEscena.name = "VariantePickup_Escena";
         varianteEscena.SetActive(true);
 

@@ -240,14 +240,25 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
     /// </summary>
     public Vector3 GetSpawnPosition(int slot)
     {
+        float height = ResolveSpawnHeight();
         switch (slot)
         {
-            case 0: return new Vector3(0f, SpawnHeightMeters, -SpawnRadiusMeters);
-            case 1: return new Vector3(SpawnRadiusMeters, SpawnHeightMeters, 0f);
-            case 2: return new Vector3(0f, SpawnHeightMeters, SpawnRadiusMeters);
-            case 3: return new Vector3(-SpawnRadiusMeters, SpawnHeightMeters, 0f);
+            case 0: return new Vector3(0f, height, -SpawnRadiusMeters);
+            case 1: return new Vector3(SpawnRadiusMeters, height, 0f);
+            case 2: return new Vector3(0f, height, SpawnRadiusMeters);
+            case 3: return new Vector3(-SpawnRadiusMeters, height, 0f);
             default: return Vector3.zero;
         }
+    }
+
+    private float ResolveSpawnHeight()
+    {
+        if (playerTemplate != null)
+        {
+            return playerTemplate.transform.position.y;
+        }
+
+        return SpawnHeightMeters;
     }
 
     private bool IsTrackedAssignmentValid(PlayerController player, Gamepad gamepad)

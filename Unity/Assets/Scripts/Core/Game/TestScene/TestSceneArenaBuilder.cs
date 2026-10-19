@@ -87,11 +87,11 @@ public static class TestSceneArenaBuilder
     }
 
     /// <summary>Creates the arena floor, gray when no material is supplied.</summary>
-    public static GameObject CreateFloor(Material material)
+    public static GameObject CreateFloor(Material material, float surfaceHeightMeters = 0f)
     {
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
         floor.name = "Arena";
-        floor.transform.position = Vector3.zero;
+        floor.transform.position = new Vector3(0f, surfaceHeightMeters, 0f);
         floor.transform.localScale = FloorScale;
         Renderer renderer = floor.GetComponent<Renderer>();
         if (material != null)
@@ -136,7 +136,7 @@ public static class TestSceneArenaBuilder
     }
 
     /// <summary>Creates the inactive central pit with its lethal <see cref="PozoKill"/> trigger.</summary>
-    public static GameObject CreatePit()
+    public static GameObject CreatePit(float surfaceHeightMeters = 0f)
     {
         GameObject pit = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pit.name = "PozoCentral";
@@ -152,7 +152,7 @@ public static class TestSceneArenaBuilder
         if (!pit.TryGetComponent(out Rigidbody body)) body = pit.AddComponent<Rigidbody>();
         body.isKinematic = true;
         body.useGravity = false;
-        pit.transform.position = PitPosition;
+        pit.transform.position = PitPosition + (Vector3.up * surfaceHeightMeters);
         pit.transform.localScale = PitScale;
 
         Material pitMaterial = pit.GetComponent<Renderer>().material;
@@ -164,14 +164,14 @@ public static class TestSceneArenaBuilder
     }
 
     /// <summary>Creates the inactive altered-gravity zone with its trigger, effect, and floating particles.</summary>
-    public static GameObject CreateGravityZone()
+    public static GameObject CreateGravityZone(float surfaceHeightMeters = 0f)
     {
         GameObject zone = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         zone.name = "ZonaGravedad";
         var collider = zone.GetComponent<SphereCollider>();
         collider.isTrigger = true;
         collider.radius = GravityZoneColliderRadius;
-        zone.transform.position = GravityZonePosition;
+        zone.transform.position = GravityZonePosition + (Vector3.up * surfaceHeightMeters);
         // Más grande y achatada (exagerado).
         zone.transform.localScale = GravityZoneScale;
         Renderer renderer = zone.GetComponent<Renderer>();
