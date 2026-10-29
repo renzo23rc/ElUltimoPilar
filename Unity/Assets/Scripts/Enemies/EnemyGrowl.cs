@@ -47,7 +47,7 @@ public class EnemyGrowl : MonoBehaviour
         source.clip = clip;
         source.playOnAwake = false;
         source.loop = false;
-        source.volume = GrowlVolume;
+        source.volume = GrowlVolume * MenuPreferences.EffectsVolume;
         source.spatialBlend = FullSpatialBlend;
         source.rolloffMode = AudioRolloffMode.Linear;
         source.maxDistance = MaxHearingDistanceMeters;
@@ -56,6 +56,7 @@ public class EnemyGrowl : MonoBehaviour
 
     private void Update()
     {
+        source.volume = GrowlVolume * MenuPreferences.EffectsVolume;
         if (enemy.EstaMuerto)
         {
             return;

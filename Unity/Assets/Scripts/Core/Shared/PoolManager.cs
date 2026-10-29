@@ -35,7 +35,6 @@ public class PoolManager : MonoBehaviour
         Instance = this;
         poolRoot = new GameObject(PoolRootName).transform;
         poolRoot.SetParent(transform);
-        DontDestroyOnLoad(gameObject);
     }
 
     /// <summary>

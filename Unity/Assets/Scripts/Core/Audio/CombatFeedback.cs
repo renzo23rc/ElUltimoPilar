@@ -197,7 +197,7 @@ public class CombatFeedback : MonoBehaviour
             Vector3 offset = new Vector3(
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
-                0f) * intensidadActual;
+                0f) * intensidadActual * MenuPreferences.ShakeIntensity;
             // En espacio local: si el jugador rota entre frames, revertir no desplaza la cámara.
             camara.transform.localPosition += offset;
             offsetsAplicados[camara] = offset;

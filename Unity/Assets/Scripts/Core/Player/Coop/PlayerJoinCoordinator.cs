@@ -134,6 +134,13 @@ public sealed class PlayerJoinCoordinator : MonoBehaviour
         if (gamepad == null)
             return;
 
+        if (gameManager != null && gameManager.HasComposedMenu && gameManager.IsMenuInputCaptured)
+        {
+            MatchMenuController menu = FindFirstObjectByType<MatchMenuController>();
+            if (menu == null || !menu.AllowsJoining || context.control != gamepad.startButton)
+                return;
+        }
+
         TryJoin(gamepad);
     }
 

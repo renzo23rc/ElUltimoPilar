@@ -18,7 +18,7 @@ Esta guía establece una base modular para Último Pilar. La regla principal es 
 | `Core/Audio/` | `AudioAdapter` (suscripción y reproducción; usa clips de `Resources/Audio/Armas` con respaldo procedural), `PhaseMusicPlayer` (música en bucle por fase del Pilar, `Resources/Audio/Musica`), `ProceduralSfxSynthesizer` (muestras puras), `CombatFeedback`. |
 | `Core/Combat/` | `DamageRequest`, `IDamageable`, `ISlowable`, `SlowdownTracker`. |
 | `Core/Game/` | `GameManager`, `TestSceneSetup`; `TestScene/` con `TestSceneArenaBuilder`, `TestScenePlayerBuilder` y `TestScenePrefabFactory`. |
-| `Core/Hud/` | `Hud`, `PlayerHud`, `HudUiFactory`, `MatchShortcuts`. |
+| `Core/Hud/` | `Hud`, `PlayerHud`, `HudUiFactory`, `MatchShortcuts`; `Menu/` contiene el menú principal, los overlays de partida, las preferencias y los puntajes locales. |
 | `Core/Match/` | `MatchFlow`, `MatchState`, `MatchResult`, `ScorePolicy`, `MatchStartInputPolicy`, `WaveIntermission`. |
 | `Core/Pilar/` | `Pilar`, `PilarHealthSnapshot`, `Torreta`; `Phases/`, `Presentation/`, `Spawning/` (`PilarTurretSpawner`, `TurretFallbackFactory`). |
 | `Core/Player/` | `PlayerController`, `PlayerLocator`, `MuzzleTransformResolver`; `Movement/` (`PlayerMotor`, `PlayerCameraLook`, `PlayerMovementSettings`), `Input/`, `Coop/`, `Roles/`. |
@@ -88,7 +88,15 @@ Los scripts se movieron siempre junto con su `.meta`, por lo que escenas y prefa
 
 ## Límites de input, UI y audio
 
-`GameManager` expone operaciones de flujo y estado de solo lectura. La UI muestra ese estado y solicita comandos, pero no asigna campos internos. `PlayerController` ya resuelve su `PlayerInputAdapter`, lee un único `PlayerCommand` por frame y publica `OnCommandIssued`; `WeaponSystem` consume ese mismo snapshot para disparo y selección de arma, y `GameManager` usa el evento nombrado del jugador primario para el inicio. `TestSceneSetup` compone el jugador primario inactivo, clona una plantilla inactiva, configura `PlayerJoinCoordinator` y `SplitScreenCameraCoordinator`, y activa únicamente al primario al terminar la composición. Las cámaras se enlazan por referencias explícitas y permanecen sin tag `MainCamera`. `Hud` es el HUD definitivo: filas por jugador, overlays de inicio/pausa/resultado con puntaje, crosshair con flash y timer de variante. `CombatFeedback` centraliza shake por jugador y hitstop; `AudioAdapter` reproduce efectos procedurales desde eventos (las muestras las genera `ProceduralSfxSynthesizer`); `MatchShortcuts` resuelve Enter (reiniciar) y la tecla de depuración R fuera del `Hud`; `Enemy` y `EnergyPickup` resuelven al jugador registrado más cercano. Quedan diferidos hotplug, lobby, HUD por jugador separado y el cambio de arma con rueda del mouse. Audio reaccionará a eventos de dominio/aplicación y no decidirá transiciones.
+`GameManager` expone operaciones de flujo y estado de solo lectura. La UI muestra ese estado y solicita comandos, pero no asigna campos internos. Durante el juego, `PlayerController` resuelve su `PlayerInputAdapter`, lee un único `PlayerCommand` por frame y publica `OnCommandIssued`; `WeaponSystem` consume ese snapshot para disparo y selección de arma. Si hay un menú compuesto con el input capturado, no se envían comandos de gameplay. `TestSceneSetup` compone el jugador primario inactivo, clona una plantilla inactiva, configura `PlayerJoinCoordinator` y `SplitScreenCameraCoordinator`, y activa únicamente al primario al terminar la composición. Las cámaras se enlazan por referencias explícitas y permanecen sin tag `MainCamera`. `Hud` muestra las filas por jugador, el crosshair con flash y el timer de variante. `CombatFeedback` centraliza shake por jugador y hitstop; `AudioAdapter` reproduce efectos desde eventos, con respaldo procedural de `ProceduralSfxSynthesizer`. `MatchShortcuts` conserva R de depuración durante el juego en Editor o desarrollo; el reinicio con Enter es solo respaldo para escenas sin menú compuesto. `Enemy` y `EnergyPickup` resuelven al jugador registrado más cercano. Quedan diferidos hotplug, lobby, HUD por jugador separado y el cambio de arma con rueda del mouse. El audio reacciona a eventos y no decide transiciones.
+
+## Menú y partidas locales
+
+`Assets/Scenes/Menu.unity` inicia la aplicación y `MenuSceneController` compone la navegación de jugar, configuración, puntajes, ayuda y salida. El menú crea su propia cámara con fondo negro y sin máscara de culling, para no depender de cámaras de partida y no mostrar el mensaje de display sin cámaras. `MenuSceneLoader` carga solo la escena elegida en modo `Single`, restaura la escala de tiempo al cambiar de escena y en el Editor detiene Play al salir. Ambas escenas componen el HUD y `MatchMenuController` mediante `TestSceneSetup`; este controlador consulta `MatchState` y `MatchResult`, y solicita al `GameManager` iniciar, continuar o reiniciar; durante el juego, la pausa la solicita el input del jugador. La confirmación protege el reinicio y el abandono de una noche en curso. Al componer la partida se apagan las cámaras de escena que no pertenecen a jugadores. `PoolManager` es por escena para no arrastrar objetos activos al menú.
+
+El estado del menú informa al `GameManager` cuándo captura el input, incluyendo el frame de liberación. Los gráficos del HUD compartido no interceptan los clics del menú. Durante la espera, el ingreso de mandos se limita a Start/Options para no confundirlo con la confirmación de botones; ajustes, pausa, confirmación y resultado no admiten nuevos ingresos desde el menú.
+
+`MenuPreferences` guarda ajustes locales de audio, cámara y pantalla; `MenuScores` guarda hasta diez resultados finales con oleada, fecha y cantidad de jugadores. Ambos usan archivos JSON bajo `Application.persistentDataPath`. Los ajustes de audio y controles aplican al momento; los de pantalla se editan como pendientes y aplican con el botón "Aplicar pantalla". No se guarda ni se reanuda una noche en curso. El aviso existente de transformación se conserva y usa un sonido generado si no tiene clip asignado. Estas integraciones deben verificarse en Unity cuando se autorice su ejecución.
 
 ## Pruebas
 
@@ -99,9 +107,11 @@ Los scripts se movieron siempre junto con su `.meta`, por lo que escenas y prefa
 
 ## Estado actual y migración
 
-El árbol de scripts runtime ya está ubicado en `Unity/Assets/Scripts/`, organizado en `Core`, `Arena`, `Enemies` y `Weapons`. Las pruebas EditMode permanecen en `Unity/Assets/Tests/Editor/`. `Hud` es la implementación definitiva actual: consume `OnMatchResult` y el roster, muestra filas por jugador, overlays de inicio/pausa/resultado con puntaje, crosshair y variante temporal. La migración arquitectónica será incremental: primero se extraen reglas puras y se les agregan pruebas; después los adaptadores reciben dependencias explícitas; finalmente se actualizan consumidores y se retiran duplicaciones. Cada extracción debe conservar la API pública existente y validarse antes de continuar.
+El árbol de scripts runtime está ubicado en `Unity/Assets/Scripts/`, organizado en `Core`, `Arena`, `Enemies` y `Weapons`. Las pruebas EditMode permanecen en `Unity/Assets/Tests/Editor/`. `Hud` consume el roster y los eventos de partida; muestra filas por jugador, crosshair y variante temporal. Los overlays interactivos de inicio, pausa y resultado los compone `MatchMenuController`. La migración arquitectónica será incremental: primero se extraen reglas puras y se les agregan pruebas; después los adaptadores reciben dependencias explícitas; finalmente se actualizan consumidores y se retiran duplicaciones. Cada extracción debe conservar la API pública existente y validarse antes de continuar.
 
-## Alcance de esta fase: issues #15–#23
+## Alcance histórico de la fase: issues #15–#23
+
+La tabla registra el alcance original de esa fase, no el estado vigente del menú descrito arriba.
 
 | Issue | Incluido en esta fase | Fuera de alcance en esta fase |
 |---|---|---|

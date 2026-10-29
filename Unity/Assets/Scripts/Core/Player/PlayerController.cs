@@ -144,7 +144,11 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember, IDamageable,
         CapturarEstadoInicial();
         inputAdapter?.Enable();
 
-        Cursor.lockState = CursorLockMode.Locked;
+        if (GameManager.Instance == null || !GameManager.Instance.HasComposedMenu)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
         GameManager.Instance?.RegisterPlayer(this);
     }
 
@@ -191,10 +195,13 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember, IDamageable,
 
     void Update()
     {
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager != null && gameManager.IsMenuInputCaptured)
+            return;
+
         PlayerCommand command = LeerComando();
         OnCommandIssued?.Invoke(this, command);
 
-        GameManager gameManager = GameManager.Instance;
         if (gameManager == null || !gameManager.juegoActivo || gameManager.juegoPausado) return;
 
         estaRalentizado = slowdowns.IsActive(Time.time);

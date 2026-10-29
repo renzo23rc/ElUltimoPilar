@@ -19,6 +19,18 @@ public sealed class MatchShortcuts
         ProcessDebugDamage(manager, pilar);
     }
 
+    /// <summary>Processes shortcuts only when the composed menu does not own input.</summary>
+    /// <param name="manager">The match manager.</param>
+    /// <param name="pilar">The Pilar damaged by the debug shortcut.</param>
+    /// <param name="menuOwnsInput">Whether a menu currently owns keyboard focus.</param>
+    public void Process(GameManager manager, Pilar pilar, bool menuOwnsInput)
+    {
+        if (menuOwnsInput) return;
+
+        ProcessRestart(manager);
+        ProcessDebugDamage(manager, pilar);
+    }
+
     private static void ProcessRestart(GameManager manager)
     {
         if (manager == null || Keyboard.current == null)
