@@ -14,6 +14,12 @@ public class ArenaTransform : MonoBehaviour
 {
     private const int FirstArenaPhase = 1;
     private const float ArenaGizmoRadiusMeters = 20f;
+    private const int WarningToneSampleRateHz = 44100;
+    private const float WarningToneStartFrequencyHz = 880f;
+    private const float WarningToneEndFrequencyHz = 660f;
+    private const float WarningToneDurationSeconds = 0.2f;
+    private const float WarningToneAmplitude = 0.5f;
+    private const string GeneratedWarningClipName = "ArenaTransformWarning";
 
     [Header("Referencias")]
     public Pilar pilar;
@@ -41,6 +47,7 @@ public class ArenaTransform : MonoBehaviour
     private IReadOnlyDictionary<int, IArenaPhaseHandler> phaseHandlers;
     private ArenaWarningPresenter warningPresenter;
     private ArenaPhaseEffects phaseEffects;
+    private AudioClip generatedWarningSound;
     private bool procesandoCola;
 
     // inicializa, busca pilar si falta, asegura dependencias y se suscribe al cambio de fase
@@ -69,6 +76,12 @@ public class ArenaTransform : MonoBehaviour
         if (pilar != null)
         {
             pilar.OnFaseCambiada -= OnPilarFaseCambiada;
+        }
+
+        if (generatedWarningSound != null)
+        {
+            Destroy(generatedWarningSound);
+            generatedWarningSound = null;
         }
     }
 
@@ -102,13 +115,16 @@ public class ArenaTransform : MonoBehaviour
                 hudWarningPort = hud.MostrarAdvertencia;
             }
 
-            Action<AudioClip, Vector3, float> audioPort = AudioSource.PlayClipAtPoint;
+            Action<AudioClip, Vector3, float> audioPort = DispatchWarningAudio;
             Func<Vector3> audioPositionPort = ResolveAudioPosition;
+            AudioClip warningSound = sonidoTransformacion != null
+                ? sonidoTransformacion
+                : GetGeneratedWarningSound();
             warningPresenter = new ArenaWarningPresenter(
                 GetFloorRenderer(),
                 pozoCentral,
                 colorAviso,
-                sonidoTransformacion,
+                warningSound,
                 audioPositionPort,
                 hudWarningPort,
                 audioPort);
@@ -127,6 +143,36 @@ public class ArenaTransform : MonoBehaviour
         {
             phaseHandlers = ArenaPhaseHandlerCatalog.CreateDefault(warningPresenter, phaseEffects);
         }
+    }
+
+    private void DispatchWarningAudio(AudioClip clip, Vector3 position, float volume)
+    {
+        AudioSource.PlayClipAtPoint(clip, position, volume * MenuPreferences.EffectsVolume);
+    }
+
+    private AudioClip GetGeneratedWarningSound()
+    {
+        if (generatedWarningSound != null)
+        {
+            return generatedWarningSound;
+        }
+
+        float[] samples = ProceduralSfxSynthesizer.Tone(
+            WarningToneStartFrequencyHz,
+            WarningToneEndFrequencyHz,
+            WarningToneDurationSeconds,
+            WarningToneAmplitude,
+            false,
+            WarningToneSampleRateHz);
+        generatedWarningSound = AudioClip.Create(
+            GeneratedWarningClipName,
+            samples.Length,
+            1,
+            WarningToneSampleRateHz,
+            false);
+        generatedWarningSound.hideFlags = HideFlags.DontSave;
+        generatedWarningSound.SetData(samples, 0);
+        return generatedWarningSound;
     }
 
     // obtiene el renderizador del suelo para el efecto de parpadeo

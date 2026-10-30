@@ -34,14 +34,19 @@ public sealed class PlayerCameraLook
     /// <param name="lookDeltaDegrees">The yaw (x) and pitch (y) deltas in degrees.</param>
     public void Apply(Camera camera, Transform body, Transform muzzle, Vector2 lookDeltaDegrees)
     {
-        pitchDegrees = Mathf.Clamp(pitchDegrees - lookDeltaDegrees.y, -MaximumLookAngleDegrees, MaximumLookAngleDegrees);
+        float lookSensitivity = MenuPreferences.LookSensitivity;
+        float verticalDirection = MenuPreferences.InvertY ? -1f : 1f;
+        pitchDegrees = Mathf.Clamp(
+            pitchDegrees - lookDeltaDegrees.y * lookSensitivity * verticalDirection,
+            -MaximumLookAngleDegrees,
+            MaximumLookAngleDegrees);
         if (camera == null)
         {
             return;
         }
 
         camera.transform.localRotation = Quaternion.Euler(pitchDegrees, 0, 0);
-        body.Rotate(Vector3.up * lookDeltaDegrees.x);
+        body.Rotate(Vector3.up * lookDeltaDegrees.x * lookSensitivity);
         if (muzzle != null)
         {
             muzzle.rotation = camera.transform.rotation;

@@ -31,11 +31,19 @@ public class PhaseMusicPlayer : MonoBehaviour
     {
         if (pilar == null)
         {
+            source.Stop();
+            source.clip = null;
+            source.volume = 0f;
+            playingPhase = 0;
             pilar = FindFirstObjectByType<Pilar>();
-            return;
+            if (pilar == null)
+            {
+                return;
+            }
         }
 
         requestedPhase = Mathf.Clamp(pilar.faseActual, FirstPhase, LastPhase);
+        float targetVolume = MusicVolume * MenuPreferences.MusicVolume;
         float step = MusicVolume / FadeSeconds * Time.unscaledDeltaTime;
         if (requestedPhase != playingPhase)
         {
@@ -48,7 +56,7 @@ public class PhaseMusicPlayer : MonoBehaviour
             return;
         }
 
-        source.volume = Mathf.MoveTowards(source.volume, MusicVolume, step);
+        source.volume = Mathf.MoveTowards(source.volume, targetVolume, step);
     }
 
     private void StartTrack(int phase)

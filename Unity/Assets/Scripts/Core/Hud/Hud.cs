@@ -68,6 +68,8 @@ public class Hud : MonoBehaviour
     private readonly List<PlayerController> jugadoresARetirar = new List<PlayerController>();
     private GameManager managerSuscrito;
     private readonly MatchShortcuts atajos = new MatchShortcuts();
+    private bool menuComposed;
+    private Canvas canvasPantalla;
 
     void Start()
     {
@@ -90,8 +92,21 @@ public class Hud : MonoBehaviour
 
         ActualizarPilar();
         ActualizarOleada();
-        ActualizarOverlays();
-        atajos.Process(gameManager, pilar);
+        if (menuComposed)
+        {
+            if (textoMenu != null) textoMenu.text = string.Empty;
+            if (textoResultado != null) textoResultado.text = string.Empty;
+            if (textoPuntaje != null) textoPuntaje.text = string.Empty;
+        }
+        else
+        {
+            ActualizarOverlays();
+            atajos.Process(gameManager, pilar);
+        }
+
+        if (menuComposed && gameManager != null && gameManager.EstadoActual == MatchState.Playing &&
+            !gameManager.IsMenuInputCaptured)
+            atajos.Process(gameManager, pilar, false);
     }
 
     // ===== EVENTOS =====
@@ -175,12 +190,14 @@ public class Hud : MonoBehaviour
 
     void ManejarVictoria()
     {
-        MostrarMensaje("¡VICTORIA!");
+        if (!menuComposed)
+            MostrarMensaje("¡VICTORIA!");
     }
 
     void ManejarDerrota()
     {
-        MostrarMensaje("DERROTA");
+        if (!menuComposed)
+            MostrarMensaje("DERROTA");
     }
 
     void ManejarOleadaIniciada(int oleada)
@@ -200,7 +217,7 @@ public class Hud : MonoBehaviour
 
     void ManejarResultado(MatchResult resultado)
     {
-        if (resultado == null) return;
+        if (menuComposed || resultado == null) return;
         string texto = resultado.Outcome == MatchState.Victory
             ? $"¡VICTORIA! Puntaje: {resultado.Score}"
             : $"DERROTA — Puntaje: {resultado.Score}";
@@ -219,7 +236,7 @@ public class Hud : MonoBehaviour
         if (pilar == null) return;
 
         if (textoVidaPilar != null)
-            textoVidaPilar.text = $"Pilar {pilar.PorcentajeVida:F0}%";
+            textoVidaPilar.text = $"Pilar {pilar.PorcentajeVida:F0}% · Fase {pilar.faseActual}";
         if (barraVidaPilar != null)
         {
             UiFill.Set(barraVidaPilar, pilar.PorcentajeVida / PercentageScale);
@@ -253,10 +270,11 @@ public class Hud : MonoBehaviour
         if (terminal)
         {
             MatchResult resultado = gameManager.CurrentResult;
-            int puntaje = resultado != null ? resultado.Score : 0;
             textoResultado.text = estado == MatchState.Victory ? "¡VICTORIA!" : "DERROTA";
             textoResultado.color = estado == MatchState.Victory ? Color.green : Color.red;
-            textoPuntaje.text = $"Puntaje: {puntaje}\nEnter: reiniciar";
+            textoPuntaje.text = gameManager.CurrentResult == null
+                ? "Puntaje no disponible\nEnter: reiniciar"
+                : $"Puntaje: {gameManager.CurrentResult.Score}\nEnter: reiniciar";
         }
         else
         {
@@ -278,6 +296,50 @@ public class Hud : MonoBehaviour
     }
 
     // ===== API PÚBLICA =====
+
+    /// <summary>Uses the explicitly composed shared screen canvas for HUD elements.</summary>
+    /// <param name="canvas">The screen-space canvas shared by the HUD and match menu.</param>
+    public void SetSharedCanvas(Canvas canvas)
+    {
+        canvasPantalla = canvas;
+    }
+
+    /// <summary>Marks that an interactive menu owns the shared match overlays.</summary>
+    public void SetMenuComposed(bool composed)
+    {
+        menuComposed = composed;
+        if (!composed) return;
+
+        if (textoMenu != null) textoMenu.text = string.Empty;
+        if (textoResultado != null) textoResultado.text = string.Empty;
+        if (textoPuntaje != null) textoPuntaje.text = string.Empty;
+        DisableSharedHudRaycasts();
+    }
+
+    private void DisableSharedHudRaycasts()
+    {
+        DisableRaycast(textoVidaPilar);
+        DisableRaycast(textoOleada);
+        DisableRaycast(textoMensaje);
+        DisableRaycast(textoMenu);
+        DisableRaycast(textoResultado);
+        DisableRaycast(textoPuntaje);
+
+        if (barraVidaPilar != null)
+        {
+            barraVidaPilar.raycastTarget = false;
+            Transform background = barraVidaPilar.transform.parent;
+            Image backgroundImage = background != null ? background.GetComponent<Image>() : null;
+            if (backgroundImage != null)
+                backgroundImage.raycastTarget = false;
+        }
+    }
+
+    private static void DisableRaycast(Graphic graphic)
+    {
+        if (graphic != null)
+            graphic.raycastTarget = false;
+    }
 
     /// <summary>Returns the variant display name only while it is active.</summary>
     public static string GetVariantDisplayName(bool variantIsActive, string semanticDisplayName)
@@ -355,7 +417,7 @@ public class Hud : MonoBehaviour
     // HUD compartido en pantalla completa, por encima de las pantallas divididas.
     void CrearUI()
     {
-        Canvas canvas = BuscarCanvasPantalla();
+        Canvas canvas = canvasPantalla != null ? canvasPantalla : BuscarCanvasPantalla();
         if (canvas == null)
         {
             var canvasObject = new GameObject("Canvas", typeof(RectTransform));
@@ -384,6 +446,8 @@ public class Hud : MonoBehaviour
         HudUiFactory.AnchorTopCenter(textoResultado.rectTransform, ResultOffset, CenterMessageSize);
         textoPuntaje = HudUiFactory.CreateText(raiz, "Puntaje", ScoreFontSize, TextAnchor.MiddleCenter);
         HudUiFactory.AnchorTopCenter(textoPuntaje.rectTransform, ScoreOffset, CenterLineSize);
+        if (menuComposed)
+            DisableSharedHudRaycasts();
     }
 
     // Solo sirve un canvas Overlay: las barras de enemigos son WorldSpace y los PlayerHud usan la cámara.

@@ -86,6 +86,28 @@ public class GameManager : MonoBehaviour
     public event Action<PlayerController> OnPlayerUnregistered;
 
     private int ultimoFrameDePausa = -1;
+    private bool menuInputFocused;
+    private bool hasComposedMenu;
+    private int menuInputReleaseFrame = -1;
+
+    /// <summary>Gets whether the composed menu currently owns input focus.</summary>
+    public bool MenuInputFocused => menuInputFocused || Time.frameCount == menuInputReleaseFrame;
+
+    /// <summary>Gets whether an overlay currently captures player gameplay input.</summary>
+    public bool IsMenuInputCaptured => MenuInputFocused ||
+        (hasComposedMenu && EstadoActual != MatchState.Playing);
+
+    /// <summary>Gets whether an interactive match menu is composed in this scene.</summary>
+    public bool HasComposedMenu => hasComposedMenu;
+
+    /// <summary>Sets whether the composed menu owns input and prevents gameplay actions.</summary>
+    public void SetMenuInputFocused(bool focused)
+    {
+        hasComposedMenu = true;
+        if (menuInputFocused && !focused)
+            menuInputReleaseFrame = Time.frameCount;
+        menuInputFocused = focused;
+    }
 
     void Awake()
     {
@@ -476,6 +498,8 @@ public class GameManager : MonoBehaviour
 
     void OnJugadorCommandIssued(PlayerController jugador, PlayerCommand command)
     {
+        if (IsMenuInputCaptured) return;
+
         if (command.Pause)
             AlternarPausa();
 

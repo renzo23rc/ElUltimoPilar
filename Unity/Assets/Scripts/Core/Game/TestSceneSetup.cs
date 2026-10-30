@@ -179,16 +179,37 @@ public class TestSceneSetup : MonoBehaviour
         gameManagerObject.AddComponent<SplitScreenCameraCoordinator>().Configure(gameManager);
 
         TestSceneArenaBuilder.CreateSunLight();
-        CrearPresentacion(pilar, gameManager);
+        Hud hud = CrearPresentacion(pilar, gameManager, out Canvas canvas);
+        MatchMenuController menu = canvas.gameObject.AddComponent<MatchMenuController>();
+        menu.Configure(gameManager, hud, canvas);
         PrepararVariantes(spawner);
 
         // Activar solo después de completar la composición y configurar las acciones del jugador.
         jugador.gameObject.SetActive(true);
+        DesactivarCamarasDeEscena(jugador);
 
         Debug.Log("[TestSceneSetup] ¡Escena de prueba generada! Apreta Play para testear.");
 
         if (destruirDespuésDeGenerar)
             Destroy(gameObject);
+    }
+
+    // Apaga las cámaras de la escena que no pertenecen a jugadores para usar solo cámaras de jugador.
+    static void DesactivarCamarasDeEscena(PlayerController jugador)
+    {
+        Camera playerCamera = jugador != null ? jugador.camaraJugador : null;
+        Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+        foreach (Camera camera in cameras)
+        {
+            if (camera == null || camera == playerCamera)
+                continue;
+            if (camera.GetComponentInParent<PlayerController>() != null)
+                continue;
+            camera.enabled = false;
+            AudioListener listener = camera.GetComponent<AudioListener>();
+            if (listener != null)
+                listener.enabled = false;
+        }
     }
 
     // Orbe de energía (prefab real o respaldo) con pool para los drops.
@@ -231,18 +252,21 @@ public class TestSceneSetup : MonoBehaviour
     }
 
     // HUD compartido, feedback de combate y audio procedural.
-    void CrearPresentacion(Pilar pilar, GameManager gameManager)
+    Hud CrearPresentacion(Pilar pilar, GameManager gameManager, out Canvas canvas)
     {
-        GameObject canvas = new GameObject("Canvas");
-        canvas.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.AddComponent<CanvasScaler>();
-        canvas.AddComponent<GraphicRaycaster>();
+        GameObject canvasObject = new GameObject("Canvas");
+        canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasObject.AddComponent<CanvasScaler>();
+        canvasObject.AddComponent<GraphicRaycaster>();
 
-        var hud = new GameObject("Hud").AddComponent<Hud>();
+        Hud hud = new GameObject("Hud").AddComponent<Hud>();
+        hud.SetSharedCanvas(canvas);
         hud.pilar = pilar;
         hud.gameManager = gameManager;
         new GameObject("CombatFeedback").AddComponent<CombatFeedback>();
         new GameObject("AudioAdapter").AddComponent<AudioAdapter>();
+        return hud;
     }
 
     // Pickup de variante visible en la arena y como drop de todos los enemigos.

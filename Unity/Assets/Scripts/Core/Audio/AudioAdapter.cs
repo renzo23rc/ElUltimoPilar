@@ -127,8 +127,31 @@ public class AudioAdapter : MonoBehaviour
         }
 
         CombatFeedback.OnCombatHit += ManejarImpacto;
-        GameManager manager = FindFirstObjectByType<GameManager>();
-        SuscribirGameManager(manager);
+        SyncSceneSubscriptions();
+    }
+
+    private void Update()
+    {
+        SyncSceneSubscriptions();
+    }
+
+    private void SyncSceneSubscriptions()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null)
+        {
+            manager = FindFirstObjectByType<GameManager>();
+        }
+
+        if (!ReferenceEquals(manager, managerSuscrito))
+        {
+            DesuscribirGameManager();
+            if (manager != null)
+            {
+                SuscribirGameManager(manager);
+            }
+        }
+
         Pilar pilar = manager != null ? manager.pilar : null;
         if (pilar == null)
         {
@@ -171,16 +194,19 @@ public class AudioAdapter : MonoBehaviour
 
     private void DesuscribirGameManager()
     {
-        if (managerSuscrito == null)
+        if (ReferenceEquals(managerSuscrito, null))
         {
             return;
         }
 
-        managerSuscrito.OnOleadaIniciada -= ManejarOleada;
-        managerSuscrito.OnVictoria -= ManejarVictoria;
-        managerSuscrito.OnDerrota -= ManejarDerrota;
-        managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
-        managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+        if (managerSuscrito != null)
+        {
+            managerSuscrito.OnOleadaIniciada -= ManejarOleada;
+            managerSuscrito.OnVictoria -= ManejarVictoria;
+            managerSuscrito.OnDerrota -= ManejarDerrota;
+            managerSuscrito.OnPlayerRegistered -= ManejarJugadorRegistrado;
+            managerSuscrito.OnPlayerUnregistered -= ManejarJugadorDesregistrado;
+        }
         foreach (WeaponSystem arma in armasSuscritas)
         {
             if (arma != null)
@@ -356,7 +382,7 @@ public class AudioAdapter : MonoBehaviour
             return;
         }
 
-        fuente.PlayOneShot(clip, volumen);
+        fuente.PlayOneShot(clip, volumen * MenuPreferences.EffectsVolume);
     }
 
     private void GenerarClips()
