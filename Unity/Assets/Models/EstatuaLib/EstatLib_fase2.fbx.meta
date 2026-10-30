@@ -92,6 +92,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: Liberty_MAT_Desgastado
+    second: {fileID: 2100000, guid: d8e1b5f38c7a4102b4d6e9f0a1b2c301, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: Material.001
     second: {fileID: 2100000, guid: bf8b6133f6f59c44eba045884439848e, type: 2}
   - first:
@@ -99,6 +104,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: RobesMAT
     second: {fileID: 2100000, guid: 3bed74b395fb44941a2bb671081a3177, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: RobesMAT_Desgastado
+    second: {fileID: 2100000, guid: d8e1b5f38c7a4102b4d6e9f0a1b2c302, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
@@ -119,6 +129,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: piedra.001
     second: {fileID: 2100000, guid: ae67b8c454b155c43bac6272d1fac0a6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: piedra.001_Desgastado
+    second: {fileID: 2100000, guid: d8e1b5f38c7a4102b4d6e9f0a1b2c303, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
