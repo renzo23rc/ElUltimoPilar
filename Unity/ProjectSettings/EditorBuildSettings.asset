@@ -6,20 +6,29 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Menu.unity
-    guid: d0c8d2e7a1c74c519be83d0b3d68c719
-  - enabled: 1
     path: Assets/Scenes/MainMenu.unity
     guid: 936fb323fd51f3d4091bcecc64c3e49b
   - enabled: 1
     path: Assets/Scenes/MapSelection.unity
     guid: 48bcb75bed78b01458435c27e64e0c09
   - enabled: 1
+    path: Assets/Scenes/VictoryScreen.unity
+    guid: 139c9f950adff8f48b9f6808b343b57e
+  - enabled: 1
+    path: Assets/Scenes/DefeatScreen.unity
+    guid: 4c54663d9b1be3d418d4b116c5d9e340
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/Scenes/EstatuaDeLaLibertad.unity
     guid: c4e8a1b27d3f4e6a9c0d1e2f3a4b5c6d
+  - enabled: 1
+    path: Assets/Scenes/CristoRedentor.unity
+    guid: b7e1c4a29d0f4e6a8c3b5d1f0a9e2c47
+  - enabled: 0
+    path: Assets/Scenes/Menu.unity
+    guid: d0c8d2e7a1c74c519be83d0b3d68c719
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

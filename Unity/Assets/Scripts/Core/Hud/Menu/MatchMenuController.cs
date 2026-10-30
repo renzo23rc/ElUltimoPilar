@@ -128,9 +128,10 @@ public sealed class MatchMenuController : MonoBehaviour
     {
         visibleState = manager.EstadoActual;
         bool terminal = visibleState == MatchState.Victory || visibleState == MatchState.Defeat;
+        bool playerResultScreen = UsesPlayerResultScreen(visibleState);
         waitingPanel.SetActive(visibleState == MatchState.WaitingToStart);
         pausePanel.SetActive(visibleState == MatchState.Paused);
-        resultPanel.SetActive(terminal);
+        resultPanel.SetActive(terminal && !playerResultScreen);
         confirmationPanel.SetActive(false);
         settingsPanel.SetActive(false);
         settingsVisible = false;
@@ -142,7 +143,7 @@ public sealed class MatchMenuController : MonoBehaviour
             if (focus)
                 MenuUiFactory.FocusFirst(waitingPanel);
         }
-        else if (terminal)
+        else if (terminal && !playerResultScreen)
         {
             MatchResult result = manager.CurrentResult;
             string score = result == null ? "Puntaje no disponible" : $"Puntaje: {result.Score}";
@@ -159,6 +160,17 @@ public sealed class MatchMenuController : MonoBehaviour
         manager.SetMenuInputFocused(overlay);
         if (hud != null)
             hud.SetMenuComposed(true);
+    }
+
+    private static bool UsesPlayerResultScreen(MatchState state)
+    {
+        if (state == MatchState.Victory)
+            return Application.CanStreamedLevelBeLoaded(VictoryScreenController.SceneName);
+
+        if (state == MatchState.Defeat)
+            return Application.CanStreamedLevelBeLoaded(DefeatScreenController.SceneName);
+
+        return false;
     }
 
     private bool IsOverlayVisible()

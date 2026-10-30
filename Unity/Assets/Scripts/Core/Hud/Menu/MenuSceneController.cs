@@ -26,6 +26,12 @@ public sealed class MenuSceneController : MonoBehaviour
 
     private void Start()
     {
+        if (MenuSceneLoader.CanLoadMenu())
+        {
+            MenuSceneLoader.LoadMenu();
+            return;
+        }
+
         MenuUiFactory.EnsureEventSystem();
         EnsureMenuCamera();
         Time.timeScale = 1f;
