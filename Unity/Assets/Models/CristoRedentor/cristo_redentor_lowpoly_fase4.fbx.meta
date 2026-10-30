@@ -3,7 +3,102 @@ guid: 1ad38801bc0581fd8bd137e37b335f5d
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Arbusto_Verde_A
+    second: {fileID: 2100000, guid: 8d1e6dead574406292c88d277b41c796, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Arbusto_Verde_B
+    second: {fileID: 2100000, guid: 89c7d73fd13d4a8c99ab868b861eddd6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Arbusto_Verde_C
+    second: {fileID: 2100000, guid: 7a0527f8a5484ebd90af38c8150df112, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Arbusto_Verde_D
+    second: {fileID: 2100000, guid: 3a2c0f8f22c04c19a094cc87d12b5f16, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Arbusto_Verde_E
+    second: {fileID: 2100000, guid: 91c97c3d4b994dd3ae99e638e5897055, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Escombro_Piedra
+    second: {fileID: 2100000, guid: b36bffd664e34470ac03921061dc2852, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_I
+    second: {fileID: 2100000, guid: bd79b5e6dea94e229c6fb59ddeb120c1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_II
+    second: {fileID: 2100000, guid: 7d2a863d71a8426bacf201867748e934, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_II_Desgastado
+    second: {fileID: 2100000, guid: 11ce74e2d53b4b13a6d67d130c5cdcb7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_II_Desgastado.001
+    second: {fileID: 2100000, guid: 11ce74e2d53b4b13a6d67d130c5cdcb7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_II_Desgastado.002
+    second: {fileID: 2100000, guid: 11ce74e2d53b4b13a6d67d130c5cdcb7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_I_Desgastado
+    second: {fileID: 2100000, guid: d0766835048f47df9bb7eab158467a28, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_I_Desgastado.001
+    second: {fileID: 2100000, guid: d0766835048f47df9bb7eab158467a28, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gris_Claro_I_Desgastado.002
+    second: {fileID: 2100000, guid: d0766835048f47df9bb7eab158467a28, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mirador_Agua
+    second: {fileID: 2100000, guid: cb643f216f874658857b6b90b3f1f119, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mirador_Baranda
+    second: {fileID: 2100000, guid: 79a1a2bb1c8647ff9816ac745efdccea, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mirador_Piedra
+    second: {fileID: 2100000, guid: 5415afd45ed04cf38257951e5bad710a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Mirador_Piso
+    second: {fileID: 2100000, guid: ce6d77c4d4e64f4ead118ad4ca28d7ff, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Rotura_Piedra
+    second: {fileID: 2100000, guid: b589009a57504570b8a7b00fdcacfd79, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

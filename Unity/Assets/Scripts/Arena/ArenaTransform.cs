@@ -217,6 +217,7 @@ public class ArenaTransform : MonoBehaviour
         EnsureDependencies();
         phaseState.EnqueueMissing(faseActual, nuevaFase);
         faseActual = nuevaFase;
+        ApplyMonumentVisuals(nuevaFase);
         if (procesandoCola)
         {
             return;
@@ -255,7 +256,6 @@ public class ArenaTransform : MonoBehaviour
         yield return StartCoroutine(handler.Activate());
 
         phaseState.MarkActivated(fase);
-        ApplyMonumentVisuals(fase);
         transformacionEnProgreso = false;
         OnTransformacionCompletada?.Invoke(fase);
         Debug.Log($"[ArenaTransform] Transformacion a Fase {fase} completada.");

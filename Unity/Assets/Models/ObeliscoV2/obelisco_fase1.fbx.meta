@@ -3,7 +3,127 @@ guid: a46793402a99744409ef312a14f0ee02
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Asphalt
+    second: {fileID: 2100000, guid: f97bf839944c7497a8ed177cd92569fe, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_A
+    second: {fileID: 2100000, guid: 72d27985a9a824162bdd126ed2cc47e4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_B
+    second: {fileID: 2100000, guid: a6acc4a0cf51e49a3b81987e48dcd326, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_C
+    second: {fileID: 2100000, guid: f74d5ef6863f8473d82906e706681110, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_E
+    second: {fileID: 2100000, guid: 87c25b4eeb2534841a91ab43dcfff3de, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_Windows
+    second: {fileID: 2100000, guid: 39e5a5251af844c67a85edbc1dfa33e7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Door_Lintel_Grime
+    second: {fileID: 2100000, guid: 436da11abd8494de2822ceda7c003aac, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Door_Metal_Dark
+    second: {fileID: 2100000, guid: b2897fd55d5194647a061bdb50202eda, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Door_Metal_Rust
+    second: {fileID: 2100000, guid: d65636ddbc52b413a94bdf8dfc292a77, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Door_Void
+    second: {fileID: 2100000, guid: e9dfa2f7e7a724ccd949593bd79c9fe1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Ground_Mat
+    second: {fileID: 2100000, guid: fe08de64caee94e4bb24761dfc97945b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material Evita peron
+    second: {fileID: 2100000, guid: 76f61adb4c96543dca0921016e188989, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material_Arboles.001
+    second: {fileID: 2100000, guid: 590fbeae224f0462ca8390f2cc4f017a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material_Arboles.002
+    second: {fileID: 2100000, guid: 743a164d1f7264a13b186c8792be41fb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Material_Arboles
+    second: {fileID: 2100000, guid: 5050390ba56f24124b4027b69fdd10b1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Median_Grass
+    second: {fileID: 2100000, guid: 65b2e955336d342f8bec00ae6eeea2d7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Obelisco_Stone
+    second: {fileID: 2100000, guid: 124dbe65e107440d48a796fefe2c218d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Plank_Wood_Old
+    second: {fileID: 2100000, guid: afbe91d3ca2bc47e8a8a497c5159a72a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Plaza_Concrete
+    second: {fileID: 2100000, guid: 395aa9f462c074c9b99ee40961f1f786, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Plaza_Grass
+    second: {fileID: 2100000, guid: ea557ad3ed9a84aa48ea0e3b30090628, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Prop_Metal_Dark
+    second: {fileID: 2100000, guid: 424be1283c7244427840b874386a4884, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Prop_Metal_Rust
+    second: {fileID: 2100000, guid: 115215d0217344dc1b1caf04907cbc97, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Vereda
+    second: {fileID: 2100000, guid: 09b1a4a9dda724f06982f67c7f4e798b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Window_Glass
+    second: {fileID: 2100000, guid: c64e3a7fe6e4f4087854042106c36f2a, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

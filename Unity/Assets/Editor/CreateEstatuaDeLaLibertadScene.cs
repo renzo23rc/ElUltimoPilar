@@ -8,12 +8,12 @@ using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Builds the Statue of Liberty gameplay scene using the same composition as SampleScene.
+/// Builds the Statue of Liberty gameplay scene using the same composition as the Obelisco scene.
 /// </summary>
 public static class CreateEstatuaDeLaLibertadScene
 {
     private const string MenuItemPath = "Tools/Create Estatua De La Libertad Scene";
-    private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
+    private const string ObeliscoScenePath = "Assets/Scenes/Obelisco.unity";
     private const string NewScenePath = "Assets/Scenes/EstatuaDeLaLibertad.unity";
     private const string MapModelPath = "Assets/Models/EstatuaLib/EstatLib_fase1.fbx";
     private const string TurretPrefabPath = "Assets/Resources/Prefabs/Torreta.prefab";
@@ -85,13 +85,13 @@ public static class CreateEstatuaDeLaLibertadScene
     }
 
     /// <summary>
-    /// Copies SampleScene, swaps the Obelisco map for the Statue of Liberty, and wires the Pilar.
+    /// Copies the Obelisco scene, swaps the Obelisco map for the Statue of Liberty, and wires the Pilar.
     /// </summary>
     public static void Create(bool overwrite)
     {
-        if (!File.Exists(SampleScenePath))
+        if (!File.Exists(ObeliscoScenePath))
         {
-            Debug.LogError($"{LogPrefix} No se encontró {SampleScenePath}.");
+            Debug.LogError($"{LogPrefix} No se encontró {ObeliscoScenePath}.");
             return;
         }
 
@@ -108,9 +108,9 @@ public static class CreateEstatuaDeLaLibertadScene
             AssetDatabase.DeleteAsset(NewScenePath);
         }
 
-        if (!File.Exists(NewScenePath) && !AssetDatabase.CopyAsset(SampleScenePath, NewScenePath))
+        if (!File.Exists(NewScenePath) && !AssetDatabase.CopyAsset(ObeliscoScenePath, NewScenePath))
         {
-            Debug.LogError($"{LogPrefix} No se pudo copiar SampleScene a {NewScenePath}.");
+            Debug.LogError($"{LogPrefix} No se pudo copiar Obelisco a {NewScenePath}.");
             return;
         }
 
@@ -199,7 +199,7 @@ public static class CreateEstatuaDeLaLibertadScene
         mapRoot.transform.position += offset;
     }
 
-    private static Pilar ConfigurePilar(GameObject statue, GameObject turretPrefab)
+    internal static Pilar ConfigurePilar(GameObject statue, GameObject turretPrefab)
     {
         if (!statue.TryGetComponent(out Pilar pilar))
         {
@@ -252,7 +252,7 @@ public static class CreateEstatuaDeLaLibertadScene
         boxCollider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
     }
 
-    private static void PlaceTurretPoints(Transform statue, Pilar pilar, float turretHeightMeters)
+    internal static void PlaceTurretPoints(Transform statue, Pilar pilar, float turretHeightMeters)
     {
         ClearChildrenWithPrefix(statue, "PuntoTorreta_");
         Bounds monumentBounds = EncapsulateRenderers(statue);
@@ -277,7 +277,7 @@ public static class CreateEstatuaDeLaLibertadScene
         PrefabUtility.RecordPrefabInstancePropertyModifications(pilar);
     }
 
-    private static void PlacePilarLight(Transform statue)
+    internal static void PlacePilarLight(Transform statue)
     {
         ClearChildrenWithPrefix(statue, "LuzPilar");
         Bounds monumentBounds = EncapsulateRenderers(statue);
@@ -404,7 +404,7 @@ public static class CreateEstatuaDeLaLibertadScene
         }
     }
 
-    private static Transform FindChildByName(Transform root, string name)
+    internal static Transform FindChildByName(Transform root, string name)
     {
         if (root.name == name)
         {
@@ -423,7 +423,7 @@ public static class CreateEstatuaDeLaLibertadScene
         return null;
     }
 
-    private static Bounds EncapsulateRenderers(Transform root)
+    internal static Bounds EncapsulateRenderers(Transform root)
     {
         Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0)

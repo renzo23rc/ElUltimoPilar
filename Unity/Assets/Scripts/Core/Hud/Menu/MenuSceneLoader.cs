@@ -5,8 +5,9 @@ using UnityEngine.SceneManagement;
 public static class MenuSceneLoader
 {
     private const string MenuSceneName = "Menu";
-    private const string SampleMatchSceneName = "SampleScene";
+    private const string SampleMatchSceneName = "Obelisco";
     private const string StatueMatchSceneName = "EstatuaDeLaLibertad";
+    private const string CristoMatchSceneName = "CristoRedentor";
 
     /// <summary>Loads the menu and restores normal time after leaving a paused match.</summary>
     public static void LoadMenu()
@@ -25,6 +26,12 @@ public static class MenuSceneLoader
     public static void LoadStatueMatch()
     {
         LoadMatchScene(StatueMatchSceneName);
+    }
+
+    /// <summary>Loads the Cristo Redentor match scene.</summary>
+    public static void LoadCristoMatch()
+    {
+        LoadMatchScene(CristoMatchSceneName);
     }
 
     /// <summary>Requests application exit; in the Editor it stops Play mode.</summary>

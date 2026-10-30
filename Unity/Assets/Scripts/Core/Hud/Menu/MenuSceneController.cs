@@ -83,8 +83,9 @@ public sealed class MenuSceneController : MonoBehaviour
     {
         playPanel = CreatePanel(parent, "PlayMenu");
         MenuUiFactory.CreateLabel(playPanel.transform, "ELEGÍ UNA ESCENA", TitleFontSize - 12);
-        CreateButton(playPanel.transform, "SampleScene", MenuSceneLoader.LoadSampleMatch);
+        CreateButton(playPanel.transform, "Obelisco", MenuSceneLoader.LoadSampleMatch);
         CreateButton(playPanel.transform, "EstatuaDeLaLibertad", MenuSceneLoader.LoadStatueMatch);
+        CreateButton(playPanel.transform, "CristoRedentor", MenuSceneLoader.LoadCristoMatch);
         CreateButton(playPanel.transform, "Volver", ShowMainMenu);
     }
 
