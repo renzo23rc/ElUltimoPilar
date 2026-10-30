@@ -60,12 +60,6 @@ public static class BuildPilarPhaseVisuals
         },
         "Assets/Models/CristoRedentor/Materials");
 
-    /// <summary>Builds the Cristo Redentor phase visuals for the map root in the open scene.</summary>
-    public static void BuildForCristoRoot()
-    {
-        Build(CristoProfile);
-    }
-
     [MenuItem(ObeliscoMenuItemPath)]
     private static void BuildForObelisco()
     {

@@ -199,7 +199,7 @@ public static class CreateEstatuaDeLaLibertadScene
         mapRoot.transform.position += offset;
     }
 
-    internal static Pilar ConfigurePilar(GameObject statue, GameObject turretPrefab)
+    private static Pilar ConfigurePilar(GameObject statue, GameObject turretPrefab)
     {
         if (!statue.TryGetComponent(out Pilar pilar))
         {
@@ -252,7 +252,7 @@ public static class CreateEstatuaDeLaLibertadScene
         boxCollider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
     }
 
-    internal static void PlaceTurretPoints(Transform statue, Pilar pilar, float turretHeightMeters)
+    private static void PlaceTurretPoints(Transform statue, Pilar pilar, float turretHeightMeters)
     {
         ClearChildrenWithPrefix(statue, "PuntoTorreta_");
         Bounds monumentBounds = EncapsulateRenderers(statue);
@@ -277,7 +277,7 @@ public static class CreateEstatuaDeLaLibertadScene
         PrefabUtility.RecordPrefabInstancePropertyModifications(pilar);
     }
 
-    internal static void PlacePilarLight(Transform statue)
+    private static void PlacePilarLight(Transform statue)
     {
         ClearChildrenWithPrefix(statue, "LuzPilar");
         Bounds monumentBounds = EncapsulateRenderers(statue);
@@ -404,7 +404,7 @@ public static class CreateEstatuaDeLaLibertadScene
         }
     }
 
-    internal static Transform FindChildByName(Transform root, string name)
+    private static Transform FindChildByName(Transform root, string name)
     {
         if (root.name == name)
         {
@@ -423,7 +423,7 @@ public static class CreateEstatuaDeLaLibertadScene
         return null;
     }
 
-    internal static Bounds EncapsulateRenderers(Transform root)
+    private static Bounds EncapsulateRenderers(Transform root)
     {
         Renderer[] renderers = root.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0)
