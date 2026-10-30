@@ -4,12 +4,18 @@ using UnityEngine.SceneManagement;
 /// <summary>Loads the menu and the existing playable scenes by their asset names.</summary>
 public static class MenuSceneLoader
 {
-    private const string MenuSceneName = "Menu";
+    private const string MenuSceneName = "MainMenu";
     private const string SampleMatchSceneName = "Obelisco";
     private const string StatueMatchSceneName = "EstatuaDeLaLibertad";
     private const string CristoMatchSceneName = "CristoRedentor";
 
-    /// <summary>Loads the menu and restores normal time after leaving a paused match.</summary>
+    /// <summary>Gets whether the player's main menu scene is included in the build.</summary>
+    public static bool CanLoadMenu()
+    {
+        return Application.CanStreamedLevelBeLoaded(MenuSceneName);
+    }
+
+    /// <summary>Loads the player's main menu and restores normal time after leaving a paused match.</summary>
     public static void LoadMenu()
     {
         Time.timeScale = 1f;

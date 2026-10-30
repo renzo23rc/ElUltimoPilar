@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -14,13 +15,39 @@ public class MainMenu : MonoBehaviour
     [Header("Botones")]
     [SerializeField] private Button playButton;
 
+    InputAction confirmPlay;
     bool sceneLoadRequested;
 
     void Awake()
     {
         EnsureEventSystem();
         EnsureRaycasters();
+        WirePlayButton();
+        CreateConfirmAction();
+    }
 
+    void OnEnable()
+    {
+        confirmPlay?.Enable();
+    }
+
+    void OnDisable()
+    {
+        confirmPlay?.Disable();
+    }
+
+    void OnDestroy()
+    {
+        if (confirmPlay == null)
+            return;
+
+        confirmPlay.performed -= HandleConfirmPlay;
+        confirmPlay.Dispose();
+        confirmPlay = null;
+    }
+
+    void WirePlayButton()
+    {
         if (playButton == null)
             playButton = FindPlayButton();
 
@@ -37,6 +64,20 @@ public class MainMenu : MonoBehaviour
             playButton.onClick.RemoveListener(GoToMapSelection);
             playButton.onClick.AddListener(GoToMapSelection);
         }
+    }
+
+    void CreateConfirmAction()
+    {
+        confirmPlay = new InputAction("MainMenuConfirm", InputActionType.Button);
+        confirmPlay.AddBinding("<Keyboard>/enter");
+        confirmPlay.AddBinding("<Keyboard>/numpadEnter");
+        confirmPlay.AddBinding("<Gamepad>/buttonSouth");
+        confirmPlay.performed += HandleConfirmPlay;
+    }
+
+    void HandleConfirmPlay(InputAction.CallbackContext context)
+    {
+        GoToMapSelection();
     }
 
     public void GoToMapSelection()
