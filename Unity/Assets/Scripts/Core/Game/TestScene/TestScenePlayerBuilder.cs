@@ -17,9 +17,12 @@ public static class TestScenePlayerBuilder
     private const float CameraForwardMeters = 0.3f;
     private const float CameraNearClipMeters = 0.1f;
     private const float ControllerRadiusMeters = 0.5f;
-    private const float ControllerHeightMeters = 2f;
+    /// <summary>Height of the generated CharacterController, in meters.</summary>
+    public const float ControllerHeightMeters = 2f;
     private const float ControllerSkinWidthMeters = 0.08f;
     private const float HalfFactor = 0.5f;
+    /// <summary>Half the generated CharacterController height, used to rest feet on a walk surface.</summary>
+    public const float ControllerHalfHeightMeters = ControllerHeightMeters * HalfFactor;
     private const float AnimationReferenceSpeedMetersPerSecond = 8f;
     private const string VisualObjectName = "JugadorVisual";
     private const string PrimaryModelResource = "Models/Personajes/pj1_anims";

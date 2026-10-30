@@ -19,12 +19,18 @@ public sealed class EstatuaPlayAreaLimiter : MonoBehaviour
     [SerializeField] private string starObjectName = StarObjectName;
     [SerializeField] private float playAreaPaddingMeters = DefaultPaddingMeters;
     [SerializeField] private float spawnInsetMeters = DefaultSpawnInsetMeters;
+    [Tooltip("Si está activo, al Play las SpawnZone se van a los bordes de la estrella. Desactivalo para dejarlas donde las pusiste.")]
+    [SerializeField] private bool relocateSpawnZonesOnPlay = true;
 
     private void Start()
     {
         Bounds playArea = ComputePlayArea();
         ReplaceBoundaryWalls(playArea);
-        RelocateSpawnZones(playArea);
+        if (relocateSpawnZonesOnPlay)
+        {
+            RelocateSpawnZones(playArea);
+        }
+
         ClampEnemySpawnRadius(playArea);
     }
 

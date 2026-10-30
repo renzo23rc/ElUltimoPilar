@@ -1,9 +1,10 @@
 using System;
+using UltimoPilar.Arena;
 using UnityEngine;
 
 /// <summary>
-/// Moves the Statue of Liberty Pilar onto the statue mesh and centers the map on it,
-/// so enemies, the pit, and turrets target the monument instead of the FBX root pivot.
+/// Moves the Statue of Liberty Pilar onto the statue mesh, centers the map on it,
+/// and aligns the walk plane and turrets to the grass and star mesh tops.
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public sealed class EstatuaPilarAnchor : MonoBehaviour
@@ -11,18 +12,26 @@ public sealed class EstatuaPilarAnchor : MonoBehaviour
     private const string StatueObjectName = "Statue";
     private const string PedestalObjectName = "Base";
     private const string TorchObjectName = "Torch";
+    private const string IslandObjectName = "isla";
+    private const string StarObjectName = "Base.001";
     private const string TurretPointPrefix = "PuntoTorreta_";
     private const string PilarLightName = "LuzPilar";
     private const int TurretPointCount = 4;
     private const float TurretRadiusPadding = 1.25f;
     private const float CircleRadians = Mathf.PI * 2f;
-    // Mismo radio mortal que TestSceneArenaBuilder: las torretas tienen que quedar fuera del anillo.
-    private const float PitRadiusMeters = 5f;
     private const string LogPrefix = "[EstatuaPilarAnchor]";
+    private const float DefaultPitRadiusPaddingMeters = 0.75f;
 
     [SerializeField] private string statueObjectName = StatueObjectName;
     [SerializeField] private float turretHeightMeters = 2.2f;
     [SerializeField] private float turretClearanceOutsidePitMeters = 1.5f;
+    [Tooltip("Radio del pozo en esta escena, en metros. 0 lo ajusta al pedestal.")]
+    [SerializeField] private float pitRadiusMeters;
+    [SerializeField] private float pitRadiusPaddingMeters = DefaultPitRadiusPaddingMeters;
+    [Tooltip("Si está activo, al Play se regeneran PuntoTorreta_0..3. Desactivalo para colocarlas a mano.")]
+    [SerializeField] private bool rebuildTurretPointsOnPlay = true;
+
+    private float resolvedPitRadiusMeters = TestSceneArenaBuilder.DefaultPitRadiusMeters;
 
     private void Awake()
     {
@@ -33,18 +42,136 @@ public sealed class EstatuaPilarAnchor : MonoBehaviour
             return;
         }
 
-        CenterMapOnMonument(statue);
+        Vector3 mapShift = CenterMapOnMonument(statue);
+        ShiftSpawnZones(mapShift);
         Pilar pilar = EnsurePilarOnStatue(statue);
         FitPilarCollider(statue);
-        PlaceTurretPoints(statue, pilar);
+        EstatuaSurfaceHeights heights = MeasureSurfaceHeights();
+        turretHeightMeters = heights.TurretY;
+        resolvedPitRadiusMeters = ResolvePitRadius();
+        AlignGeneratedArena(heights);
+        AlignSpawnZoneHeights(heights.WalkSurfaceY);
+        EnsureStarCollider();
+        if (rebuildTurretPointsOnPlay || !TryBindExistingTurretPoints(statue, pilar))
+        {
+            PlaceTurretPoints(statue, pilar);
+        }
+
         PlacePilarLight(statue);
     }
 
-    private void CenterMapOnMonument(Transform statue)
+    private EstatuaSurfaceHeights MeasureSurfaceHeights()
+    {
+        float grassTopY = MeshTopY(IslandObjectName, 0f);
+        float starTopY = MeshTopY(StarObjectName, grassTopY);
+        float pedestalBottomY = MeshBottomY(PedestalObjectName, starTopY);
+        float platformY = pedestalBottomY > starTopY ? pedestalBottomY : starTopY;
+        return EstatuaSurfaceHeights.FromMeshTops(
+            grassTopY,
+            platformY,
+            TestScenePlayerBuilder.ControllerHalfHeightMeters,
+            EstatuaSurfaceHeights.DefaultTurretPivotAboveSurfaceMeters);
+    }
+
+    private float MeshTopY(string objectName, float fallbackY)
+    {
+        return MeshBoundY(objectName, fallbackY, useMaximum: true);
+    }
+
+    private float MeshBottomY(string objectName, float fallbackY)
+    {
+        return MeshBoundY(objectName, fallbackY, useMaximum: false);
+    }
+
+    private float MeshBoundY(string objectName, float fallbackY, bool useMaximum)
+    {
+        Transform child = FindChildByName(transform, objectName);
+        if (child == null)
+        {
+            return fallbackY;
+        }
+
+        Bounds bounds = EncapsulateRenderers(child);
+        return useMaximum ? bounds.max.y : bounds.min.y;
+    }
+
+    private void AlignGeneratedArena(EstatuaSurfaceHeights heights)
+    {
+        TestSceneSetup setup = FindFirstObjectByType<TestSceneSetup>();
+        if (setup == null)
+        {
+            return;
+        }
+
+        setup.AlignGeneratedSurface(heights.WalkSurfaceY, heights.PlayerSpawnY, heights.HazardY);
+        setup.AlignPitRadius(resolvedPitRadiusMeters);
+    }
+
+    private float ResolvePitRadius()
+    {
+        Transform pedestal = FindChildByName(transform, PedestalObjectName);
+        float pedestalHalfExtentMeters = 0f;
+        if (pedestal != null)
+        {
+            Bounds pedestalBounds = EncapsulateRenderers(pedestal);
+            pedestalHalfExtentMeters = Mathf.Max(pedestalBounds.extents.x, pedestalBounds.extents.z);
+        }
+
+        return EstatuaSurfaceHeights.ResolvePitRadius(
+            pitRadiusMeters,
+            pedestalHalfExtentMeters,
+            pitRadiusPaddingMeters,
+            TestSceneArenaBuilder.DefaultPitRadiusMeters);
+    }
+
+    private static void AlignSpawnZoneHeights(float walkSurfaceY)
+    {
+        SpawnZone[] zones = FindObjectsByType<SpawnZone>(FindObjectsSortMode.None);
+        for (int i = 0; i < zones.Length; i++)
+        {
+            Vector3 position = zones[i].transform.position;
+            position.y = walkSurfaceY;
+            zones[i].transform.position = position;
+        }
+    }
+
+    private void EnsureStarCollider()
+    {
+        Transform star = FindChildByName(transform, StarObjectName);
+        if (star == null || !star.TryGetComponent(out MeshFilter meshFilter) || meshFilter.sharedMesh == null)
+        {
+            return;
+        }
+
+        if (star.GetComponent<MeshCollider>() != null)
+        {
+            return;
+        }
+
+        MeshCollider collider = star.gameObject.AddComponent<MeshCollider>();
+        collider.sharedMesh = meshFilter.sharedMesh;
+    }
+
+    private Vector3 CenterMapOnMonument(Transform statue)
     {
         Bounds monument = EncapsulateNamedMeshes(transform, statue);
         Vector3 shift = new Vector3(-monument.center.x, 0f, -monument.center.z);
         transform.position += shift;
+        return shift;
+    }
+
+    private static void ShiftSpawnZones(Vector3 shift)
+    {
+        if (shift == Vector3.zero)
+        {
+            return;
+        }
+
+        SpawnZone[] zones = FindObjectsByType<SpawnZone>(FindObjectsSortMode.None);
+        for (int i = 0; i < zones.Length; i++)
+        {
+            zones[i].transform.position += shift;
+        }
     }
 
     private Pilar EnsurePilarOnStatue(Transform statue)
@@ -110,7 +237,7 @@ public sealed class EstatuaPilarAnchor : MonoBehaviour
         ClearChildrenWithPrefix(statue, TurretPointPrefix);
         Bounds monument = EncapsulateNamedMeshes(transform, statue);
         float radiusAroundMonument = Mathf.Max(monument.extents.x, monument.extents.z) * TurretRadiusPadding;
-        float radiusOutsidePit = PitRadiusMeters + turretClearanceOutsidePitMeters;
+        float radiusOutsidePit = resolvedPitRadiusMeters + turretClearanceOutsidePitMeters;
         float radius = Mathf.Max(radiusAroundMonument, radiusOutsidePit);
         var points = new Transform[TurretPointCount];
         for (int i = 0; i < TurretPointCount; i++)
@@ -128,6 +255,28 @@ public sealed class EstatuaPilarAnchor : MonoBehaviour
         }
 
         pilar.puntosTorretas = points;
+    }
+
+    private bool TryBindExistingTurretPoints(Transform statue, Pilar pilar)
+    {
+        var points = new Transform[TurretPointCount];
+        for (int i = 0; i < TurretPointCount; i++)
+        {
+            string pointName = $"{TurretPointPrefix}{i}";
+            Transform point = FindChildByName(statue, pointName) ?? FindChildByName(transform, pointName);
+            if (point == null)
+            {
+                return false;
+            }
+
+            points[i] = point;
+            Vector3 worldPosition = point.position;
+            worldPosition.y = turretHeightMeters;
+            point.position = worldPosition;
+        }
+
+        pilar.puntosTorretas = points;
+        return true;
     }
 
     private void PlacePilarLight(Transform statue)

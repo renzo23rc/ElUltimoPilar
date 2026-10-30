@@ -63,9 +63,45 @@ public class TestSceneSetup : MonoBehaviour
     [Header("Ajuste de mapa")]
     [Tooltip("Altura extra del piso de juego. 0 deja la arena como en SampleScene.")]
     [SerializeField] private float arenaSurfaceHeightMeters;
+    [Tooltip("Altura del pozo y la zona de gravedad. 0 sigue al piso generado.")]
+    [SerializeField] private float arenaHazardHeightMeters;
     [Tooltip("Oculta el plano gris generado para que se vea el mapa 3D.")]
     [SerializeField] private bool hideGeneratedFloor;
     [SerializeField] private Vector3 playerSpawnPosition = new Vector3(0f, 1f, -8f);
+    [Tooltip("Radio del pozo en metros. 0 usa el radio de SampleScene (5 m).")]
+    [SerializeField] private float pitRadiusMeters;
+
+    /// <summary>
+    /// Aligns the generated floor and player spawn to a measured walk surface.
+    /// Call this before <see cref="Start"/> so the arena is built at the new height.
+    /// Pit and gravity stay on the walk surface.
+    /// </summary>
+    /// <param name="surfaceHeightMeters">Y of the walkable floor, in meters.</param>
+    /// <param name="playerSpawnY">Y of the player transform so the controller feet rest on that floor.</param>
+    public void AlignGeneratedSurface(float surfaceHeightMeters, float playerSpawnY)
+    {
+        AlignGeneratedSurface(surfaceHeightMeters, playerSpawnY, surfaceHeightMeters);
+    }
+
+    /// <summary>
+    /// Aligns the generated floor, player spawn, and pit/gravity heights before <see cref="Start"/>.
+    /// </summary>
+    /// <param name="surfaceHeightMeters">Y of the walkable floor, in meters.</param>
+    /// <param name="playerSpawnY">Y of the player transform so the controller feet rest on that floor.</param>
+    /// <param name="hazardHeightMeters">Y of the pit and gravity zone, in meters.</param>
+    public void AlignGeneratedSurface(float surfaceHeightMeters, float playerSpawnY, float hazardHeightMeters)
+    {
+        arenaSurfaceHeightMeters = surfaceHeightMeters;
+        arenaHazardHeightMeters = hazardHeightMeters;
+        playerSpawnPosition = new Vector3(playerSpawnPosition.x, playerSpawnY, playerSpawnPosition.z);
+    }
+
+    /// <summary>Sets the generated pit radius before <see cref="Start"/>. Zero keeps SampleScene's 5 m pit.</summary>
+    /// <param name="radiusMeters">World-space kill radius of the pit, in meters.</param>
+    public void AlignPitRadius(float radiusMeters)
+    {
+        pitRadiusMeters = radiusMeters;
+    }
 
     void Start()
     {
@@ -109,8 +145,8 @@ public class TestSceneSetup : MonoBehaviour
         }
 
         TestSceneArenaBuilder.CreateBoundaryWalls();
-        GameObject pozo = TestSceneArenaBuilder.CreatePit(arenaSurfaceHeightMeters);
-        GameObject zonaGravedad = TestSceneArenaBuilder.CreateGravityZone(arenaSurfaceHeightMeters);
+        GameObject pozo = TestSceneArenaBuilder.CreatePit(arenaHazardHeightMeters, pitRadiusMeters);
+        GameObject zonaGravedad = TestSceneArenaBuilder.CreateGravityZone(arenaHazardHeightMeters);
 
         // Jugador primario (inactivo hasta terminar la composición) y plantilla para gamepads.
         PlayerController jugador = TestScenePlayerBuilder.CreatePrimary(

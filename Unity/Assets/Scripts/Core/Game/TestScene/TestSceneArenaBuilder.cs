@@ -14,7 +14,9 @@ public static class TestSceneArenaBuilder
     private const float PilarLightRangeMeters = 30f;
     private const float PilarLightIntensity = 2f;
     private const float SunIntensity = 1f;
-    private const float PitKillRadiusMeters = 5f;
+    /// <summary>Kill radius of the generated pit in SampleScene, in meters.</summary>
+    public const float DefaultPitRadiusMeters = 5f;
+    private const float PrimitiveCylinderRadiusMeters = 0.5f;
     // Mata si y <= pozo.y + 1.5: permite caminar sobre el borde sin morir, solo al caer.
     private const float PitKillHeightMeters = 1.5f;
     private const float PitEmissionIntensity = 0.3f;
@@ -152,6 +154,13 @@ public static class TestSceneArenaBuilder
     /// <summary>Creates the inactive central pit with its lethal <see cref="PozoKill"/> trigger.</summary>
     public static GameObject CreatePit(float surfaceHeightMeters = 0f)
     {
+        return CreatePit(surfaceHeightMeters, DefaultPitRadiusMeters);
+    }
+
+    /// <summary>Creates the inactive central pit with a custom kill radius, in meters.</summary>
+    public static GameObject CreatePit(float surfaceHeightMeters, float radiusMeters)
+    {
+        float pitRadiusMeters = radiusMeters > 0f ? radiusMeters : DefaultPitRadiusMeters;
         GameObject pit = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         pit.name = "PozoCentral";
         // Collider de caída: un BoxCollider trigger es más robusto que el del cilindro.
@@ -161,13 +170,13 @@ public static class TestSceneArenaBuilder
         trigger.size = Vector3.one;
         trigger.center = Vector3.zero;
         var pitKill = pit.AddComponent<PozoKill>();
-        pitKill.radioMortal = PitKillRadiusMeters;
+        pitKill.radioMortal = pitRadiusMeters;
         pitKill.alturaMortal = PitKillHeightMeters;
         if (!pit.TryGetComponent(out Rigidbody body)) body = pit.AddComponent<Rigidbody>();
         body.isKinematic = true;
         body.useGravity = false;
         pit.transform.position = PitPosition + (Vector3.up * surfaceHeightMeters);
-        pit.transform.localScale = PitScale;
+        pit.transform.localScale = ScaleForPitRadius(pitRadiusMeters);
 
         Material pitMaterial = pit.GetComponent<Renderer>().material;
         pitMaterial.color = Color.black;
@@ -175,6 +184,14 @@ public static class TestSceneArenaBuilder
         if (pitMaterial.HasProperty(EmissionColorProperty)) pitMaterial.SetColor(EmissionColorProperty, Color.red * PitEmissionIntensity);
         pit.SetActive(false);
         return pit;
+    }
+
+    /// <summary>Maps a world-space pit radius to the Unity cylinder primitive scale.</summary>
+    public static Vector3 ScaleForPitRadius(float radiusMeters)
+    {
+        float pitRadiusMeters = radiusMeters > 0f ? radiusMeters : DefaultPitRadiusMeters;
+        float horizontalScale = pitRadiusMeters / PrimitiveCylinderRadiusMeters;
+        return new Vector3(horizontalScale, PitScale.y, horizontalScale);
     }
 
     /// <summary>Creates the inactive altered-gravity zone with its trigger, effect, and floating particles.</summary>

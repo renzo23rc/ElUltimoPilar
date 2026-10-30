@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using UltimoPilar.Arena;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -39,9 +40,9 @@ public static class CreateEstatuaDeLaLibertadScene
     private const float OversizedMapThresholdMeters = 200f;
     private const float CircleRadians = Mathf.PI * 2f;
     private const float GameplaySurfaceHeightMeters = 2.1f;
-    private const float PlayerSpawnHeightMeters = 3.1f;
     private const float PlayerSpawnZMeters = -8f;
     private const string ArenaSurfaceHeightProperty = "arenaSurfaceHeightMeters";
+    private const string ArenaHazardHeightProperty = "arenaHazardHeightMeters";
     private const string HideGeneratedFloorProperty = "hideGeneratedFloor";
     private const string PlayerSpawnPositionProperty = "playerSpawnPosition";
 
@@ -144,9 +145,10 @@ public static class CreateEstatuaDeLaLibertadScene
 
         AddEnvironmentColliders(mapRoot.transform);
         Pilar pilar = ConfigurePilar(statue.gameObject, turretPrefab);
-        PlaceTurretPoints(statue, pilar);
+        EstatuaSurfaceHeights heights = MeasureSurfaceHeights(mapRoot.transform);
+        PlaceTurretPoints(statue, pilar, heights.TurretY);
         PlacePilarLight(statue);
-        ConfigureGameplayAlignment();
+        ConfigureGameplayAlignment(mapRoot.transform, heights);
         RegisterSceneInBuildSettings();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -250,7 +252,7 @@ public static class CreateEstatuaDeLaLibertadScene
         boxCollider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
     }
 
-    private static void PlaceTurretPoints(Transform statue, Pilar pilar)
+    private static void PlaceTurretPoints(Transform statue, Pilar pilar, float turretHeightMeters)
     {
         ClearChildrenWithPrefix(statue, "PuntoTorreta_");
         Bounds monumentBounds = EncapsulateRenderers(statue);
@@ -263,7 +265,7 @@ public static class CreateEstatuaDeLaLibertadScene
             float angle = (i / (float)TurretPointCount) * CircleRadians;
             Vector3 worldPosition = new Vector3(
                 monumentBounds.center.x + (Mathf.Cos(angle) * radius),
-                GameplaySurfaceHeightMeters,
+                turretHeightMeters,
                 monumentBounds.center.z + (Mathf.Sin(angle) * radius));
             point.transform.SetParent(statue, true);
             point.transform.position = worldPosition;
@@ -293,16 +295,33 @@ public static class CreateEstatuaDeLaLibertadScene
         lightObject.AddComponent<UniversalAdditionalLightData>();
     }
 
-    private static void ConfigureGameplayAlignment()
+    private static EstatuaSurfaceHeights MeasureSurfaceHeights(Transform mapRoot)
+    {
+        Transform island = FindChildByName(mapRoot, IslandChildName);
+        Transform star = FindChildByName(mapRoot, PlatformChildName);
+        Transform pedestal = FindChildByName(mapRoot, PedestalChildName);
+        float grassTopY = island != null ? EncapsulateRenderers(island).max.y : GameplaySurfaceHeightMeters;
+        float starTopY = star != null ? EncapsulateRenderers(star).max.y : grassTopY;
+        float pedestalBottomY = pedestal != null ? EncapsulateRenderers(pedestal).min.y : starTopY;
+        float platformY = pedestalBottomY > starTopY ? pedestalBottomY : starTopY;
+        return EstatuaSurfaceHeights.FromMeshTops(
+            grassTopY,
+            platformY,
+            TestScenePlayerBuilder.ControllerHalfHeightMeters,
+            EstatuaSurfaceHeights.DefaultTurretPivotAboveSurfaceMeters);
+    }
+
+    private static void ConfigureGameplayAlignment(Transform mapRoot, EstatuaSurfaceHeights heights)
     {
         TestSceneSetup setup = Object.FindFirstObjectByType<TestSceneSetup>();
         if (setup != null)
         {
             SerializedObject serializedSetup = new SerializedObject(setup);
-            serializedSetup.FindProperty(ArenaSurfaceHeightProperty).floatValue = GameplaySurfaceHeightMeters;
+            serializedSetup.FindProperty(ArenaSurfaceHeightProperty).floatValue = heights.WalkSurfaceY;
+            serializedSetup.FindProperty(ArenaHazardHeightProperty).floatValue = heights.HazardY;
             serializedSetup.FindProperty(HideGeneratedFloorProperty).boolValue = true;
             serializedSetup.FindProperty(PlayerSpawnPositionProperty).vector3Value =
-                new Vector3(0f, PlayerSpawnHeightMeters, PlayerSpawnZMeters);
+                new Vector3(0f, heights.PlayerSpawnY, PlayerSpawnZMeters);
             serializedSetup.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -310,8 +329,20 @@ public static class CreateEstatuaDeLaLibertadScene
         for (int i = 0; i < zones.Length; i++)
         {
             Vector3 zonePosition = zones[i].transform.position;
-            zonePosition.y = GameplaySurfaceHeightMeters;
+            zonePosition.y = heights.WalkSurfaceY;
             zones[i].transform.position = zonePosition;
+        }
+
+        EstatuaPilarAnchor anchor = mapRoot.GetComponent<EstatuaPilarAnchor>();
+        if (anchor != null)
+        {
+            SerializedObject serializedAnchor = new SerializedObject(anchor);
+            SerializedProperty turretHeight = serializedAnchor.FindProperty("turretHeightMeters");
+            if (turretHeight != null)
+            {
+                turretHeight.floatValue = heights.TurretY;
+                serializedAnchor.ApplyModifiedPropertiesWithoutUndo();
+            }
         }
     }
 
