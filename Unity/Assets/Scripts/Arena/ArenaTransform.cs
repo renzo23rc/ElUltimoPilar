@@ -30,6 +30,8 @@ public class ArenaTransform : MonoBehaviour
     public GameObject zonaGravedad;
     public GameObject escombrosFase4;
     public GameObject[] obstaculosAdicionales;
+    [Tooltip("Modelos deteriorados por fase. Si está vacío, se busca ArenaPhaseVisuals en la escena.")]
+    public ArenaPhaseVisuals modelosPorFase;
 
     [Header("Configuracion")]
     public float tiempoAvisoPrevio = 3f;
@@ -56,6 +58,11 @@ public class ArenaTransform : MonoBehaviour
         if (pilar == null)
         {
             pilar = FindFirstObjectByType<Pilar>();
+        }
+
+        if (modelosPorFase == null)
+        {
+            modelosPorFase = FindFirstObjectByType<ArenaPhaseVisuals>();
         }
 
         EnsureDependencies();
@@ -96,6 +103,7 @@ public class ArenaTransform : MonoBehaviour
         phaseState.Reset();
         phaseEffects.Reset();
         warningPresenter.Reset();
+        ApplyMonumentVisuals(FirstArenaPhase);
     }
 
     // crea los servicios internos si no existen (estado, presentador, efectos y manejadores)
@@ -247,9 +255,23 @@ public class ArenaTransform : MonoBehaviour
         yield return StartCoroutine(handler.Activate());
 
         phaseState.MarkActivated(fase);
+        ApplyMonumentVisuals(fase);
         transformacionEnProgreso = false;
         OnTransformacionCompletada?.Invoke(fase);
         Debug.Log($"[ArenaTransform] Transformacion a Fase {fase} completada.");
+    }
+
+    private void ApplyMonumentVisuals(int phase)
+    {
+        if (modelosPorFase == null)
+        {
+            modelosPorFase = FindFirstObjectByType<ArenaPhaseVisuals>();
+        }
+
+        if (modelosPorFase != null)
+        {
+            modelosPorFase.ShowPhase(phase);
+        }
     }
 
     // dibuja el radio de la arena y el pozo en el editor

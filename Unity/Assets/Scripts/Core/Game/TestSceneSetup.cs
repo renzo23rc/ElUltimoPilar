@@ -166,6 +166,7 @@ public class TestSceneSetup : MonoBehaviour
         arena.sueloBase = suelo;
         arena.pozoCentral = pozo;
         arena.zonaGravedad = zonaGravedad;
+        arena.modelosPorFase = FindFirstObjectByType<ArenaPhaseVisuals>();
 
         GameObject energia = PrepararEnergia(poolManager);
         GameObject proyectil = PrepararProyectil(poolManager);
