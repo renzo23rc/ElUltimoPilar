@@ -1,9 +1,44 @@
 fileFormatVersion: 2
-guid: 70e0d4546b70d470ba2e63a9eedd6ef2
+guid: 9373d5993d9f9a44ea584d38bc1cddcb
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Coderar
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Entrepierna
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Pantalon
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: body
+    second: {fileID: 2100000, guid: 0a06530b6a769831197d1166fe3cf2a3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chaleco
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: cinturon
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: hombreras
+    second: {fileID: 2100000, guid: 62c91d6b396e58a8e82c4438eb938ee4, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -101,7 +136,7 @@ ModelImporter:
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 2
   humanoidOversampling: 1
-  avatarSetup: 0
+  avatarSetup: 1
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
   importBlendShapeDeformPercent: 1
   remapMaterialsIfMaterialImportModeIsNone: 0

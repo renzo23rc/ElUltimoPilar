@@ -1,9 +1,59 @@
 fileFormatVersion: 2
-guid: 84ed4dca9f0582812a6c89390730e14e
+guid: c4378e9348c3c60daa319a644a3707ce
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: body
+    second: {fileID: 2100000, guid: abcdb33ae5b2f30c2a88ceef43079be5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: brazalete
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: brazalete solitario
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: chaleco
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: cinturon
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: coderar
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: entrepierna
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: hombrera
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: pantalon
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: rodillera
+    second: {fileID: 2100000, guid: b61940fe18f28b8fbb58000e3bde2469, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -101,7 +151,7 @@ ModelImporter:
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 2
   humanoidOversampling: 1
-  avatarSetup: 0
+  avatarSetup: 1
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
   importBlendShapeDeformPercent: 1
   remapMaterialsIfMaterialImportModeIsNone: 0
