@@ -188,7 +188,7 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember, IDamageable,
             estadoInicialCapturado = true;
         }
 
-        cameraLook.CaptureInitialState(camaraJugador);
+        cameraLook.CaptureInitialState(camaraJugador, transform);
     }
 
     // ===== BUCLE POR FRAME =====
@@ -216,6 +216,10 @@ public class PlayerController : MonoBehaviour, IPlayerRosterMember, IDamageable,
         PlayerMovementSettings settings = MovementSettings;
         cameraLook.Apply(camaraJugador, transform, puntoDisparo, new Vector2(command.LookX, command.LookY) * EscalaDeMirada());
         Transform referenciaMovimiento = camaraJugador != null ? camaraJugador.transform : transform;
+        if (camaraJugador != null && camaraJugador.transform.parent != null && camaraJugador.transform.parent != transform)
+        {
+            referenciaMovimiento = camaraJugador.transform.parent;
+        }
         motor.Move(referenciaMovimiento, command.MoveX, command.MoveY, settings, FactorRalentizacion);
         if (command.Jump) motor.TryJump(settings);
         if (command.Heal && energia != null) energia.GastarEnCuracion();

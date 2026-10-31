@@ -13,6 +13,7 @@ public static class TestScenePlayerBuilder
     private const string KeyboardMouseControlSchemeName = "Keyboard&Mouse";
     private const string UntaggedCameraTag = "Untagged";
     private const string MainCameraTag = "MainCamera";
+    private const string CameraHolderName = "CamHolder";
     private const float CameraHeightMeters = 0.8f;
     // Adelantada para que la cámara no quede dentro de los lentes del modelo.
     private const float CameraForwardMeters = 0.3f;
@@ -28,7 +29,6 @@ public static class TestScenePlayerBuilder
     private const string VisualObjectName = "JugadorVisual";
     private const string BodyMaterialNameFragment = "body";
     private const string PrimaryModelResource = "Models/Personajes/p1";
-    private const string PrimaryLocomotionControllerResource = "Animation/PlayerP1Locomotion";
     private const string LocomotionControllerResource = "Animation/PlayerLocomotion";
     private const string SecondaryModelResource = "Models/Personajes/p2";
     private const string BazookaResource = "Models/Armas/bazooka/bazooka";
@@ -60,7 +60,7 @@ public static class TestScenePlayerBuilder
         player.transform.position = spawnPosition;
 
         CreateVisual(player.transform, PrimaryModelResource, material);
-        AnimateVisual(player.transform, PrimaryModelResource);
+        AnimateVisual(player.transform);
 
         Camera camera = CreateCamera(player.transform);
         DisableOtherCameras(camera, gameManager);
@@ -80,6 +80,7 @@ public static class TestScenePlayerBuilder
         var controller = player.AddComponent<PlayerController>();
         controller.camaraJugador = camera;
         controller.puntoDisparo = muzzle.transform;
+        player.AddComponent<PlayerHeadBob>();
 
         player.AddComponent<EnergySystem>();
         var weapons = player.AddComponent<WeaponSystem>();
@@ -102,18 +103,18 @@ public static class TestScenePlayerBuilder
         templateObject.name = "PlayerTemplate";
         templateObject.SetActive(false);
         ReplaceVisual(templateObject.transform, SecondaryModelResource);
-        AnimateVisual(templateObject.transform, SecondaryModelResource);
+        AnimateVisual(templateObject.transform);
         return templateObject.GetComponent<PlayerController>();
     }
 
     // Con esqueleto y clips usa el Animator; sin ellos, el cuerpo respira y rebota por código.
-    private static void AnimateVisual(Transform player, string modelResource)
+    private static void AnimateVisual(Transform player)
     {
         Transform visual = player.Find(VisualObjectName);
         if (visual == null)
             return;
 
-        if (TryUseSkeletalAnimation(player, visual, modelResource))
+        if (TryUseSkeletalAnimation(player, visual))
             return;
 
         RemoveComponent<PlayerAnimatorDriver>(player);
@@ -122,13 +123,10 @@ public static class TestScenePlayerBuilder
         animator.Configure(visual, AnimationReferenceSpeedMetersPerSecond);
     }
 
-    private static bool TryUseSkeletalAnimation(Transform player, Transform visual, string modelResource)
+    private static bool TryUseSkeletalAnimation(Transform player, Transform visual)
     {
         Animator animator = visual.GetComponentInChildren<Animator>();
-        string controllerResource = modelResource == PrimaryModelResource
-            ? PrimaryLocomotionControllerResource
-            : LocomotionControllerResource;
-        var controller = Resources.Load<RuntimeAnimatorController>(controllerResource);
+        var controller = Resources.Load<RuntimeAnimatorController>(LocomotionControllerResource);
         if (animator == null || controller == null || visual.GetComponentInChildren<SkinnedMeshRenderer>() == null)
             return false;
 
@@ -369,9 +367,16 @@ public static class TestScenePlayerBuilder
 
     private static Camera CreateCamera(Transform player)
     {
+        var holder = new GameObject(CameraHolderName);
+        holder.transform.SetParent(player);
+        holder.transform.localPosition = new Vector3(0f, CameraHeightMeters, CameraForwardMeters);
+        holder.transform.localRotation = Quaternion.identity;
+        holder.transform.localScale = Vector3.one;
+
         var cameraObject = new GameObject("Camera");
-        cameraObject.transform.SetParent(player);
-        cameraObject.transform.localPosition = new Vector3(0f, CameraHeightMeters, CameraForwardMeters);
+        cameraObject.transform.SetParent(holder.transform);
+        cameraObject.transform.localPosition = Vector3.zero;
+        cameraObject.transform.localRotation = Quaternion.identity;
         var camera = cameraObject.AddComponent<Camera>();
         camera.nearClipPlane = CameraNearClipMeters;
         camera.tag = UntaggedCameraTag;

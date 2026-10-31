@@ -5,6 +5,7 @@ using UnityEngine;
 /// <summary>
 /// Provides centralized combat feedback such as camera shake and hitstop.
 /// </summary>
+[DefaultExecutionOrder(200)]
 public class CombatFeedback : MonoBehaviour
 {
     private const float MinimumShakeIntensity = 0.001f;
@@ -168,7 +169,13 @@ public class CombatFeedback : MonoBehaviour
                 continue;
             }
 
-            camara.transform.localPosition -= offsetsAplicados[camara];
+            Transform shaken = ResolveShakeTarget(camara);
+            // PlayerHeadBob escribe la posición del CamHolder cada frame. Restar el offset viejo la correría.
+            if (shaken == camara.transform)
+            {
+                shaken.localPosition -= offsetsAplicados[camara];
+            }
+
             offsetsAplicados.Remove(camara);
         }
     }
@@ -198,9 +205,21 @@ public class CombatFeedback : MonoBehaviour
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
                 UnityEngine.Random.Range(RandomOffsetMinimum, RandomOffsetMaximum),
                 0f) * intensidadActual * MenuPreferences.ShakeIntensity;
-            // En espacio local: si el jugador rota entre frames, revertir no desplaza la cámara.
-            camara.transform.localPosition += offset;
+            // El bob escribe la posición local de la cámara. El shake va en el CamHolder.
+            ResolveShakeTarget(camara).localPosition += offset;
             offsetsAplicados[camara] = offset;
         }
+    }
+
+    // El CamHolder es el padre de la cámara y no tiene PlayerController. El jugador sí.
+    private static Transform ResolveShakeTarget(Camera camera)
+    {
+        Transform parent = camera.transform.parent;
+        if (parent != null && parent.GetComponent<PlayerController>() == null)
+        {
+            return parent;
+        }
+
+        return camera.transform;
     }
 }

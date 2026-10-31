@@ -12,18 +12,22 @@ public sealed class PlayerCameraLook
     private float pitchDegrees;
     private float initialFieldOfView;
     private Quaternion initialLocalRotation;
+    private Transform lookPivot;
     private bool initialStateCaptured;
 
-    /// <summary>Captures the camera's initial field of view and rotation once.</summary>
-    public void CaptureInitialState(Camera camera)
+    /// <summary>Captures the camera's initial field of view and the look pivot rotation once.</summary>
+    /// <param name="camera">The player camera. Pitch is applied to its holder when one exists.</param>
+    /// <param name="body">The player root. Yaw is applied here.</param>
+    public void CaptureInitialState(Camera camera, Transform body)
     {
         if (initialStateCaptured || camera == null)
         {
             return;
         }
 
+        lookPivot = ResolveLookPivot(camera, body);
         initialFieldOfView = camera.fieldOfView;
-        initialLocalRotation = camera.transform.localRotation;
+        initialLocalRotation = lookPivot.localRotation;
         initialStateCaptured = true;
     }
 
@@ -45,11 +49,16 @@ public sealed class PlayerCameraLook
             return;
         }
 
-        camera.transform.localRotation = Quaternion.Euler(pitchDegrees, 0, 0);
-        body.Rotate(Vector3.up * lookDeltaDegrees.x * lookSensitivity);
+        lookPivot = ResolveLookPivot(camera, body);
+        lookPivot.localRotation = Quaternion.Euler(pitchDegrees, 0f, 0f);
+        if (body != null)
+        {
+            body.Rotate(Vector3.up * lookDeltaDegrees.x * lookSensitivity);
+        }
+
         if (muzzle != null)
         {
-            muzzle.rotation = camera.transform.rotation;
+            muzzle.rotation = lookPivot.rotation;
         }
     }
 
@@ -65,8 +74,13 @@ public sealed class PlayerCameraLook
     /// <summary>Restores the captured field of view.</summary>
     public void RestoreFieldOfView(Camera camera)
     {
-        CaptureInitialState(camera);
-        if (camera != null && initialStateCaptured)
+        if (camera == null)
+        {
+            return;
+        }
+
+        CaptureInitialState(camera, camera.transform.root);
+        if (initialStateCaptured)
         {
             camera.fieldOfView = initialFieldOfView;
         }
@@ -78,7 +92,8 @@ public sealed class PlayerCameraLook
         pitchDegrees = 0f;
         if (camera != null && initialStateCaptured)
         {
-            camera.transform.localRotation = initialLocalRotation;
+            Transform pivot = lookPivot != null ? lookPivot : camera.transform;
+            pivot.localRotation = initialLocalRotation;
             pitchDegrees = initialLocalRotation.eulerAngles.x;
             if (pitchDegrees > HalfTurnDegrees)
             {
@@ -87,5 +102,17 @@ public sealed class PlayerCameraLook
         }
 
         RestoreFieldOfView(camera);
+    }
+
+    // El pitch vive en el CamHolder. La cámara solo cabecea en local y mira al frente.
+    private static Transform ResolveLookPivot(Camera camera, Transform body)
+    {
+        Transform parent = camera.transform.parent;
+        if (parent != null && parent != body)
+        {
+            return parent;
+        }
+
+        return camera.transform;
     }
 }
