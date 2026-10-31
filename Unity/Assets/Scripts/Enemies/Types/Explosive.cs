@@ -25,6 +25,7 @@ public class Explosive : Enemy
 
     private bool detonando = false;
     private Renderer rend;
+    private Material ownedMaterial;
 
     protected override void Start()
     {
@@ -47,6 +48,8 @@ public class Explosive : Enemy
         {
             rend = GetComponentInChildren<Renderer>();
         }
+
+        EnsureOwnedMaterial();
     }
 
     protected override void Comportamiento()
@@ -87,14 +90,30 @@ public class Explosive : Enemy
         detonando = true;
         EnemyVoiceSfx.Play(this, true);
 
-        // El color de advertencia vive en el material; se corta el flash para que se vea.
+        // El color de advertencia vive en el material propio; se corta el flash para que se vea.
         DetenerFlashDaño();
-        if (rend != null)
+        Material material = EnsureOwnedMaterial();
+        if (material != null)
         {
-            rend.material.color = colorAdvertencia;
+            material.color = colorAdvertencia;
         }
 
         Invoke(nameof(Explosion), tiempoDetonacion);
+    }
+
+    /// <summary>
+    /// Gets the owned material clone, creating it once and tracking it with
+    /// OwnedMaterialCleanup so the warning tint never clones per use.
+    /// </summary>
+    private Material EnsureOwnedMaterial()
+    {
+        if (ownedMaterial == null && rend != null)
+        {
+            ownedMaterial = rend.material;
+            OwnedMaterialCleanup.Track(gameObject, ownedMaterial);
+        }
+
+        return ownedMaterial;
     }
 
     void Explosion()

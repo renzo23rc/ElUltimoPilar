@@ -5,6 +5,7 @@
  */
 using UnityEngine;
 using System;
+using UltimoPilar.Core.Shared;
 
 public class WeaponVariantPickup : MonoBehaviour
 {
@@ -35,6 +36,10 @@ public class WeaponVariantPickup : MonoBehaviour
     private float tiempo;
     private bool collected;
 
+    /// <summary>
+    /// Tints the pickup once on start. Single renderer.material clone, tracked
+    /// with OwnedMaterialCleanup so it is released with the pickup.
+    /// </summary>
     void Start()
     {
         posicionInicial = transform.position;
@@ -42,9 +47,13 @@ public class WeaponVariantPickup : MonoBehaviour
         var rend = GetComponent<Renderer>();
         if (rend != null)
         {
-            rend.material.color = PickupColor;
-            if (rend.material.HasProperty(EmissionColorProperty))
-                rend.material.SetColor(EmissionColorProperty, PickupEmissionColor);
+            Material ownedMaterial = rend.material;
+            OwnedMaterialCleanup.Track(gameObject, ownedMaterial);
+            ownedMaterial.color = PickupColor;
+            if (ownedMaterial.HasProperty(EmissionColorProperty))
+            {
+                ownedMaterial.SetColor(EmissionColorProperty, PickupEmissionColor);
+            }
         }
     }
 
