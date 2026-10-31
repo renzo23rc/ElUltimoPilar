@@ -179,7 +179,7 @@ public sealed class PlayerPresentationTests
     }
 
     [UnityTest]
-    public IEnumerator ClonedJoinTemplatePreservesP2RigAndSelectionIsolation()
+    public IEnumerator IndependentJoinPrefabPreservesP2RigAndSelectionIsolation()
     {
         yield return new EnterPlayMode();
         GameObject p2Prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SecondaryModelPath);
@@ -190,7 +190,10 @@ public sealed class PlayerPresentationTests
         PlayerController primary = CreatePrimary();
         primary.GetComponent<WeaponSystem>().CambiarArma(WeaponSystem.TipoArma.Area);
         primary.gameObject.SetActive(false);
+        primary.transform.position = new Vector3(0f, 3f, 0f);
         templateObject = TestScenePlayerBuilder.CreateJoinTemplate(primary).gameObject;
+        Assert.That(templateObject.transform.position.y, Is.EqualTo(primary.transform.position.y),
+            "The join prefab must use the primary player's spawn height.");
         primary.gameObject.SetActive(true);
         templateObject.SetActive(true);
 
@@ -202,14 +205,17 @@ public sealed class PlayerPresentationTests
 
         Assert.That(joinedAnimator.avatar, Is.SameAs(baselineP2Animator.avatar),
             "P2 must retain its FBX-imported avatar.");
-        Assert.That(joinedAnimator.runtimeAnimatorController, Is.SameAs(Resources.Load<RuntimeAnimatorController>("Animation/PlayerLocomotion")),
-            "P2 keeps its pre-existing locomotion controller assignment.");
+        Assert.That(joinedAnimator.runtimeAnimatorController, Is.SameAs(Resources.Load<RuntimeAnimatorController>("Animation/PlayerP2Locomotion")),
+            "P2 must use its own locomotion controller.");
         Assert.That(templateObject.GetComponent<PlayerAnimatorDriver>(), Is.Not.Null,
             "P2 keeps the existing Animator driver path.");
         Assert.That(primaryBazooka.gameObject.activeSelf, Is.True);
-        Assert.That(joinedWeapons.armaEquipada, Is.EqualTo(WeaponSystem.TipoArma.Area));
-        Assert.That(joinedBazooka.gameObject.activeSelf, Is.True);
+        Assert.That(joinedWeapons.armaEquipada, Is.EqualTo(WeaponSystem.TipoArma.Directa),
+            "The P2 prefab must not copy the primary player's current weapon.");
+        Assert.That(joinedBazooka.gameObject.activeSelf, Is.False);
 
+        joinedWeapons.CambiarArma(WeaponSystem.TipoArma.Area);
+        Assert.That(joinedBazooka.gameObject.activeSelf, Is.True);
         joinedWeapons.CambiarArma(WeaponSystem.TipoArma.Directa);
         Assert.That(joinedBazooka.gameObject.activeSelf, Is.False);
         Assert.That(primaryBazooka.gameObject.activeSelf, Is.True,
@@ -219,6 +225,80 @@ public sealed class PlayerPresentationTests
         Assert.That(joinedBazooka.gameObject.activeSelf, Is.False);
         primaryWeapons.ResetState();
         Assert.That(primaryBazooka.gameObject.activeSelf, Is.False);
+    }
+
+    [UnityTest]
+    public IEnumerator EquipIsTriggeredByReturningToRifleAndCancelledWhenSwitchingAway()
+    {
+        yield return new EnterPlayMode();
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor.transform.position = new Vector3(0f, -1.5f, 0f);
+        floor.transform.localScale = new Vector3(10f, 1f, 10f);
+        try
+        {
+            PlayerController player = CreatePrimary();
+            Animator animator = player.GetComponentInChildren<Animator>(true);
+            WeaponSystem weapons = player.GetComponent<WeaponSystem>();
+
+            weapons.CambiarArma(WeaponSystem.TipoArma.Area);
+            weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
+            weapons.CambiarArma(WeaponSystem.TipoArma.Area);
+            yield return null;
+            yield return null;
+            Assert.That(IsCurrentOrNextState(animator, "Equip"), Is.False,
+                "An equip request must be cancelled if the player immediately switches away.");
+
+            weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
+            yield return null;
+            yield return null;
+            Assert.That(IsCurrentOrNextState(animator, "Equip"), Is.True,
+                "Selecting the rifle must request the equip animation.");
+        }
+        finally
+        {
+            Object.Destroy(floor);
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator AirborneMeleeDoesNotPlayAfterLanding()
+    {
+        yield return new EnterPlayMode();
+        PlayerController player = CreatePrimary();
+        player.transform.position = new Vector3(0f, 1000f, 0f);
+        Animator animator = player.GetComponentInChildren<Animator>(true);
+        WeaponSystem weapons = player.GetComponent<WeaponSystem>();
+        yield return null;
+        yield return null;
+        Assert.That(animator.GetBool("Grounded"), Is.False);
+
+        weapons.CambiarArma(WeaponSystem.TipoArma.CuerpoACuerpo);
+        weapons.DispararActual();
+        yield return null;
+        yield return null;
+
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor.transform.position = new Vector3(0f, 998.5f, 0f);
+        floor.transform.localScale = new Vector3(10f, 1f, 10f);
+        Physics.SyncTransforms();
+        try
+        {
+            yield return new WaitForSeconds(0.3f);
+            Assert.That(animator.GetBool("Grounded"), Is.True);
+            Assert.That(IsCurrentOrNextState(animator, "Knife1"), Is.False);
+            Assert.That(IsCurrentOrNextState(animator, "knife2"), Is.False,
+                "An attack that could not animate in the air must not play after landing.");
+        }
+        finally
+        {
+            Object.Destroy(floor);
+        }
+    }
+
+    private static bool IsCurrentOrNextState(Animator animator, string stateName)
+    {
+        return animator.GetCurrentAnimatorStateInfo(0).IsName(stateName)
+            || (animator.IsInTransition(0) && animator.GetNextAnimatorStateInfo(0).IsName(stateName));
     }
 
     private PlayerController CreatePrimary()

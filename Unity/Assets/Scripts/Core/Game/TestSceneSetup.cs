@@ -37,6 +37,8 @@ public class TestSceneSetup : MonoBehaviour
     private const float SpawnRadiusMeters = 25f;
     private const string RuntimeTemplatesRootName = "PlantillasRuntime";
     private const string ResourcesPrefabFolder = "Prefabs/";
+    private const string PrimaryPlayerPrefabName = "JugadorP1";
+    private const string SecondaryPlayerPrefabName = "JugadorP2";
     private const string EnergyPoolKey = "EnergyPickup";
     private const string ProjectilePoolKey = "Proyectil";
     private static readonly Vector3 SceneVariantPickupPosition = new Vector3(5f, 1f, -5f);
@@ -185,6 +187,16 @@ public class TestSceneSetup : MonoBehaviour
     {
         Debug.Log("[TestSceneSetup] Generando escena de prueba...");
 
+        GameObject primaryPrefab = Resources.Load<GameObject>(ResourcesPrefabFolder + PrimaryPlayerPrefabName);
+        GameObject secondaryPrefab = Resources.Load<GameObject>(ResourcesPrefabFolder + SecondaryPlayerPrefabName);
+        if (primaryPrefab == null || secondaryPrefab == null
+            || primaryPrefab.GetComponent<PlayerController>() == null
+            || secondaryPrefab.GetComponent<PlayerController>() == null)
+        {
+            Debug.LogError("[TestSceneSetup] Faltan los prefabs completos JugadorP1 o JugadorP2.");
+            return;
+        }
+
         // Contenedor inactivo: las copias de prefabs que se configuran en runtime viven acá,
         // así nunca se modifican los assets de Resources.
         plantillasRuntime = new GameObject(RuntimeTemplatesRootName).transform;
@@ -223,6 +235,11 @@ public class TestSceneSetup : MonoBehaviour
             gameManager,
             playerSpawnPosition);
         PlayerController plantillaJugador = TestScenePlayerBuilder.CreateJoinTemplate(jugador);
+        if (jugador == null || plantillaJugador == null)
+        {
+            Debug.LogError("[TestSceneSetup] No se pudieron instanciar los prefabs de jugadores.");
+            return;
+        }
 
         GameObject spawnerObject = new GameObject("Spawner");
         var spawner = spawnerObject.AddComponent<EnemySpawner>();

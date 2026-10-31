@@ -11,10 +11,9 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private const string DownedParameter = "Downed";
     private const string ShootParameter = "Shoot";
     private const string EquipParameter = "Equip";
-    private const string KnifeParameter = "Knife";
+    private const string KnifeParameter = "Knife1";
     private const string SwingParameter = "Swing";
     private const string FloatingParameter = "Floating";
-    private const string ShootLayerName = "Shoot";
     private const int FirstSwingIndex = 0;
     private const int SecondSwingIndex = 1;
     private const float SpeedDampSeconds = 0.1f;
@@ -43,17 +42,20 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private float bodyYawDegrees;
     private float movementYawDegrees;
     private int swingIndex = SecondSwingIndex;
-    private int shootLayerIndex = -1;
+    private bool equipRequested;
 
     /// <summary>Sets the Animator to drive.</summary>
     /// <param name="target">The Animator of the player model.</param>
     public void Configure(Animator target)
     {
         animator = target;
-        animator.applyRootMotion = false;
-        baseBodyRotation = animator.transform.localRotation;
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+            baseBodyRotation = animator.transform.localRotation;
+        }
+
         bodyYawDegrees = 0f;
-        shootLayerIndex = animator.GetLayerIndex(ShootLayerName);
     }
 
     private void Awake()
@@ -61,30 +63,48 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         player = GetComponent<PlayerController>();
         characterController = GetComponent<CharacterController>();
         weapons = GetComponent<WeaponSystem>();
+        if (animator != null)
+        {
+            baseBodyRotation = animator.transform.localRotation;
+        }
     }
 
     private void OnEnable()
     {
         lastPosition = transform.position;
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+            bodyYawDegrees = 0f;
+        }
+
         if (weapons != null)
         {
             weapons.OnDisparo += HandleWeaponFired;
             weapons.OnMeleeResolved += HandleMeleeResolved;
+            weapons.OnCambioArma += HandleWeaponChanged;
         }
 
         subscribedManager = GameManager.Instance;
         if (subscribedManager != null)
         {
             subscribedManager.OnJuegoIniciado += HandleMatchStarted;
+            if (subscribedManager.juegoActivo && weapons != null
+                && weapons.armaEquipada == WeaponSystem.TipoArma.Directa)
+            {
+                equipRequested = true;
+            }
         }
     }
 
     private void OnDisable()
     {
+        equipRequested = false;
         if (weapons != null)
         {
             weapons.OnDisparo -= HandleWeaponFired;
             weapons.OnMeleeResolved -= HandleMeleeResolved;
+            weapons.OnCambioArma -= HandleWeaponChanged;
         }
 
         if (subscribedManager != null)
@@ -108,14 +128,22 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
 
         animator.SetFloat(SpeedId, speed, SpeedDampSeconds, Time.deltaTime);
         TurnBodyTowardMovement(displacement, animator.GetFloat(SpeedId));
-        animator.SetBool(GroundedId, IsGrounded());
-        animator.SetBool(DownedId, player != null && player.IsDowned);
+        bool grounded = IsGrounded();
+        bool downed = player != null && player.IsDowned;
         bool floating = player != null && player.enZonaGravedad;
+        animator.SetBool(GroundedId, grounded);
+        animator.SetBool(DownedId, downed);
         animator.SetBool(FloatingId, floating);
-        // El layer de disparo tapa el torso: en la zona se apaga para que se vea floating.
-        if (shootLayerIndex >= 0)
+        if (!grounded || downed || floating)
         {
-            animator.SetLayerWeight(shootLayerIndex, floating ? 0f : 1f);
+            // No attack transition can consume this trigger while airborne or downed.
+            animator.ResetTrigger(KnifeId);
+        }
+
+        if (equipRequested)
+        {
+            equipRequested = false;
+            animator.SetTrigger(EquipId);
         }
     }
 
@@ -174,9 +202,28 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
 
     private void HandleMatchStarted()
     {
-        if (animator != null && animator.runtimeAnimatorController != null)
+        if (weapons == null || weapons.armaEquipada == WeaponSystem.TipoArma.Directa)
         {
-            animator.SetTrigger(EquipId);
+            equipRequested = true;
+        }
+    }
+
+    private void HandleWeaponChanged(WeaponSystem.TipoArma weapon)
+    {
+        equipRequested = weapon == WeaponSystem.TipoArma.Directa;
+        if (animator == null || !animator.isActiveAndEnabled || animator.runtimeAnimatorController == null)
+        {
+            return;
+        }
+
+        if (!equipRequested)
+        {
+            animator.ResetTrigger(EquipId);
+        }
+
+        if (weapon != WeaponSystem.TipoArma.CuerpoACuerpo)
+        {
+            animator.ResetTrigger(KnifeId);
         }
     }
 }
