@@ -11,6 +11,10 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private const string DownedParameter = "Downed";
     private const string ShootParameter = "Shoot";
     private const string EquipParameter = "Equip";
+    private const string KnifeParameter = "Knife";
+    private const string SwingParameter = "Swing";
+    private const int FirstSwingIndex = 0;
+    private const int SecondSwingIndex = 1;
     private const float SpeedDampSeconds = 0.1f;
     private const float GroundProbeMarginMeters = 0.3f;
     private const float HalfFactor = 0.5f;
@@ -22,6 +26,8 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private static readonly int DownedId = Animator.StringToHash(DownedParameter);
     private static readonly int ShootId = Animator.StringToHash(ShootParameter);
     private static readonly int EquipId = Animator.StringToHash(EquipParameter);
+    private static readonly int KnifeId = Animator.StringToHash(KnifeParameter);
+    private static readonly int SwingId = Animator.StringToHash(SwingParameter);
 
     [SerializeField] private Animator animator;
 
@@ -33,6 +39,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private Quaternion baseBodyRotation;
     private float bodyYawDegrees;
     private float movementYawDegrees;
+    private int swingIndex = SecondSwingIndex;
 
     /// <summary>Sets the Animator to drive.</summary>
     /// <param name="target">The Animator of the player model.</param>
@@ -57,6 +64,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         if (weapons != null)
         {
             weapons.OnDisparo += HandleWeaponFired;
+            weapons.OnMeleeResolved += HandleMeleeResolved;
         }
 
         subscribedManager = GameManager.Instance;
@@ -71,6 +79,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         if (weapons != null)
         {
             weapons.OnDisparo -= HandleWeaponFired;
+            weapons.OnMeleeResolved -= HandleMeleeResolved;
         }
 
         if (subscribedManager != null)
@@ -127,10 +136,28 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
 
     private void HandleWeaponFired(WeaponSystem.Arma weapon)
     {
+        if (weapon != null && weapon.tipo == WeaponSystem.TipoArma.CuerpoACuerpo)
+        {
+            return;
+        }
+
         if (animator != null && animator.runtimeAnimatorController != null)
         {
             animator.SetTrigger(ShootId);
         }
+    }
+
+    // Cada tajo alterna entre los clips knife y knife2 mediante Swing, pegue o no.
+    private void HandleMeleeResolved(bool hitAnyEnemy)
+    {
+        if (animator == null || animator.runtimeAnimatorController == null)
+        {
+            return;
+        }
+
+        swingIndex = swingIndex == FirstSwingIndex ? SecondSwingIndex : FirstSwingIndex;
+        animator.SetInteger(SwingId, swingIndex);
+        animator.SetTrigger(KnifeId);
     }
 
     private void HandleMatchStarted()
