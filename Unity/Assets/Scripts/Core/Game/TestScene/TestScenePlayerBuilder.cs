@@ -1,6 +1,7 @@
 using UltimoPilar.Core.Shared;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Builds the primary keyboard-and-mouse player of the test scene and the inactive template
@@ -25,9 +26,15 @@ public static class TestScenePlayerBuilder
     public const float ControllerHalfHeightMeters = ControllerHeightMeters * HalfFactor;
     private const float AnimationReferenceSpeedMetersPerSecond = 8f;
     private const string VisualObjectName = "JugadorVisual";
-    private const string PrimaryModelResource = "Models/Personajes/pj1_anims";
+    private const string BodyMaterialNameFragment = "body";
+    private const string PrimaryModelResource = "Models/Personajes/p1";
     private const string LocomotionControllerResource = "Animation/PlayerLocomotion";
-    private const string SecondaryModelResource = "Models/Personajes/pj2";
+    private const string SecondaryModelResource = "Models/Personajes/p2";
+    private const string BazookaResource = "Models/Armas/bazooka/bazooka";
+    private const string BazookaObjectName = "bazooka";
+    // Offset de la bazooka respecto a la mano: ajustar en Unity tras verla en Play.
+    private static readonly Vector3 BazookaHandOffsetMeters = Vector3.zero;
+    private static readonly Vector3 BazookaHandEulerAngles = Vector3.zero;
     private static readonly Vector3 VisualScale = new Vector3(1f, 2f, 1f);
 
     /// <summary>
@@ -174,7 +181,111 @@ public static class TestScenePlayerBuilder
         model.transform.localRotation = Quaternion.identity;
         RemoveExportedExtras(model);
         FitToController(model.transform, player);
+        ApplyMapSkin(model.transform, modelResource);
+        EnsureBazooka(model.transform);
         return true;
+    }
+
+    // Aplica la textura del mapa activo: Obelisco usa Argentina, Cristo Redentor usa Brasil,
+    // cualquier otra escena usa Estados Unidos. No toca la bazooka ni rompe si falta un material.
+    private static void ApplyMapSkin(Transform visual, string modelResource)
+    {
+        string sceneName = SceneManager.GetActiveScene().name;
+        string bodyResource = PlayerMapSkinCatalog.BodyMaterialResource(modelResource, sceneName);
+        string equipmentResource = PlayerMapSkinCatalog.EquipmentMaterialResource(modelResource, sceneName);
+        if (string.IsNullOrEmpty(bodyResource) || string.IsNullOrEmpty(equipmentResource))
+        {
+            return;
+        }
+
+        Material bodyMaterial = Resources.Load<Material>(bodyResource);
+        Material equipmentMaterial = Resources.Load<Material>(equipmentResource);
+        if (bodyMaterial == null || equipmentMaterial == null)
+        {
+            return;
+        }
+
+        ApplyMapSkinToRenderers(visual, bodyMaterial, equipmentMaterial);
+    }
+
+    // El slot "body" del FBX lleva el material de cuerpo; el resto (chaleco, cinturon,
+    // pantalon, hombreras, etc.) lleva el de equipamiento. Usa sharedMaterials para no clonar.
+    private static void ApplyMapSkinToRenderers(Transform visual, Material bodyMaterial, Material equipmentMaterial)
+    {
+        Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Material[] slots = renderer.sharedMaterials;
+            if (slots == null || slots.Length == 0)
+            {
+                continue;
+            }
+
+            Material[] resolved = new Material[slots.Length];
+            for (int i = 0; i < slots.Length; i++)
+            {
+                string slotName = slots[i] != null ? slots[i].name : string.Empty;
+                if (slotName.ToLowerInvariant().Contains(BodyMaterialNameFragment))
+                {
+                    resolved[i] = bodyMaterial;
+                }
+                else
+                {
+                    resolved[i] = equipmentMaterial;
+                }
+            }
+
+            renderer.sharedMaterials = resolved;
+        }
+    }
+
+    // La bazooka vive en Resources, no en el FBX del personaje: se cuelga del hueso
+    // de la mano para que acompañe la animación, con nombre estable e idempotencia.
+    private static void EnsureBazooka(Transform visual)
+    {
+        if (visual == null || FindChildRecursive(visual, BazookaObjectName) != null)
+            return;
+
+        GameObject prefab = Resources.Load<GameObject>(BazookaResource);
+        if (prefab == null)
+            return;
+
+        Transform hand = FindRightHand(visual);
+        Transform parent = hand != null ? hand : visual;
+        GameObject bazooka = Object.Instantiate(prefab, parent);
+        bazooka.name = BazookaObjectName;
+        bazooka.transform.localPosition = hand != null ? BazookaHandOffsetMeters : Vector3.zero;
+        bazooka.transform.localRotation = hand != null ? Quaternion.Euler(BazookaHandEulerAngles) : Quaternion.identity;
+        bazooka.transform.localScale = Vector3.one;
+        RemoveExportedExtras(bazooka);
+    }
+
+    // Mano derecha vía avatar humanoide: funciona con cualquier rig compatible
+    // (Mixamo incluido) sin hardcodear nombres de huesos.
+    private static Transform FindRightHand(Transform visual)
+    {
+        Animator animator = visual.GetComponentInChildren<Animator>();
+        if (animator == null || !animator.isHuman)
+            return null;
+
+        Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+        return hand != null && hand.IsChildOf(visual) ? hand : null;
+    }
+
+    private static Transform FindChildRecursive(Transform root, string name)
+    {
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == name)
+                return child;
+        }
+
+        return null;
     }
 
     // El FBX de Blender puede traer cámara, luz y colliders: el jugador usa los suyos.
