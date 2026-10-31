@@ -36,7 +36,7 @@ public class EnemyGrowl : MonoBehaviour
     private void Start()
     {
         enemy = GetComponent<Enemy>();
-        AudioClip clip = Resources.Load<AudioClip>($"{GrowlResourcePrefix}{SelectGrowlIndex(enemy)}");
+        AudioClip clip = Resources.Load<AudioClip>($"{GrowlResourcePrefix}{VoiceIndex(enemy)}");
         if (enemy == null || clip == null)
         {
             enabled = false;
@@ -78,7 +78,8 @@ public class EnemyGrowl : MonoBehaviour
         source.Play();
     }
 
-    private static int SelectGrowlIndex(Enemy enemy)
+    /// <summary>Gets the 1-based voice index shared by growl, hurt, and death clips.</summary>
+    public static int VoiceIndex(Enemy enemy)
     {
         switch (enemy)
         {
@@ -94,4 +95,5 @@ public class EnemyGrowl : MonoBehaviour
                 return DefaultGrowl;
         }
     }
+
 }

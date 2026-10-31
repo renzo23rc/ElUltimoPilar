@@ -69,6 +69,14 @@ public class Explosive : Enemy
         }
     }
 
+    protected override void NotifyCombatVoice(bool isLethal)
+    {
+        if (!isLethal)
+        {
+            EnemyVoiceSfx.Play(this, false);
+        }
+    }
+
     void IniciarDetonacion()
     {
         if (detonando || estaMuerto)
@@ -77,6 +85,7 @@ public class Explosive : Enemy
         }
 
         detonando = true;
+        EnemyVoiceSfx.Play(this, true);
 
         // El color de advertencia vive en el material; se corta el flash para que se vea.
         DetenerFlashDaño();
@@ -144,6 +153,7 @@ public class Explosive : Enemy
             return;
         }
 
+        EnemyVoiceSfx.Play(this, true);
         base.Morir();
     }
 

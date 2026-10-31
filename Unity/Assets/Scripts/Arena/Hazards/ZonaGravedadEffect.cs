@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // Script de zona de gravedad exagerado - va en el objeto ZonaGravedad
@@ -21,13 +22,23 @@ public class ZonaGravedadEffect : MonoBehaviour
     private const float VisualWidthMeters = 10f;
     private const float VisualHeightMeters = 4f;
     private const float TornadoFrequency = 2f;
+    private const string GravityMusicResource = "Audio/Musica/gravity_field";
+    private const float GravityMusicVolume = 0.25f;
     private static readonly Color VisualColor = new Color(0.6f, 0.1f, 1f, VisualAlphaBase);
 
     private Renderer rend;
+    private AudioSource gravityMusic;
+    private readonly HashSet<PlayerController> playersInside = new HashSet<PlayerController>();
 
     void Awake()
     {
         rend = GetComponent<Renderer>();
+        gravityMusic = gameObject.AddComponent<AudioSource>();
+        gravityMusic.playOnAwake = false;
+        gravityMusic.loop = true;
+        gravityMusic.spatialBlend = 0f;
+        gravityMusic.clip = Resources.Load<AudioClip>(GravityMusicResource);
+        gravityMusic.volume = GravityMusicVolume * MenuPreferences.MusicVolume;
     }
 
     void OnTriggerEnter(Collider other)
@@ -36,6 +47,10 @@ public class ZonaGravedadEffect : MonoBehaviour
         if (pc != null)
         {
             pc.EntrarZonaGravedad();
+            if (playersInside.Add(pc))
+            {
+                RefreshGravityMusic();
+            }
         }
 
         if (TryGetEnemyBody(other, out Rigidbody rb))
@@ -64,6 +79,10 @@ public class ZonaGravedadEffect : MonoBehaviour
         if (pc != null)
         {
             pc.SalirZonaGravedad();
+            if (playersInside.Remove(pc))
+            {
+                RefreshGravityMusic();
+            }
         }
 
         // Solo se restaura el damping de los enemigos que esta zona modificó.
@@ -85,11 +104,36 @@ public class ZonaGravedadEffect : MonoBehaviour
         // Pulso visual exagerado
         float scale = VisualPulseBase + Mathf.Sin(Time.time * VisualPulseSpeed) * VisualPulseAmount;
         transform.localScale = new Vector3(VisualWidthMeters * scale, VisualHeightMeters, VisualWidthMeters * scale);
+        if (gravityMusic != null)
+        {
+            gravityMusic.volume = GravityMusicVolume * MenuPreferences.MusicVolume;
+        }
+
         if (rend != null)
         {
             Color baseColor = VisualColor;
             float alpha = VisualAlphaBase + Mathf.Sin(Time.time * VisualAlphaSpeed) * VisualAlphaAmount;
             rend.material.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
         }
+    }
+
+    private void RefreshGravityMusic()
+    {
+        if (gravityMusic == null || gravityMusic.clip == null)
+        {
+            return;
+        }
+
+        if (playersInside.Count > 0)
+        {
+            if (!gravityMusic.isPlaying)
+            {
+                gravityMusic.Play();
+            }
+
+            return;
+        }
+
+        gravityMusic.Stop();
     }
 }

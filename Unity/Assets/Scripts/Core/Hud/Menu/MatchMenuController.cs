@@ -229,6 +229,7 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void StartMatch()
     {
+        MenuSfx.PlaySelect();
         resultRecorded = false;
         manager.IniciarJuego();
         RenderState(false);
@@ -236,12 +237,14 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void ResumeMatch()
     {
+        MenuSfx.PlayBack();
         manager.ReanudarJuego();
         RenderState(false);
     }
 
     private void RestartMatch()
     {
+        MenuSfx.PlaySelect();
         resultRecorded = false;
         manager.ReiniciarJuego();
         RenderState(false);
@@ -249,6 +252,7 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void OpenSettings()
     {
+        MenuSfx.PlaySelect();
         waitingPanel.SetActive(false);
         pausePanel.SetActive(false);
         resultPanel.SetActive(false);
@@ -260,6 +264,7 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void CloseSettings()
     {
+        MenuSfx.PlayBack();
         settingsVisible = false;
         settingsPanel.SetActive(false);
         RenderState(true);
@@ -267,11 +272,13 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void ConfirmRestart()
     {
+        MenuSfx.PlaySelect();
         ShowConfirmation(ConfirmationAction.Restart, "¿Reiniciar la noche? Se perderá el progreso actual.");
     }
 
     private void ConfirmAbandon()
     {
+        MenuSfx.PlaySelect();
         ShowConfirmation(ConfirmationAction.Abandon, "¿Abandonar la noche? Se perderá el progreso actual.");
     }
 
@@ -298,6 +305,7 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void CancelConfirmation()
     {
+        MenuSfx.PlayBack();
         confirmationAction = ConfirmationAction.None;
         confirmationPanel.SetActive(false);
         pausePanel.SetActive(true);
@@ -307,6 +315,7 @@ public sealed class MatchMenuController : MonoBehaviour
 
     private void ReturnToMenu()
     {
+        MenuSfx.PlayBack();
         MenuSceneLoader.LoadMenu();
     }
 

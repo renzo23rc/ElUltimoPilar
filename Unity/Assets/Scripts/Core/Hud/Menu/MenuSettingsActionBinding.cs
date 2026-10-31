@@ -12,6 +12,7 @@ public sealed class MenuSettingsActionBinding : MonoBehaviour
     {
         button = targetButton;
         action = callback;
+        button.onClick.AddListener(MenuSfx.PlaySelect);
         button.onClick.AddListener(action);
     }
 

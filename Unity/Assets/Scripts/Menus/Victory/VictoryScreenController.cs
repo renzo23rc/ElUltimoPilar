@@ -108,6 +108,7 @@ public sealed class VictoryScreenController : MonoBehaviour
         BuildScreen();
         CreateActions();
         ShowSelection();
+        MenuMusicPlayer.EnsureOn(gameObject);
     }
 
     private void OnEnable()
@@ -203,11 +204,13 @@ public sealed class VictoryScreenController : MonoBehaviour
 
     private void HandleMoveUp(InputAction.CallbackContext context)
     {
+        MenuSfx.PlaySelect();
         SetSelection(MoveSelection(selectedIndex, -1, OptionCount));
     }
 
     private void HandleMoveDown(InputAction.CallbackContext context)
     {
+        MenuSfx.PlaySelect();
         SetSelection(MoveSelection(selectedIndex, 1, OptionCount));
     }
 
@@ -218,6 +221,10 @@ public sealed class VictoryScreenController : MonoBehaviour
 
         confirmed = true;
         Time.timeScale = 1f;
+        if (selectedIndex == RestartOption)
+            MenuSfx.PlaySelect();
+        else
+            MenuSfx.PlayBack();
         string sceneName = selectedIndex == RestartOption ? LevelToLoad() : mainMenuSceneName;
         if (!LoadScene(sceneName))
             confirmed = false;

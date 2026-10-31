@@ -24,6 +24,7 @@ public class MainMenu : MonoBehaviour
         EnsureRaycasters();
         WirePlayButton();
         CreateConfirmAction();
+        MenuMusicPlayer.EnsureOn(gameObject);
     }
 
     void OnEnable()
@@ -92,6 +93,7 @@ public class MainMenu : MonoBehaviour
         }
 
         sceneLoadRequested = true;
+        MenuSfx.PlaySelect();
         SceneManager.LoadScene(mapSelectionSceneName);
     }
 

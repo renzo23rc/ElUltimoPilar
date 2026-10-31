@@ -25,9 +25,13 @@ public class AudioAdapter : MonoBehaviour
         Ability,
         Variant,
         RifleFire,
+        RifleReload,
         RocketFire,
         RocketExplosion,
-        MeleeSwing
+        MeleeSwing,
+        MeleeHit,
+        OrbPickup,
+        PilarCrumble
     }
 
     private const float DefaultVolume = 0.5f;
@@ -40,6 +44,8 @@ public class AudioAdapter : MonoBehaviour
     private const int NoiseSeed = 1234;
     private const float RocketExplosionDelaySeconds = 0.25f;
     private const string WeaponResourceFolder = "Audio/Armas/";
+    private const string FxResourceFolder = "Audio/Fx/";
+    private const int FirstCrumblePhase = 2;
     private const float FireStartFrequencyHz = 880f;
     private const float FireEndFrequencyHz = 660f;
     private const float FireDurationSeconds = 0.09f;
@@ -126,7 +132,11 @@ public class AudioAdapter : MonoBehaviour
             gameObject.AddComponent<PhaseMusicPlayer>();
         }
 
-        CombatFeedback.OnCombatHit += ManejarImpacto;
+        if (GetComponent<WaveMusicPlayer>() == null)
+        {
+            gameObject.AddComponent<WaveMusicPlayer>();
+        }
+
         SyncSceneSubscriptions();
     }
 
@@ -163,7 +173,6 @@ public class AudioAdapter : MonoBehaviour
 
     private void OnDestroy()
     {
-        CombatFeedback.OnCombatHit -= ManejarImpacto;
         UnsubscribePilar();
         DesuscribirGameManager();
         if (instancia == this)
@@ -209,10 +218,7 @@ public class AudioAdapter : MonoBehaviour
         }
         foreach (WeaponSystem arma in armasSuscritas)
         {
-            if (arma != null)
-            {
-                arma.OnDisparo -= ManejarDisparo;
-            }
+            UnbindWeapon(arma);
         }
 
         foreach (EnergySystem energia in energiasSuscritas)
@@ -246,7 +252,7 @@ public class AudioAdapter : MonoBehaviour
         WeaponSystem arma = jugador.GetComponent<WeaponSystem>();
         if (arma != null && armasSuscritas.Remove(arma))
         {
-            arma.OnDisparo -= ManejarDisparo;
+            UnbindWeapon(arma);
         }
 
         EnergySystem energia = jugador.GetComponent<EnergySystem>();
@@ -267,7 +273,7 @@ public class AudioAdapter : MonoBehaviour
         WeaponSystem arma = jugador.GetComponent<WeaponSystem>();
         if (arma != null && armasSuscritas.Add(arma))
         {
-            arma.OnDisparo += ManejarDisparo;
+            BindWeapon(arma);
         }
 
         EnergySystem energia = jugador.GetComponent<EnergySystem>();
@@ -288,6 +294,7 @@ public class AudioAdapter : MonoBehaviour
         UnsubscribePilar();
         subscribedPilar = pilar;
         subscribedPilar.OnDañoRecibido += HandleDamageReceived;
+        subscribedPilar.OnFaseCambiada += HandlePhaseChanged;
     }
 
     private void UnsubscribePilar()
@@ -298,6 +305,7 @@ public class AudioAdapter : MonoBehaviour
         }
 
         subscribedPilar.OnDañoRecibido -= HandleDamageReceived;
+        subscribedPilar.OnFaseCambiada -= HandlePhaseChanged;
         subscribedPilar = null;
     }
 
@@ -306,9 +314,12 @@ public class AudioAdapter : MonoBehaviour
         Reproducir(Sfx.Damage);
     }
 
-    private void ManejarImpacto(bool mato)
+    private void HandlePhaseChanged(int phase)
     {
-        Reproducir(mato ? Sfx.Death : Sfx.Hit);
+        if (phase >= FirstCrumblePhase)
+        {
+            Reproducir(Sfx.PilarCrumble);
+        }
     }
 
     private void ManejarOleada(int oleada)
@@ -326,6 +337,30 @@ public class AudioAdapter : MonoBehaviour
         Reproducir(Sfx.Defeat);
     }
 
+    private void BindWeapon(WeaponSystem arma)
+    {
+        if (arma == null)
+        {
+            return;
+        }
+
+        arma.OnDisparo += ManejarDisparo;
+        arma.OnMeleeResolved += ManejarMelee;
+        arma.OnRecarga += ManejarRecarga;
+    }
+
+    private void UnbindWeapon(WeaponSystem arma)
+    {
+        if (arma == null)
+        {
+            return;
+        }
+
+        arma.OnDisparo -= ManejarDisparo;
+        arma.OnMeleeResolved -= ManejarMelee;
+        arma.OnRecarga -= ManejarRecarga;
+    }
+
     private void ManejarDisparo(WeaponSystem.Arma arma)
     {
         WeaponSystem.TipoArma tipo = arma != null ? arma.tipo : WeaponSystem.TipoArma.Directa;
@@ -335,12 +370,21 @@ public class AudioAdapter : MonoBehaviour
                 ReproducirDisparoArea();
                 break;
             case WeaponSystem.TipoArma.CuerpoACuerpo:
-                ReproducirConRespaldo(Sfx.MeleeSwing, Sfx.Fire);
                 break;
             default:
                 ReproducirConRespaldo(Sfx.RifleFire, Sfx.Fire);
                 break;
         }
+    }
+
+    private void ManejarMelee(bool hitAnyEnemy)
+    {
+        ReproducirConRespaldo(hitAnyEnemy ? Sfx.MeleeHit : Sfx.MeleeSwing, Sfx.Fire);
+    }
+
+    private void ManejarRecarga()
+    {
+        ReproducirConRespaldo(Sfx.RifleReload, Sfx.Ability);
     }
 
     private void ReproducirDisparoArea()
@@ -432,15 +476,19 @@ public class AudioAdapter : MonoBehaviour
 
     private void CargarClipsDeArchivo()
     {
-        CargarClip(Sfx.RifleFire, "rifle_fire");
-        CargarClip(Sfx.RocketFire, "rocket_fire");
-        CargarClip(Sfx.RocketExplosion, "rocket_explosion");
-        CargarClip(Sfx.MeleeSwing, "melee_swing");
+        CargarClip(Sfx.RifleFire, WeaponResourceFolder, "rifle_fire");
+        CargarClip(Sfx.RifleReload, WeaponResourceFolder, "rifle_reload");
+        CargarClip(Sfx.RocketFire, WeaponResourceFolder, "rocket_fire");
+        CargarClip(Sfx.RocketExplosion, WeaponResourceFolder, "rocket_explosion");
+        CargarClip(Sfx.MeleeSwing, WeaponResourceFolder, "melee_swing");
+        CargarClip(Sfx.MeleeHit, WeaponResourceFolder, "melee_hit");
+        CargarClip(Sfx.OrbPickup, FxResourceFolder, "orb_pickup");
+        CargarClip(Sfx.PilarCrumble, FxResourceFolder, "pilar_crumble");
     }
 
-    private void CargarClip(Sfx efecto, string nombre)
+    private void CargarClip(Sfx efecto, string carpeta, string nombre)
     {
-        AudioClip clip = Resources.Load<AudioClip>($"{WeaponResourceFolder}{nombre}");
+        AudioClip clip = Resources.Load<AudioClip>($"{carpeta}{nombre}");
         if (clip != null)
         {
             clips[efecto] = clip;

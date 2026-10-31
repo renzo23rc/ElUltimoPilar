@@ -373,6 +373,7 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
         bool isLethal = CombatFeedback.IsLethalDamage(request, healthBeforeDamage);
         NotificarDañoRecibido(request.Amount);
         CombatFeedback.NotifyHit(isLethal);
+        NotifyCombatVoice(isLethal);
         IniciarFlashDaño();
 
         if (isLethal)
@@ -399,7 +400,14 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
         }
 
         vidaActual = 0f;
+        NotifyCombatVoice(true);
         Morir();
+    }
+
+    /// <summary>Plays the type-indexed hurt or death clip for this enemy.</summary>
+    protected virtual void NotifyCombatVoice(bool isLethal)
+    {
+        EnemyVoiceSfx.Play(this, isLethal);
     }
 
     protected void NotificarDañoRecibido(float cantidad)

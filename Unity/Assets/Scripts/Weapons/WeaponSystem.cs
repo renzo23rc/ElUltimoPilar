@@ -150,6 +150,8 @@ public class WeaponSystem : MonoBehaviour
     // Eventos
     public event Action<Arma> OnDisparo;
     public event Action OnSinMunicion;
+    public event Action OnRecarga;
+    public event Action<bool> OnMeleeResolved;
     public event Action<TipoArma> OnCambioArma;
     public event Action OnVarianteExpirada;
     public event Action<Vector3> OnDecoyRequested;
@@ -461,7 +463,9 @@ public class WeaponSystem : MonoBehaviour
             ApplyMeleeKnockback(enemy, arma);
         }
 
-        ReportImpact(afectados.Count > 0, anyKilled);
+        bool hitAnyEnemy = afectados.Count > 0;
+        ReportImpact(hitAnyEnemy, anyKilled);
+        OnMeleeResolved?.Invoke(hitAnyEnemy);
     }
 
     private bool IsAreaVariantActive(VariantEffect effect)
@@ -574,9 +578,15 @@ public class WeaponSystem : MonoBehaviour
 
     public void ReponerMunicion()
     {
+        bool rifleNeededReload = armaDirecta != null
+            && armaDirecta.municionActual < armaDirecta.municionMaxima;
         if (armaDirecta != null) armaDirecta.municionActual = armaDirecta.municionMaxima;
         if (armaArea != null) armaArea.municionActual = armaArea.municionMaxima;
         SincronizarMunicionLegacy();
+        if (rifleNeededReload)
+        {
+            OnRecarga?.Invoke();
+        }
     }
 
     public void ApplyVariant(TipoArma tipo, float multiplicador, float duracion)

@@ -124,6 +124,7 @@ public sealed class DefeatScreenController : MonoBehaviour
         BuildScreen();
         CreateActions();
         ShowSelection();
+        MenuMusicPlayer.EnsureOn(gameObject);
     }
 
     private void OnEnable()
@@ -219,11 +220,13 @@ public sealed class DefeatScreenController : MonoBehaviour
 
     private void HandleMoveUp(InputAction.CallbackContext context)
     {
+        MenuSfx.PlaySelect();
         SetSelection(VictoryScreenController.MoveSelection(selectedIndex, -1, OptionCount));
     }
 
     private void HandleMoveDown(InputAction.CallbackContext context)
     {
+        MenuSfx.PlaySelect();
         SetSelection(VictoryScreenController.MoveSelection(selectedIndex, 1, OptionCount));
     }
 
@@ -234,6 +237,10 @@ public sealed class DefeatScreenController : MonoBehaviour
 
         confirmed = true;
         Time.timeScale = 1f;
+        if (selectedIndex == RestartOption)
+            MenuSfx.PlaySelect();
+        else
+            MenuSfx.PlayBack();
         string sceneName = selectedIndex == RestartOption ? LevelToLoad() : mainMenuSceneName;
         if (!LoadScene(sceneName))
             confirmed = false;

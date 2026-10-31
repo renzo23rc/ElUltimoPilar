@@ -64,6 +64,8 @@ public class EnergyPickup : MonoBehaviour
             {
                 energia.RecolectarEnergia(cantidad);
             }
+
+            AudioAdapter.Play(AudioAdapter.Sfx.OrbPickup);
             
             // Si está en pool, liberar en vez de Destroy
             PoolManager.ReleaseOrDestroy(gameObject);

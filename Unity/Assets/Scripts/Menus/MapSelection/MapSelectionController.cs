@@ -43,6 +43,7 @@ public sealed class MapSelectionController : MonoBehaviour
         BuildScreen();
         CreateActions();
         ShowSelection();
+        MenuMusicPlayer.EnsureOn(gameObject);
     }
 
     private void OnEnable()
@@ -216,6 +217,7 @@ public sealed class MapSelectionController : MonoBehaviour
     {
         int optionCount = Maps.Length + BackOptionOffset;
         selectedIndex = VictoryScreenController.MoveSelection(selectedIndex, direction, optionCount);
+        MenuSfx.PlaySelect();
         ShowSelection();
     }
 
@@ -255,11 +257,13 @@ public sealed class MapSelectionController : MonoBehaviour
 
     private void LoadMap(int optionIndex)
     {
+        MenuSfx.PlaySelect();
         LoadScene(Maps[optionIndex].SceneName);
     }
 
     private void LoadMainMenu()
     {
+        MenuSfx.PlayBack();
         LoadScene(MainMenuSceneName);
     }
 
