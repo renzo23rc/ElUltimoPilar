@@ -206,8 +206,8 @@ Transform:
   m_GameObject: {fileID: 297496781}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.02, y: 0.05, z: 30.39}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0.02, y: 0.05, z: 27.4}
+  m_LocalScale: {x: 0.74496, y: 1, z: 0.74888}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -787,7 +787,7 @@ Transform:
   m_GameObject: {fileID: 786890055}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 7.4, y: 0.05, z: -32}
+  m_LocalPosition: {x: 7.4, y: 0.05, z: -29.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -926,6 +926,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TestSceneSetup
   generarAlIniciar: 1
   "destruirDespu\xE9sDeGenerar": 1
+  componerEnRuntime: 1
   matPilar: {fileID: 0}
   matSuelo: {fileID: 0}
   matEnemigo: {fileID: 0}
@@ -1040,8 +1041,8 @@ Transform:
   m_GameObject: {fileID: 1288425339}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -7.4, y: 0.05, z: -32}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -7.4, y: 0.05, z: -28.1}
+  m_LocalScale: {x: 1, y: 1, z: 0.9076}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -1086,8 +1087,8 @@ Transform:
   m_GameObject: {fileID: 1295367916}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -24.72, y: 0.05, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -23, y: 0.05, z: -0.1}
+  m_LocalScale: {x: 0.78967, y: 1, z: 0.5677942}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -1238,8 +1239,8 @@ Transform:
   m_GameObject: {fileID: 1411411434}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -7.4, y: 0.05, z: 32}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -7.4, y: 0.05, z: 27}
+  m_LocalScale: {x: 1, y: 1, z: 0.73999}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -1284,8 +1285,8 @@ Transform:
   m_GameObject: {fileID: 1457100147}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 7.4, y: 0.05, z: 32}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 7.4, y: 0.05, z: 27.4}
+  m_LocalScale: {x: 0.76589, y: 1, z: 0.76065}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -1330,8 +1331,8 @@ Transform:
   m_GameObject: {fileID: 1474156596}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 25.18, y: 0.05, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 24, y: 0.05, z: 0}
+  m_LocalScale: {x: 0.7728415, y: 1, z: 0.6643419}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}
@@ -1487,6 +1488,7 @@ MonoBehaviour:
   - Edificios_Merged
   - Arboles_Merged
   - Suelo_Merged
+  originalStarMaterial: {fileID: 0}
 --- !u!1 &2069097494
 GameObject:
   m_ObjectHideFlags: 0
@@ -1514,7 +1516,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.02, y: 0.05, z: -28.01}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 0.87368}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 850745553}

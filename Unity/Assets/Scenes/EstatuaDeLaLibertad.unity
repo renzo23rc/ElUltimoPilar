@@ -1219,7 +1219,7 @@ Transform:
   m_GameObject: {fileID: 786890055}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.26098892, z: -0, w: 0.96534187}
-  m_LocalPosition: {x: 0.5, y: 2.1, z: -28.2}
+  m_LocalPosition: {x: -1.4, y: 2.1, z: -25}
   m_LocalScale: {x: 1, y: 1, z: 0.48}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1358,6 +1358,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TestSceneSetup
   generarAlIniciar: 1
   "destruirDespu\xE9sDeGenerar": 1
+  componerEnRuntime: 1
   matPilar: {fileID: 0}
   matSuelo: {fileID: 0}
   matEnemigo: {fileID: 0}
@@ -1944,7 +1945,7 @@ Transform:
   m_GameObject: {fileID: 1295367916}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -44.7, y: 2.1, z: -5.3}
+  m_LocalPosition: {x: -43.3, y: 2.1, z: -5.3}
   m_LocalScale: {x: 0.50403, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2681,7 +2682,7 @@ Transform:
   m_GameObject: {fileID: 2069097494}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -18.1, y: 2.1, z: -28.2}
+  m_LocalPosition: {x: -18.1, y: 2.1, z: -26.9}
   m_LocalScale: {x: 1, y: 1, z: 0.58126897}
   m_ConstrainProportionsScale: 0
   m_Children: []
