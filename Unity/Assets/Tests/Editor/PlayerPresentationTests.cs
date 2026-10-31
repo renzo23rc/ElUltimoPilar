@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 public sealed class PlayerPresentationTests
 {
     private const string SecondaryModelPath = "Assets/Resources/Models/Personajes/p2.fbx";
-    private const string AnimatorControllerPath = "Assets/Resources/Animation/PlayerP1Locomotion.controller";
+    private const string AnimatorControllerPath = "Assets/Resources/Animation/PlayerLocomotion.controller";
     private const string WeaponResourcePath = "Models/Armas/bazooka/bazooka";
     private const string WeaponObjectName = "bazooka";
     private const float AnimationSampleSeconds = 0.35f;

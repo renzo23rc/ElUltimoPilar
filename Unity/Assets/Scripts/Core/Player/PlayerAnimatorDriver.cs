@@ -13,6 +13,8 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private const string EquipParameter = "Equip";
     private const string KnifeParameter = "Knife";
     private const string SwingParameter = "Swing";
+    private const string FloatingParameter = "Floating";
+    private const string ShootLayerName = "Shoot";
     private const int FirstSwingIndex = 0;
     private const int SecondSwingIndex = 1;
     private const float SpeedDampSeconds = 0.1f;
@@ -28,6 +30,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private static readonly int EquipId = Animator.StringToHash(EquipParameter);
     private static readonly int KnifeId = Animator.StringToHash(KnifeParameter);
     private static readonly int SwingId = Animator.StringToHash(SwingParameter);
+    private static readonly int FloatingId = Animator.StringToHash(FloatingParameter);
 
     [SerializeField] private Animator animator;
 
@@ -40,6 +43,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private float bodyYawDegrees;
     private float movementYawDegrees;
     private int swingIndex = SecondSwingIndex;
+    private int shootLayerIndex = -1;
 
     /// <summary>Sets the Animator to drive.</summary>
     /// <param name="target">The Animator of the player model.</param>
@@ -49,6 +53,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         animator.applyRootMotion = false;
         baseBodyRotation = animator.transform.localRotation;
         bodyYawDegrees = 0f;
+        shootLayerIndex = animator.GetLayerIndex(ShootLayerName);
     }
 
     private void Awake()
@@ -105,6 +110,13 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         TurnBodyTowardMovement(displacement, animator.GetFloat(SpeedId));
         animator.SetBool(GroundedId, IsGrounded());
         animator.SetBool(DownedId, player != null && player.IsDowned);
+        bool floating = player != null && player.enZonaGravedad;
+        animator.SetBool(FloatingId, floating);
+        // El layer de disparo tapa el torso: en la zona se apaga para que se vea floating.
+        if (shootLayerIndex >= 0)
+        {
+            animator.SetLayerWeight(shootLayerIndex, floating ? 0f : 1f);
+        }
     }
 
     // CharacterController.isGrounded vale false mientras el motor no se mueve (antes de la partida): se sondea el piso.
