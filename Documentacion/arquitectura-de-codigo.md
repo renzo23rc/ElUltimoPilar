@@ -67,6 +67,7 @@ Los scripts se movieron siempre junto con su `.meta`, por lo que escenas y prefa
 - `OverlapQuery` (`Core/Shared`): devuelve cada componente una sola vez aunque tenga varios colliders; toda área de daño lo usa para no duplicar impactos.
 - `RuntimeMaterialFactory` y `OwnedMaterialCleanup` (`Core/Shared`): los materiales procedurales se crean con el shader resuelto una vez y se destruyen junto con su objeto.
 - `RendererFlash` (`Core/Shared`): el flash de daño usa un property block y nunca pisa el color del material.
+- Uso correcto de materiales (regla): nunca tocar `renderer.material` por frame ni en caliente, porque cada acceso clona el material (fuga y rompe el batching). Flash temporal → `RendererFlash.Apply/Clear` (property block, no toca el material). Tinte persistente o animado por frame → un solo clon propio (`renderer.material` una única vez en `Awake`/`Start`/`CacheRenderer`, registrado con `OwnedMaterialCleanup.Track`) y reutilizar esa referencia o `sharedMaterial` en cada frame. Materiales procedurales nuevos → `RuntimeMaterialFactory` + `OwnedMaterialCleanup.Assign`. `MaterialColorHelper.SetBaseAndEmissionColor` aplica el color en `_BaseColor`/`_Color`/emisión de forma consistente.
 - `UiFill` (`Core/Shared`): aplica el relleno de barras, también en imágenes sin sprite, donde `fillAmount` no tiene efecto.
 - `PlayerLocator` y `MuzzleTransformResolver` (`Core/Player`): búsqueda del jugador más cercano y del punto de disparo, compartidas por enemigos, pickups, reanimación y armas.
 - `Enemy.Active` y `Torreta.Active`: registros de enemigos y torretas habilitados; torretas, pozo y enemigos los consultan en lugar de buscar en la escena cada frame.
@@ -76,7 +77,7 @@ Los scripts se movieron siempre junto con su `.meta`, por lo que escenas y prefa
 - `PlayerMotor` y `PlayerCameraLook` (`Core/Player/Movement`): movimiento, gravedad, salto, zona de gravedad, mirada y FOV del jugador; `PlayerController` los coordina y conserva la vida, el derribo y la ralentización.
 - `WeaponAim`, `KnockbackMath` y `WeaponVariantCatalog` (`Weapons`): puntería con exclusión del propio cuerpo, empuje y catálogo de variantes; `WeaponSystem` conserva sus firmas públicas y delega.
 - `WaveEnemySelector` y `AutomaticWaveConfigFactory` (`Enemies/Waves`): elección del próximo enemigo y curva automática de oleadas, puras y con pruebas EditMode.
-- `TestSceneSetup` configura copias de escena de los prefabs de `Resources` bajo un contenedor inactivo (`PlantillasRuntime`); nunca modifica los assets.
+- `TestSceneSetup` configura copias de escena de los prefabs de `Resources` bajo un contenedor inactivo (`PlantillasRuntime`); nunca modifica los assets. Con `componerEnRuntime = true` (default) arma todo en runtime como siempre; con `false` no crea nada y solo verifica que `GameManager`, `Pilar`, `EnemySpawner`, `PlayerController` y `ArenaTransform` existan en la escena, con `LogError` nombrando cada faltante (incluye el cableado `GameManager.pilar/spawner/player`). No se tocan las escenas `.unity` a mano.
 
 ## Estándar de implementación
 
