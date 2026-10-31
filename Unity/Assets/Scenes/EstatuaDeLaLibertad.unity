@@ -313,6 +313,7 @@ MonoBehaviour:
   - Torch
   - Base
   - Base.001
+  originalStarMaterial: {fileID: 2100000, guid: ae67b8c454b155c43bac6272d1fac0a6, type: 2}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0

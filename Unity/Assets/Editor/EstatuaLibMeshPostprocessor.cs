@@ -8,8 +8,10 @@ using UnityEngine;
 public sealed class EstatuaLibMeshPostprocessor : AssetPostprocessor
 {
     private const string EstatuaLibFolderFragment = "/EstatuaLib/";
+    private const string FirstPhaseAssetFragment = "EstatLib_fase1";
     private const string StarMeshObjectName = "Base.001";
-    private const string StarMaterialAssetPath = "Assets/Models/EstatuaLib/Materials/piedra.001_Desgastado_Estrella.mat";
+    private const string CleanStarMaterialAssetPath = "Assets/Models/EstatuaLib/Materials/piedra.001.mat";
+    private const string WornStarMaterialAssetPath = "Assets/Models/EstatuaLib/Materials/piedra.001_Desgastado_Estrella.mat";
     private const string FlippedMeshSuffix = "_Fixed";
     private const int TriangleIndexStride = 3;
     private const float MinimumUvExtent = 0.0001f;
@@ -42,14 +44,17 @@ public sealed class EstatuaLibMeshPostprocessor : AssetPostprocessor
         AssignStarMaterial(star);
     }
 
-    private static void AssignStarMaterial(Transform star)
+    private void AssignStarMaterial(Transform star)
     {
         if (!star.TryGetComponent(out MeshRenderer meshRenderer))
         {
             return;
         }
 
-        Material starMaterial = AssetDatabase.LoadAssetAtPath<Material>(StarMaterialAssetPath);
+        string materialPath = assetPath.Contains(FirstPhaseAssetFragment)
+            ? CleanStarMaterialAssetPath
+            : WornStarMaterialAssetPath;
+        Material starMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
         if (starMaterial == null)
         {
             return;

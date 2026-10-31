@@ -12,6 +12,8 @@ public sealed class ArenaPhaseVisuals : MonoBehaviour
 {
     private const int FirstPhase = 1;
 
+    private const string StarPieceName = "Base.001";
+
     [SerializeField] private GameObject[] phaseVisuals;
     [SerializeField] private string[] originalPieceNames =
     {
@@ -20,6 +22,7 @@ public sealed class ArenaPhaseVisuals : MonoBehaviour
         "Base",
         "Base.001"
     };
+    [SerializeField] private Material originalStarMaterial;
 
     private Renderer[] originalRenderers = Array.Empty<Renderer>();
     private bool originalRenderersCaptured;
@@ -40,7 +43,13 @@ public sealed class ArenaPhaseVisuals : MonoBehaviour
         int variantIndex = ArenaPhaseVisualSelector.DeterioratedVariantIndex(
             phase,
             phaseVisuals.Length);
-        SetOriginalRenderersEnabled(variantIndex < 0);
+        bool showOriginals = variantIndex < 0;
+        if (showOriginals)
+        {
+            ApplyOriginalStarMaterial();
+        }
+
+        SetOriginalRenderersEnabled(showOriginals);
         for (int i = 0; i < phaseVisuals.Length; i++)
         {
             if (phaseVisuals[i] != null)
@@ -102,6 +111,29 @@ public sealed class ArenaPhaseVisuals : MonoBehaviour
 
         originalRenderers = renderers.ToArray();
         originalRenderersCaptured = true;
+    }
+
+    private void ApplyOriginalStarMaterial()
+    {
+        if (originalStarMaterial == null)
+        {
+            return;
+        }
+
+        Transform star = FindMapPiece(StarPieceName);
+        if (star == null)
+        {
+            return;
+        }
+
+        Renderer[] starRenderers = star.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < starRenderers.Length; i++)
+        {
+            if (starRenderers[i] != null)
+            {
+                starRenderers[i].sharedMaterial = originalStarMaterial;
+            }
+        }
     }
 
     private void SetOriginalRenderersEnabled(bool enabled)

@@ -38,6 +38,13 @@ public class ArenaTransform : MonoBehaviour
     public Color colorAviso = Color.yellow;
     public AudioClip sonidoTransformacion;
 
+    [Header("Cambio de modelado")]
+    [SerializeField] private float blindFadeInSeconds = 0.18f;
+    [SerializeField] private float blindHoldSeconds = 0.12f;
+    [SerializeField] private float blindFadeOutSeconds = 0.45f;
+    [SerializeField] [Range(0f, 1f)] private float blindPeakAlpha = 1f;
+    [SerializeField] private Color blindColor = Color.white;
+
     [Header("Estado")]
     public int faseActual = FirstArenaPhase;
     public bool transformacionEnProgreso = false;
@@ -49,8 +56,11 @@ public class ArenaTransform : MonoBehaviour
     private IReadOnlyDictionary<int, IArenaPhaseHandler> phaseHandlers;
     private ArenaWarningPresenter warningPresenter;
     private ArenaPhaseEffects phaseEffects;
+    private ArenaPhaseBlindFlash phaseBlindFlash;
     private AudioClip generatedWarningSound;
     private bool procesandoCola;
+    private bool flashingMonument;
+    private int pendingMonumentPhase = FirstArenaPhase;
 
     // inicializa, busca pilar si falta, asegura dependencias y se suscribe al cambio de fase
     private void Start()
@@ -98,11 +108,18 @@ public class ArenaTransform : MonoBehaviour
         EnsureDependencies();
         StopAllCoroutines();
         procesandoCola = false;
+        flashingMonument = false;
         transformacionEnProgreso = false;
         faseActual = FirstArenaPhase;
+        pendingMonumentPhase = FirstArenaPhase;
         phaseState.Reset();
         phaseEffects.Reset();
         warningPresenter.Reset();
+        if (phaseBlindFlash != null)
+        {
+            phaseBlindFlash.Hide();
+        }
+
         ApplyMonumentVisuals(FirstArenaPhase);
     }
 
@@ -150,6 +167,11 @@ public class ArenaTransform : MonoBehaviour
         if (phaseHandlers == null)
         {
             phaseHandlers = ArenaPhaseHandlerCatalog.CreateDefault(warningPresenter, phaseEffects);
+        }
+
+        if (phaseBlindFlash == null)
+        {
+            phaseBlindFlash = new ArenaPhaseBlindFlash(transform);
         }
     }
 
@@ -217,7 +239,7 @@ public class ArenaTransform : MonoBehaviour
         EnsureDependencies();
         phaseState.EnqueueMissing(faseActual, nuevaFase);
         faseActual = nuevaFase;
-        ApplyMonumentVisuals(nuevaFase);
+        RevealMonumentAfterBlind(nuevaFase);
         if (procesandoCola)
         {
             return;
@@ -261,17 +283,53 @@ public class ArenaTransform : MonoBehaviour
         Debug.Log($"[ArenaTransform] Transformacion a Fase {fase} completada.");
     }
 
+    private void RevealMonumentAfterBlind(int phase)
+    {
+        pendingMonumentPhase = phase;
+        if (ResolveMonumentVisuals() == null)
+        {
+            return;
+        }
+
+        if (flashingMonument)
+        {
+            return;
+        }
+
+        StartCoroutine(BlindThenApplyMonumentVisuals());
+    }
+
+    private IEnumerator BlindThenApplyMonumentVisuals()
+    {
+        flashingMonument = true;
+        EnsureDependencies();
+        yield return phaseBlindFlash.Play(
+            blindFadeInSeconds,
+            blindHoldSeconds,
+            blindFadeOutSeconds,
+            blindPeakAlpha,
+            blindColor,
+            () => ApplyMonumentVisuals(pendingMonumentPhase));
+        flashingMonument = false;
+    }
+
     private void ApplyMonumentVisuals(int phase)
+    {
+        ArenaPhaseVisuals visuals = ResolveMonumentVisuals();
+        if (visuals != null)
+        {
+            visuals.ShowPhase(phase);
+        }
+    }
+
+    private ArenaPhaseVisuals ResolveMonumentVisuals()
     {
         if (modelosPorFase == null)
         {
             modelosPorFase = FindFirstObjectByType<ArenaPhaseVisuals>();
         }
 
-        if (modelosPorFase != null)
-        {
-            modelosPorFase.ShowPhase(phase);
-        }
+        return modelosPorFase;
     }
 
     // dibuja el radio de la arena y el pozo en el editor
