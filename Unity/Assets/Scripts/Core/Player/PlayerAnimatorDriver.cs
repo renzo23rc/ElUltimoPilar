@@ -32,6 +32,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
     private static readonly int FloatingId = Animator.StringToHash(FloatingParameter);
 
     [SerializeField] private Animator animator;
+    [SerializeField] private bool useExternalEquipAnimation;
 
     private PlayerController player;
     private WeaponSystem weapons;
@@ -89,7 +90,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
         if (subscribedManager != null)
         {
             subscribedManager.OnJuegoIniciado += HandleMatchStarted;
-            if (subscribedManager.juegoActivo && weapons != null
+            if (!useExternalEquipAnimation && subscribedManager.juegoActivo && weapons != null
                 && weapons.armaEquipada == WeaponSystem.TipoArma.Directa)
             {
                 equipRequested = true;
@@ -202,7 +203,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
 
     private void HandleMatchStarted()
     {
-        if (weapons == null || weapons.armaEquipada == WeaponSystem.TipoArma.Directa)
+        if (!useExternalEquipAnimation && (weapons == null || weapons.armaEquipada == WeaponSystem.TipoArma.Directa))
         {
             equipRequested = true;
         }
@@ -210,7 +211,7 @@ public sealed class PlayerAnimatorDriver : MonoBehaviour
 
     private void HandleWeaponChanged(WeaponSystem.TipoArma weapon)
     {
-        equipRequested = weapon == WeaponSystem.TipoArma.Directa;
+        equipRequested = !useExternalEquipAnimation && weapon == WeaponSystem.TipoArma.Directa;
         if (animator == null || !animator.isActiveAndEnabled || animator.runtimeAnimatorController == null)
         {
             return;

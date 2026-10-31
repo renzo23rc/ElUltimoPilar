@@ -70,6 +70,56 @@ public sealed class PlayerPrefabAnimationTests
         }
     }
 
+    [TestCase(1)]
+    [TestCase(2)]
+    public void WeaponModelsUseRightHandAndPreserveTheirPbrMaterials(int playerNumber)
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath + playerNumber + ".prefab");
+        PlayerVisualPresenter presenter = prefab.GetComponent<PlayerVisualPresenter>();
+        var serialized = new SerializedObject(presenter);
+        string[] fields = { "directWeapon", "meleeWeapon" };
+        string[] names = { "rifle", "cuchillo" };
+
+        for (int index = 0; index < fields.Length; index++)
+        {
+            GameObject model = (GameObject)serialized.FindProperty(fields[index]).objectReferenceValue;
+            Assert.That(model, Is.Not.Null, fields[index]);
+            Assert.That(model.transform.parent.name, Is.EqualTo("DEF-hand.R"));
+            Assert.That(PrefabUtility.IsPartOfPrefabInstance(model), Is.True);
+            Assert.That(presenter.ContainsWeaponVisual(model.transform), Is.True);
+            Assert.That(model.activeSelf, Is.EqualTo(index == 0));
+
+            Renderer renderer = model.GetComponentInChildren<Renderer>(true);
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/Models/Armas/" + names[index] + "/mat_" + names[index] + ".mat");
+            Assert.That(renderer, Is.Not.Null);
+            Assert.That(renderer.sharedMaterial, Is.SameAs(material));
+            Assert.That(presenter.ContainsWeaponVisual(renderer.transform), Is.True);
+            Assert.That(material.GetTexture("_BaseMap"), Is.Not.Null);
+            Assert.That(material.GetTexture("_BumpMap"), Is.Not.Null);
+            Assert.That(material.GetTexture("_MetallicGlossMap"), Is.Not.Null);
+            Assert.That(material.IsKeywordEnabled("_NORMALMAP"), Is.True);
+            Assert.That(material.IsKeywordEnabled("_METALLICSPECGLOSSMAP"), Is.True);
+            var normalImporter = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(material.GetTexture("_BumpMap")));
+            var maskImporter = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(material.GetTexture("_MetallicGlossMap")));
+            Assert.That(normalImporter.textureType, Is.EqualTo(TextureImporterType.NormalMap));
+            Assert.That(maskImporter.sRGBTexture, Is.False);
+
+            foreach (Camera extra in model.GetComponentsInChildren<Camera>(true))
+            {
+                Assert.That(extra.enabled && extra.gameObject.activeSelf, Is.False);
+            }
+
+            foreach (Light extra in model.GetComponentsInChildren<Light>(true))
+            {
+                Assert.That(extra.enabled && extra.gameObject.activeSelf, Is.False);
+            }
+        }
+
+        Assert.That(prefab.GetComponent<WeaponSystem>().armaMelee.nombre, Is.EqualTo("Cuchillo"));
+        Assert.That(presenter.ContainsWeaponVisual(prefab.transform.Find("JugadorVisual")), Is.False);
+    }
+
     [TestCase(1, "idle", "WalkForward", "RunForward", "RifleJump", "GrabRifle", "knife", "knife2")]
     [TestCase(2, "rig|iddle", "rig|walkrifle", "rig|runningrifle", "rig|jumprifle", "rig|agarrar el arma", "rig|knife1v2", "rig|knife3v2")]
     public void ControllerUsesItsOwnSelectedClips(

@@ -127,6 +127,7 @@ public static class TestScenePlayerBuilder
             return;
         }
 
+        PlayerVisualPresenter presenter = player.GetComponent<PlayerVisualPresenter>();
         Transform areaWeapon = null;
         foreach (Transform child in visual.GetComponentsInChildren<Transform>(true))
         {
@@ -139,7 +140,8 @@ public static class TestScenePlayerBuilder
 
         foreach (Renderer renderer in visual.GetComponentsInChildren<Renderer>(true))
         {
-            if (areaWeapon != null && renderer.transform.IsChildOf(areaWeapon))
+            if ((presenter != null && presenter.ContainsWeaponVisual(renderer.transform))
+                || (areaWeapon != null && renderer.transform.IsChildOf(areaWeapon)))
             {
                 continue;
             }

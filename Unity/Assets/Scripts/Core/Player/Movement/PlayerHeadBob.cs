@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Bobs the player camera and keeps the holder on the look axis, at the head's height and forward offset.
 /// Lateral bone swing is ignored so a body turn does not pull the view off center.
+/// The camera moves slightly forward when looking down to reduce overlap with the animated arms.
 /// </summary>
 [DefaultExecutionOrder(50)]
 public sealed class PlayerHeadBob : MonoBehaviour
@@ -16,11 +17,14 @@ public sealed class PlayerHeadBob : MonoBehaviour
     private const float LateralAmplitudeScale = 2f;
     private const float FrequencyHalfDivisor = 2f;
     private const float MinimumPlanarForwardSqr = 0.0001f;
+    private const float FullLookDownAngleDegrees = 20f;
+    private const float DefaultLookDownClearanceMeters = 0.25f;
 
     [SerializeField] private bool bobEnabled = true;
     [SerializeField, Range(0f, 0.1f)] private float amplitudeMeters = DefaultAmplitudeMeters;
     [SerializeField, Range(0f, 30f)] private float frequencyHertz = DefaultFrequencyHertz;
     [SerializeField] private Vector3 eyeOffsetMeters = new Vector3(0f, 0f, 0.35f);
+    [SerializeField, Min(0f)] private float lookDownClearanceMeters = DefaultLookDownClearanceMeters;
 
     private CharacterController characterController;
     private Transform cameraTransform;
@@ -122,6 +126,11 @@ public sealed class PlayerHeadBob : MonoBehaviour
             eyeHeight = headOnPlayer.y;
             forwardMeters = headOnPlayer.z + eyeOffsetMeters.z;
         }
+
+        // Advance only the camera when looking down, where the animated arms cross the view.
+        float fullLookDownVertical = Mathf.Sin(FullLookDownAngleDegrees * Mathf.Deg2Rad);
+        float lookDownAmount = Mathf.Clamp01(-cameraHolder.forward.y / fullLookDownVertical);
+        forwardMeters += Mathf.Max(0f, lookDownClearanceMeters) * lookDownAmount;
 
         cameraHolder.position = transform.position
             + (transform.right * eyeOffsetMeters.x)

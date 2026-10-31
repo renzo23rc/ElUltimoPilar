@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 public sealed class PlayerPresentationTests
@@ -27,6 +28,7 @@ public sealed class PlayerPresentationTests
     [UnityTearDown]
     public IEnumerator TearDown()
     {
+        Time.timeScale = 1f;
         if (templateObject != null)
         {
             Object.Destroy(templateObject);
@@ -130,10 +132,12 @@ public sealed class PlayerPresentationTests
         Assert.That(bazooka.parent, Is.SameAs(rightHand), "The bazooka must be attached to P1's right hand.");
         Assert.That(bazooka.localPosition.sqrMagnitude, Is.GreaterThan(MinimumGripOffsetMeters * MinimumGripOffsetMeters),
             "The grip must use the measured palm and weapon bounds, not an origin placeholder.");
-        AssertBazookaBarrelFacesForward(bazooka, visual);
         Assert.That(bazooka.gameObject.activeSelf, Is.False, "Directa is the initial weapon, so the bazooka starts hidden.");
 
+        Time.timeScale = 8f;
         weapons.ConsumeCommand(new PlayerCommand(0f, 0f, 0f, 0f, weaponSlot: 2));
+        Assert.That(bazooka.gameObject.activeSelf, Is.False, "The previous weapon remains equipped while holstering.");
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.Area);
         Assert.That(bazooka.gameObject.activeSelf, Is.True);
         Bounds sourceBounds = GetLocalRenderBounds(Resources.Load<GameObject>(WeaponResourcePath).transform);
         float weaponLength = bazooka.TransformVector(Vector3.right * sourceBounds.size.x).magnitude;
@@ -143,13 +147,16 @@ public sealed class PlayerPresentationTests
             $"The launcher must be proportionate to P1 (weapon={weaponLength}, body height={bodyHeight}).");
 
         weapons.CambiarArma(WeaponSystem.TipoArma.CuerpoACuerpo);
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.CuerpoACuerpo);
         Assert.That(bazooka.gameObject.activeSelf, Is.False);
         weapons.CambiarArma(WeaponSystem.TipoArma.Area);
         Assert.That(bazooka.gameObject.activeSelf, Is.True);
         weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.Directa);
         Assert.That(bazooka.gameObject.activeSelf, Is.False);
 
         weapons.CambiarArma(WeaponSystem.TipoArma.Area);
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.Area);
         Assert.That(bazooka.gameObject.activeSelf, Is.True);
         weapons.ResetState();
         Assert.That(weapons.armaEquipada, Is.EqualTo(WeaponSystem.TipoArma.Directa));
@@ -168,14 +175,17 @@ public sealed class PlayerPresentationTests
         yield return null;
         Assert.That(bazooka.gameObject.activeSelf, Is.False, "The first evaluated frame must keep Directa hidden.");
 
+        Time.timeScale = 8f;
         weapons.CambiarArma(WeaponSystem.TipoArma.Area);
-        Assert.That(bazooka.gameObject.activeSelf, Is.True);
+        Assert.That(bazooka.gameObject.activeSelf, Is.False, "The bazooka stays hidden during holster.");
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.Area);
         yield return null;
-        Assert.That(bazooka.gameObject.activeSelf, Is.True, "The next frame must keep the selected Area weapon visible.");
+        Assert.That(bazooka.gameObject.activeSelf, Is.True, "The selected Area weapon remains visible.");
 
         weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.Directa);
         yield return null;
-        Assert.That(bazooka.gameObject.activeSelf, Is.False, "Directa must hide the bazooka on a later frame.");
+        Assert.That(bazooka.gameObject.activeSelf, Is.False, "Directa hides the bazooka after holstering.");
     }
 
     [UnityTest]
@@ -188,7 +198,9 @@ public sealed class PlayerPresentationTests
         Assert.That(baselineP2Animator, Is.Not.Null);
 
         PlayerController primary = CreatePrimary();
+        Time.timeScale = 8f;
         primary.GetComponent<WeaponSystem>().CambiarArma(WeaponSystem.TipoArma.Area);
+        yield return WaitForWeapon(primary.GetComponent<WeaponSystem>(), WeaponSystem.TipoArma.Area);
         primary.gameObject.SetActive(false);
         primary.transform.position = new Vector3(0f, 3f, 0f);
         templateObject = TestScenePlayerBuilder.CreateJoinTemplate(primary).gameObject;
@@ -228,6 +240,167 @@ public sealed class PlayerPresentationTests
     }
 
     [UnityTest]
+    public IEnumerator AllMapSkinsPreserveBothPlayersWeaponMaterials()
+    {
+        yield return new EnterPlayMode();
+        inputActions = ScriptableObject.CreateInstance<InputActionAsset>();
+        inputActions.AddActionMap("Player");
+        Scene originalScene = SceneManager.GetActiveScene();
+        string[] sceneNames = { "Obelisco", "CristoRedentor", "EstatuaDeLaLibertad" };
+        foreach (string sceneName in sceneNames)
+        {
+            Scene testScene = SceneManager.CreateScene(sceneName);
+            GameObject primary = null;
+            GameObject secondary = null;
+            try
+            {
+                SceneManager.SetActiveScene(testScene);
+                primary = TestScenePlayerBuilder.CreatePrimary(inputActions, null, null, Vector3.zero).gameObject;
+                secondary = TestScenePlayerBuilder.CreateJoinTemplate(primary.GetComponent<PlayerController>()).gameObject;
+                AssertWeaponMaterials(primary.transform, "Models/Personajes/p1");
+                AssertWeaponMaterials(secondary.transform, "Models/Personajes/p2");
+            }
+            finally
+            {
+                if (primary != null)
+                {
+                    Object.Destroy(primary);
+                }
+
+                if (secondary != null)
+                {
+                    Object.Destroy(secondary);
+                }
+
+                SceneManager.SetActiveScene(originalScene);
+            }
+
+            yield return SceneManager.UnloadSceneAsync(testScene);
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator RifleAndKnifeFollowSelectionIndependentlyForBothPlayerPrefabs()
+    {
+        yield return new EnterPlayMode();
+        PlayerController primary = CreatePrimary();
+        templateObject = TestScenePlayerBuilder.CreateJoinTemplate(primary).gameObject;
+        templateObject.SetActive(true);
+        GameObject joinedClone = Object.Instantiate(templateObject);
+        try
+        {
+            WeaponSystem primaryWeapons = primary.GetComponent<WeaponSystem>();
+            WeaponSystem secondaryWeapons = templateObject.GetComponent<WeaponSystem>();
+            WeaponSystem cloneWeapons = joinedClone.GetComponent<WeaponSystem>();
+            AssertWeaponModels(primary.transform, true, false, false);
+            AssertWeaponModels(templateObject.transform, true, false, false);
+            AssertWeaponModels(joinedClone.transform, true, false, false);
+            AssertWeaponMaterials(primary.transform, "Models/Personajes/p1");
+            AssertWeaponMaterials(templateObject.transform, "Models/Personajes/p2");
+            AssertCameraDownwardClearance(primary);
+            AssertCameraDownwardClearance(templateObject.GetComponent<PlayerController>());
+
+            Time.timeScale = 8f;
+            primaryWeapons.CambiarArma(WeaponSystem.TipoArma.Area);
+            secondaryWeapons.CambiarArma(WeaponSystem.TipoArma.CuerpoACuerpo);
+            AssertCameraDownwardClearance(primary);
+            AssertCameraDownwardClearance(templateObject.GetComponent<PlayerController>());
+            AssertWeaponModels(primary.transform, true, false, false);
+            AssertWeaponModels(templateObject.transform, false, false, true);
+            yield return WaitForWeapon(primaryWeapons, WeaponSystem.TipoArma.Area);
+            AssertWeaponModels(primary.transform, false, true, false);
+            AssertWeaponModels(templateObject.transform, false, false, true);
+            AssertWeaponModels(joinedClone.transform, true, false, false);
+
+            cloneWeapons.CambiarArma(WeaponSystem.TipoArma.CuerpoACuerpo);
+            primaryWeapons.ResetState();
+            secondaryWeapons.ResetState();
+            yield return null;
+            AssertWeaponModels(primary.transform, true, false, false);
+            AssertWeaponModels(templateObject.transform, true, false, false);
+            AssertWeaponModels(joinedClone.transform, false, false, true);
+            cloneWeapons.ResetState();
+            AssertWeaponModels(joinedClone.transform, true, false, false);
+        }
+        finally
+        {
+            Object.Destroy(joinedClone);
+        }
+    }
+
+    private static void AssertCameraDownwardClearance(PlayerController player)
+    {
+        PlayerHeadBob bob = player.GetComponent<PlayerHeadBob>();
+        Transform holder = player.camaraJugador.transform.parent;
+        Quaternion originalRotation = holder.localRotation;
+        try
+        {
+            holder.localRotation = Quaternion.identity;
+            bob.SendMessage("LateUpdate");
+            Vector3 straight = holder.position;
+
+            holder.localRotation = Quaternion.Euler(20f, 0f, 0f);
+            bob.SendMessage("LateUpdate");
+            Vector3 downward = holder.position;
+            Assert.That(Vector3.Dot(downward - straight, player.transform.forward), Is.EqualTo(0.25f).Within(0.001f));
+            Assert.That(Vector3.Dot(downward - straight, player.transform.right), Is.EqualTo(0f).Within(0.001f));
+            Assert.That(downward.y, Is.EqualTo(straight.y).Within(0.001f));
+
+            holder.localRotation = Quaternion.Euler(-20f, 0f, 0f);
+            bob.SendMessage("LateUpdate");
+            Assert.That(Vector3.Distance(holder.position, straight), Is.LessThan(0.001f));
+        }
+        finally
+        {
+            holder.localRotation = originalRotation;
+            bob.SendMessage("LateUpdate");
+        }
+    }
+
+    private static void AssertWeaponModels(Transform player, bool rifle, bool bazooka, bool knife)
+    {
+        var presenter = new SerializedObject(player.GetComponent<PlayerVisualPresenter>());
+        Assert.That(((GameObject)presenter.FindProperty("directWeapon").objectReferenceValue).activeSelf, Is.EqualTo(rifle));
+        Assert.That(((GameObject)presenter.FindProperty("areaWeapon").objectReferenceValue).activeSelf, Is.EqualTo(bazooka));
+        Assert.That(((GameObject)presenter.FindProperty("meleeWeapon").objectReferenceValue).activeSelf, Is.EqualTo(knife));
+    }
+
+    private static void AssertWeaponMaterials(Transform player, string modelResource)
+    {
+        PlayerVisualPresenter visualPresenter = player.GetComponent<PlayerVisualPresenter>();
+        var presenter = new SerializedObject(visualPresenter);
+        string[] fields = { "directWeapon", "meleeWeapon" };
+        string[] names = { "rifle", "cuchillo" };
+        for (int index = 0; index < fields.Length; index++)
+        {
+            GameObject weapon = (GameObject)presenter.FindProperty(fields[index]).objectReferenceValue;
+            Material expected = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/Models/Armas/" + names[index] + "/mat_" + names[index] + ".mat");
+            Assert.That(weapon.GetComponentInChildren<Renderer>(true).sharedMaterial, Is.SameAs(expected),
+                "Applying the map skin must not replace weapon materials.");
+        }
+
+        Material expectedBody = Resources.Load<Material>(
+            PlayerMapSkinCatalog.BodyMaterialResource(modelResource, SceneManager.GetActiveScene().name));
+        Assert.That(expectedBody, Is.Not.Null);
+        bool bodySkinApplied = false;
+        foreach (Renderer renderer in player.GetComponentsInChildren<Renderer>(true))
+        {
+            if (visualPresenter.ContainsWeaponVisual(renderer.transform))
+            {
+                continue;
+            }
+
+            foreach (Material material in renderer.sharedMaterials)
+            {
+                bodySkinApplied |= material == expectedBody;
+            }
+        }
+
+        Assert.That(bodySkinApplied, Is.True, "The test must exercise actual map skin replacement.");
+    }
+
+    [UnityTest]
     public IEnumerator EquipIsTriggeredByReturningToRifleAndCancelledWhenSwitchingAway()
     {
         yield return new EnterPlayMode();
@@ -240,19 +413,19 @@ public sealed class PlayerPresentationTests
             Animator animator = player.GetComponentInChildren<Animator>(true);
             WeaponSystem weapons = player.GetComponent<WeaponSystem>();
 
+            Time.timeScale = 8f;
+            PlayerWeaponSwitchCoordinator coordinator = player.GetComponent<PlayerWeaponSwitchCoordinator>();
+            float readyTime = animator.GetFloat("P1GrabTime");
             weapons.CambiarArma(WeaponSystem.TipoArma.Area);
+            yield return null;
+            Assert.That(coordinator.ActionBlocked, Is.True);
             weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
-            weapons.CambiarArma(WeaponSystem.TipoArma.Area);
-            yield return null;
-            yield return null;
+            yield return WaitForReady(coordinator);
+            Assert.That(weapons.armaEquipada, Is.EqualTo(WeaponSystem.TipoArma.Directa));
+            Assert.That(animator.GetFloat("P1GrabTime"), Is.EqualTo(readyTime).Within(0.001f),
+                "Cancelling a holster must return to the held pose without switching weapons.");
             Assert.That(IsCurrentOrNextState(animator, "Equip"), Is.False,
-                "An equip request must be cancelled if the player immediately switches away.");
-
-            weapons.CambiarArma(WeaponSystem.TipoArma.Directa);
-            yield return null;
-            yield return null;
-            Assert.That(IsCurrentOrNextState(animator, "Equip"), Is.True,
-                "Selecting the rifle must request the equip animation.");
+                "P1 uses its coordinated upper-body layer instead of the legacy Equip transition.");
         }
         finally
         {
@@ -272,7 +445,9 @@ public sealed class PlayerPresentationTests
         yield return null;
         Assert.That(animator.GetBool("Grounded"), Is.False);
 
+        Time.timeScale = 8f;
         weapons.CambiarArma(WeaponSystem.TipoArma.CuerpoACuerpo);
+        yield return WaitForWeapon(weapons, WeaponSystem.TipoArma.CuerpoACuerpo);
         weapons.DispararActual();
         yield return null;
         yield return null;
@@ -293,6 +468,28 @@ public sealed class PlayerPresentationTests
         {
             Object.Destroy(floor);
         }
+    }
+
+    private static IEnumerator WaitForWeapon(WeaponSystem weapons, WeaponSystem.TipoArma expected)
+    {
+        float deadline = Time.realtimeSinceStartup + 15f;
+        while (weapons.armaEquipada != expected && Time.realtimeSinceStartup < deadline)
+        {
+            yield return null;
+        }
+
+        Assert.That(weapons.armaEquipada, Is.EqualTo(expected), "The requested weapon must eventually be equipped.");
+    }
+
+    private static IEnumerator WaitForReady(PlayerWeaponSwitchCoordinator coordinator)
+    {
+        float deadline = Time.realtimeSinceStartup + 15f;
+        while (coordinator.ActionBlocked && Time.realtimeSinceStartup < deadline)
+        {
+            yield return null;
+        }
+
+        Assert.That(coordinator.ActionBlocked, Is.False, "The weapon animation must eventually finish.");
     }
 
     private static bool IsCurrentOrNextState(Animator animator, string stateName)

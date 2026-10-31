@@ -112,7 +112,7 @@ public class WeaponSystem : MonoBehaviour
 
     public Arma armaMelee = new Arma
     {
-        nombre = "Martillo de Choque",
+        nombre = "Cuchillo",
         tipo = TipoArma.CuerpoACuerpo,
         daño = 50f,
         cadencia = 0.8f,
@@ -165,6 +165,7 @@ public class WeaponSystem : MonoBehaviour
 
     private readonly WeaponFeedbackVfx vfx = new WeaponFeedbackVfx();
     private PlayerController player;
+    private IWeaponSwitchGate switchGate;
     private bool hasSemanticVariant;
 
     public bool VarianteActiva => tiempoVarianteRestante > 0f;
@@ -192,6 +193,11 @@ public class WeaponSystem : MonoBehaviour
         {
             OnImpactoConfirmado?.Invoke(anyKilled);
         }
+    }
+
+    private void Awake()
+    {
+        switchGate = GetComponent<IWeaponSwitchGate>();
     }
 
     void Start()
@@ -322,7 +328,7 @@ public class WeaponSystem : MonoBehaviour
 
     public void DispararActual()
     {
-        if (cooldownDisparo > 0f)
+        if ((switchGate != null && switchGate.IsAvailable && switchGate.ActionBlocked) || cooldownDisparo > 0f)
         {
             return;
         }
@@ -544,6 +550,17 @@ public class WeaponSystem : MonoBehaviour
 
     public void CambiarArma(TipoArma tipo)
     {
+        if (switchGate != null && switchGate.IsAvailable)
+        {
+            switchGate.RequestWeapon(tipo);
+            return;
+        }
+
+        CommitWeaponChange(tipo);
+    }
+
+    internal void CommitWeaponChange(TipoArma tipo)
+    {
         if (armaEquipada == tipo)
         {
             return;
@@ -555,13 +572,15 @@ public class WeaponSystem : MonoBehaviour
 
     void CambiarArmaSiguiente()
     {
-        int siguiente = ((int)armaEquipada + 1) % WeaponSlotCount;
+        TipoArma selected = switchGate != null && switchGate.IsAvailable ? switchGate.RequestedWeapon : armaEquipada;
+        int siguiente = ((int)selected + 1) % WeaponSlotCount;
         CambiarArma((TipoArma)siguiente);
     }
 
     void CambiarArmaAnterior()
     {
-        int anterior = ((int)armaEquipada - 1 + WeaponSlotCount) % WeaponSlotCount;
+        TipoArma selected = switchGate != null && switchGate.IsAvailable ? switchGate.RequestedWeapon : armaEquipada;
+        int anterior = ((int)selected - 1 + WeaponSlotCount) % WeaponSlotCount;
         CambiarArma((TipoArma)anterior);
     }
 
@@ -656,6 +675,7 @@ public class WeaponSystem : MonoBehaviour
 
         bool weaponChanged = armaEquipada != TipoArma.Directa;
         armaEquipada = TipoArma.Directa;
+        switchGate?.ResetTransition();
 
         if (armaDirecta != null) armaDirecta.municionActual = armaDirecta.municionMaxima;
         if (armaArea != null) armaArea.municionActual = armaArea.municionMaxima;

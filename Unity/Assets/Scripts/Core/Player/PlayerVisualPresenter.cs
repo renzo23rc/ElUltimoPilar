@@ -1,9 +1,11 @@
 using UnityEngine;
 
-/// <summary>Shows the player's area weapon only while that weapon is equipped.</summary>
+/// <summary>Shows only the model corresponding to the player's equipped weapon.</summary>
 public sealed class PlayerVisualPresenter : MonoBehaviour
 {
     [SerializeField] private GameObject areaWeapon;
+    [SerializeField] private GameObject directWeapon;
+    [SerializeField] private GameObject meleeWeapon;
 
     private WeaponSystem weapons;
 
@@ -13,6 +15,20 @@ public sealed class PlayerVisualPresenter : MonoBehaviour
     {
         areaWeapon = weapon;
         UpdateVisibility(weapons != null ? weapons.armaEquipada : WeaponSystem.TipoArma.Directa);
+    }
+
+    /// <summary>Checks whether a transform belongs to a configured weapon model.</summary>
+    /// <param name="candidate">The transform to inspect, including weapon roots.</param>
+    /// <returns>True if the transform belongs to one of the player's weapon models.</returns>
+    public bool ContainsWeaponVisual(Transform candidate)
+    {
+        return candidate != null
+            && (IsPartOf(candidate, areaWeapon) || IsPartOf(candidate, directWeapon) || IsPartOf(candidate, meleeWeapon));
+    }
+
+    private static bool IsPartOf(Transform candidate, GameObject weapon)
+    {
+        return weapon != null && candidate.IsChildOf(weapon.transform);
     }
 
     private void OnEnable()
@@ -43,6 +59,16 @@ public sealed class PlayerVisualPresenter : MonoBehaviour
         if (areaWeapon != null)
         {
             areaWeapon.SetActive(weapon == WeaponSystem.TipoArma.Area);
+        }
+
+        if (directWeapon != null)
+        {
+            directWeapon.SetActive(weapon == WeaponSystem.TipoArma.Directa);
+        }
+
+        if (meleeWeapon != null)
+        {
+            meleeWeapon.SetActive(weapon == WeaponSystem.TipoArma.CuerpoACuerpo);
         }
     }
 }
