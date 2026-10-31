@@ -4,7 +4,7 @@ namespace UltimoPilar.Core.Pilar
 {
     /// <summary>Applies phase colors to a renderer without phase branching.</summary>
     public sealed class PilarVisualPresenter
-{
+    {
     private const int FirstPhase = 1;
     private const float DefaultLerpSpeedPerSecond = 2f;
     private Color[] colors;
@@ -24,6 +24,10 @@ namespace UltimoPilar.Core.Pilar
     }
 
     /// <summary>Moves the renderer toward the color configured for the phase.</summary>
+    /// <remarks>
+    /// Uses the shared material to avoid cloning it every frame. The owner
+    /// clones it once and tracks it with OwnedMaterialCleanup.
+    /// </remarks>
     public void Present(Renderer renderer, int phase, float deltaTime)
     {
         if (renderer == null)
@@ -31,9 +35,15 @@ namespace UltimoPilar.Core.Pilar
             return;
         }
 
+        Material material = renderer.sharedMaterial;
+        if (material == null)
+        {
+            return;
+        }
+
         Color targetColor = GetColor(phase);
-        renderer.material.color = Color.Lerp(
-            renderer.material.color,
+        material.color = Color.Lerp(
+            material.color,
             targetColor,
             deltaTime * DefaultLerpSpeedPerSecond);
     }
@@ -45,5 +55,5 @@ namespace UltimoPilar.Core.Pilar
             ? colors[colorIndex]
             : fallbackColor;
     }
-}
+    }
 }

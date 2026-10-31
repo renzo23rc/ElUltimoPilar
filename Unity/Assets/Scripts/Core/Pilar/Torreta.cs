@@ -72,6 +72,7 @@ public class Torreta : MonoBehaviour, IDamageable
     private Enemy objetivoActual;
     private List<Collider> colisionadoresIgnorados;
     private Renderer rendCache;
+    private Material ownedMaterialCache;
     private Light lightCache;
     private Color colorBase;
     private BoxCollider colCache;
@@ -133,7 +134,15 @@ public class Torreta : MonoBehaviour, IDamageable
         colCache.isTrigger = false;
 
         rendCache = GetComponentInChildren<Renderer>();
-        if (rendCache != null) colorBase = GetColor(rendCache.material);
+        if (rendCache != null)
+        {
+            Material ownedMaterial = EnsureOwnedMaterial();
+            if (ownedMaterial != null)
+            {
+                colorBase = GetColor(ownedMaterial);
+            }
+        }
+
         lightCache = GetComponentInChildren<Light>();
 
         // Suscribirse a fin de partida para desactivarse.
@@ -210,10 +219,11 @@ public class Torreta : MonoBehaviour, IDamageable
         if (timerRecarga > 0f)
         {
             // Parpadeo visual durante la recarga.
-            if (rendCache != null)
+            Material reloadMaterial = EnsureOwnedMaterial();
+            if (reloadMaterial != null)
             {
                 float pulse = Mathf.PingPong(Time.time * ReloadPulseSpeed, FullPulseCycleSeconds);
-                SetColor(rendCache.material, Color.Lerp(colorBase * ReloadDimmedColorRatio, colorBase, pulse));
+                SetColor(reloadMaterial, Color.Lerp(colorBase * ReloadDimmedColorRatio, colorBase, pulse));
             }
 
             if (lightCache != null)
@@ -223,7 +233,12 @@ public class Torreta : MonoBehaviour, IDamageable
 
         recargando = false;
         municionActual = municionMaxima;
-        if (rendCache != null) SetColor(rendCache.material, colorBase);
+        Material ownedMaterial = EnsureOwnedMaterial();
+        if (ownedMaterial != null)
+        {
+            SetColor(ownedMaterial, colorBase);
+        }
+
         if (lightCache != null) lightCache.intensity = ActiveLightIntensity;
     }
 
@@ -389,8 +404,15 @@ public class Torreta : MonoBehaviour, IDamageable
         if (rendCache != null)
         {
             RendererFlash.Clear(rendCache);
-            SetColor(rendCache.material, Color.gray * DestroyedColorRatio);
-            if (rendCache.material.HasProperty("_EmissionColor")) rendCache.material.SetColor("_EmissionColor", Color.black);
+            Material ownedMaterial = EnsureOwnedMaterial();
+            if (ownedMaterial != null)
+            {
+                SetColor(ownedMaterial, Color.gray * DestroyedColorRatio);
+                if (ownedMaterial.HasProperty("_EmissionColor"))
+                {
+                    ownedMaterial.SetColor("_EmissionColor", Color.black);
+                }
+            }
         }
 
         if (lightCache != null) lightCache.enabled = false;
@@ -402,7 +424,26 @@ public class Torreta : MonoBehaviour, IDamageable
     {
         if (!activa) return;
         activa = false;
-        if (rendCache != null) SetColor(rendCache.material, Color.gray);
+        Material ownedMaterial = EnsureOwnedMaterial();
+        if (ownedMaterial != null)
+        {
+            SetColor(ownedMaterial, Color.gray);
+        }
+    }
+
+    /// <summary>
+    /// Gets the owned material clone, creating it once from the renderer and tracking it
+    /// with OwnedMaterialCleanup. Callers reuse it instead of touching renderer.material.
+    /// </summary>
+    private Material EnsureOwnedMaterial()
+    {
+        if (ownedMaterialCache == null && rendCache != null)
+        {
+            ownedMaterialCache = rendCache.material;
+            OwnedMaterialCleanup.Track(rendCache.gameObject, ownedMaterialCache);
+        }
+
+        return ownedMaterialCache;
     }
 
     static Color GetColor(Material material)

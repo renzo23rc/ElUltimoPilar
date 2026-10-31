@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UltimoPilar.Core.Pilar;
+using UltimoPilar.Core.Shared;
 
 /**
  * Pilar.cs
@@ -199,9 +200,9 @@ public class Pilar : MonoBehaviour, IDamageable
         EnsurePhaseCoordinator().ResetTo(InitialPhase);
         OnVidaCambiada?.Invoke(vidaActual);
 
-        if (rend != null && tintByPhase)
+        if (rend != null && tintByPhase && rend.sharedMaterial != null)
         {
-            rend.material.color = colorFase1;
+            rend.sharedMaterial.color = colorFase1;
         }
     }
 
@@ -214,11 +215,21 @@ public class Pilar : MonoBehaviour, IDamageable
     }
 
     // Guarda el Renderer una sola vez para no llamar a GetComponent en cada uso.
+    // Clona el material una sola vez y lo registra en OwnedMaterialCleanup:
+    // los usos por frame (PilarVisualPresenter) van sobre sharedMaterial sin clonar.
     private void CacheRenderer()
     {
         if (rend == null)
         {
             rend = GetComponent<Renderer>();
+            if (rend != null)
+            {
+                Material ownedMaterial = rend.material;
+                if (ownedMaterial != null)
+                {
+                    OwnedMaterialCleanup.Track(rend.gameObject, ownedMaterial);
+                }
+            }
         }
     }
 
