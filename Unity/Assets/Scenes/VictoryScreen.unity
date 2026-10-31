@@ -335,7 +335,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VictoryScreenController
   background: {fileID: 21300000, guid: b87bc579df220e1449f1290c4843ebd3, type: 3}
-  options: {fileID: 21300000, guid: 3b3fa94bfecc2cb428e9db4eb4d4eb3d, type: 3}
+  options: {fileID: 21300000, guid: 5ed171364c829a444b1d0f8ffe5a735f, type: 3}
   cursorSprite: {fileID: 21300000, guid: 4f35d8638a3e7c2419f15378561520af, type: 3}
   restartUnderline: {fileID: 21300000, guid: 7d5c7e60151604e4fb22e507588fc921, type: 3}
   menuUnderline: {fileID: 21300000, guid: 06049c92c2e034d4a97207578335dadd, type: 3}
