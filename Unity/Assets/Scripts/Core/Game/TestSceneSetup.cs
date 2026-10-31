@@ -49,6 +49,8 @@ public class TestSceneSetup : MonoBehaviour
     public bool generarAlIniciar = true;
     /// <summary>Gets or sets whether this setup object is destroyed after generation.</summary>
     public bool destruirDespuésDeGenerar = true;
+    [Tooltip("Si está activo, arma la escena en runtime como siempre. Si está inactivo, no compone nada y solo verifica que GameManager, Pilar, Spawner, Jugador y Arena existan en la escena, con LogError si falta alguno.")]
+    [SerializeField] private bool componerEnRuntime = true;
 
     [Header("Materiales de Prueba")]
     public Material matPilar;
@@ -103,12 +105,78 @@ public class TestSceneSetup : MonoBehaviour
         pitRadiusMeters = radiusMeters;
     }
 
+    /// <summary>
+    /// Start behavior by flag: composing generates exactly as before; not composing
+    /// only verifies the scene objects without creating anything.
+    /// </summary>
     void Start()
     {
+        if (!componerEnRuntime)
+        {
+            VerificarEscenaCompuesta();
+            return;
+        }
+
         if (generarAlIniciar)
         {
             GenerarEscenaDePrueba();
         }
+    }
+
+    /// <summary>
+    /// Verifies that the scene already contains the gameplay objects composition would create.
+    /// It never creates anything; each missing object fails hard with a naming LogError.
+    /// </summary>
+    private void VerificarEscenaCompuesta()
+    {
+        bool escenaValida = true;
+        escenaValida = VerificarObjeto<ArenaTransform>("ArenaTransform (ArenaManager)") && escenaValida;
+        GameManager gameManager = VerificarObjeto<GameManager>("GameManager");
+        escenaValida = (gameManager != null) && escenaValida;
+        Pilar pilar = VerificarObjeto<Pilar>("Pilar");
+        escenaValida = (pilar != null) && escenaValida;
+        EnemySpawner spawner = VerificarObjeto<EnemySpawner>("Spawner (EnemySpawner)");
+        escenaValida = (spawner != null) && escenaValida;
+        PlayerController jugador = VerificarObjeto<PlayerController>("Jugador (PlayerController)");
+        escenaValida = (jugador != null) && escenaValida;
+
+        if (gameManager != null)
+        {
+            if (gameManager.pilar == null && pilar == null)
+            {
+                Debug.LogError("[TestSceneSetup] componerEnRuntime=false: GameManager.pilar sin asignar y no hay Pilar en la escena. Asigná la referencia o activá componerEnRuntime.");
+                escenaValida = false;
+            }
+
+            if (gameManager.spawner == null && spawner == null)
+            {
+                Debug.LogError("[TestSceneSetup] componerEnRuntime=false: GameManager.spawner sin asignar y no hay Spawner en la escena. Asigná la referencia o activá componerEnRuntime.");
+                escenaValida = false;
+            }
+
+            if (gameManager.player == null && jugador == null)
+            {
+                Debug.LogError("[TestSceneSetup] componerEnRuntime=false: GameManager.player sin asignar y no hay Jugador en la escena. Asigná la referencia o activá componerEnRuntime.");
+                escenaValida = false;
+            }
+        }
+
+        if (escenaValida)
+        {
+            Debug.Log("[TestSceneSetup] Escena verificada: GameManager, Pilar, Spawner, Jugador y Arena presentes, sin composición en runtime.");
+        }
+    }
+
+    /// <summary>Looks for one scene object of the given type, logging which one is missing.</summary>
+    private static T VerificarObjeto<T>(string nombreVisible) where T : UnityEngine.Object
+    {
+        T encontrado = FindFirstObjectByType<T>();
+        if (encontrado == null)
+        {
+            Debug.LogError($"[TestSceneSetup] componerEnRuntime=false pero falta {nombreVisible} en la escena. Agregalo a la escena o activá componerEnRuntime para armarlo en runtime.");
+        }
+
+        return encontrado;
     }
 
     /// <summary>Generates the complete runtime test scene.</summary>

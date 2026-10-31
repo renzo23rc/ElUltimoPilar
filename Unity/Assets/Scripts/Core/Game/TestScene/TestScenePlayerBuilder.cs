@@ -28,13 +28,16 @@ public static class TestScenePlayerBuilder
     private const string VisualObjectName = "JugadorVisual";
     private const string BodyMaterialNameFragment = "body";
     private const string PrimaryModelResource = "Models/Personajes/p1";
+    private const string PrimaryLocomotionControllerResource = "Animation/PlayerP1Locomotion";
     private const string LocomotionControllerResource = "Animation/PlayerLocomotion";
     private const string SecondaryModelResource = "Models/Personajes/p2";
     private const string BazookaResource = "Models/Armas/bazooka/bazooka";
     private const string BazookaObjectName = "bazooka";
-    // Offset de la bazooka respecto a la mano: ajustar en Unity tras verla en Play.
-    private static readonly Vector3 BazookaHandOffsetMeters = Vector3.zero;
-    private static readonly Vector3 BazookaHandEulerAngles = Vector3.zero;
+    private const string RightHandBoneName = "DEF-hand.R";
+    private const string RightPalmBoneName = "DEF-palm.02.R";
+    private const float BazookaYawDegrees = -90f;
+    // Grip point in the imported bazooka's local coordinates, measured from its mesh bounds.
+    private static readonly Vector3 BazookaGripPointMeters = new Vector3(-0.35f, 0.147f, 0f);
     private static readonly Vector3 VisualScale = new Vector3(1f, 2f, 1f);
 
     /// <summary>
@@ -57,7 +60,7 @@ public static class TestScenePlayerBuilder
         player.transform.position = spawnPosition;
 
         CreateVisual(player.transform, PrimaryModelResource, material);
-        AnimateVisual(player.transform);
+        AnimateVisual(player.transform, PrimaryModelResource);
 
         Camera camera = CreateCamera(player.transform);
         DisableOtherCameras(camera, gameManager);
@@ -99,18 +102,18 @@ public static class TestScenePlayerBuilder
         templateObject.name = "PlayerTemplate";
         templateObject.SetActive(false);
         ReplaceVisual(templateObject.transform, SecondaryModelResource);
-        AnimateVisual(templateObject.transform);
+        AnimateVisual(templateObject.transform, SecondaryModelResource);
         return templateObject.GetComponent<PlayerController>();
     }
 
     // Con esqueleto y clips usa el Animator; sin ellos, el cuerpo respira y rebota por código.
-    private static void AnimateVisual(Transform player)
+    private static void AnimateVisual(Transform player, string modelResource)
     {
         Transform visual = player.Find(VisualObjectName);
         if (visual == null)
             return;
 
-        if (TryUseSkeletalAnimation(player, visual))
+        if (TryUseSkeletalAnimation(player, visual, modelResource))
             return;
 
         RemoveComponent<PlayerAnimatorDriver>(player);
@@ -119,10 +122,13 @@ public static class TestScenePlayerBuilder
         animator.Configure(visual, AnimationReferenceSpeedMetersPerSecond);
     }
 
-    private static bool TryUseSkeletalAnimation(Transform player, Transform visual)
+    private static bool TryUseSkeletalAnimation(Transform player, Transform visual, string modelResource)
     {
         Animator animator = visual.GetComponentInChildren<Animator>();
-        var controller = Resources.Load<RuntimeAnimatorController>(LocomotionControllerResource);
+        string controllerResource = modelResource == PrimaryModelResource
+            ? PrimaryLocomotionControllerResource
+            : LocomotionControllerResource;
+        var controller = Resources.Load<RuntimeAnimatorController>(controllerResource);
         if (animator == null || controller == null || visual.GetComponentInChildren<SkinnedMeshRenderer>() == null)
             return false;
 
@@ -137,7 +143,16 @@ public static class TestScenePlayerBuilder
     private static void RemoveComponent<T>(Transform owner) where T : Component
     {
         if (owner.TryGetComponent(out T component))
-            Object.Destroy(component);
+        {
+            if (Application.isPlaying)
+            {
+                Object.Destroy(component);
+            }
+            else
+            {
+                Object.DestroyImmediate(component);
+            }
+        }
     }
 
     // Modelo del personaje si existe; si no, el cubo de respaldo.
@@ -165,7 +180,7 @@ public static class TestScenePlayerBuilder
         // Destroy difiere al fin del frame: se renombra para que el reemplazo no choque de nombre.
         current.name = $"{VisualObjectName}_Old";
         current.gameObject.SetActive(false);
-        Object.Destroy(current.gameObject);
+        DestroyObject(current.gameObject);
         TryCreateModelVisual(player, modelResource);
     }
 
@@ -182,7 +197,14 @@ public static class TestScenePlayerBuilder
         RemoveExportedExtras(model);
         FitToController(model.transform, player);
         ApplyMapSkin(model.transform, modelResource);
-        EnsureBazooka(model.transform);
+
+        PlayerVisualPresenter presenter = player.GetComponent<PlayerVisualPresenter>();
+        if (presenter == null)
+        {
+            presenter = player.gameObject.AddComponent<PlayerVisualPresenter>();
+        }
+
+        presenter.Configure(EnsureBazooka(model.transform));
         return true;
     }
 
@@ -244,37 +266,47 @@ public static class TestScenePlayerBuilder
         }
     }
 
-    // La bazooka vive en Resources, no en el FBX del personaje: se cuelga del hueso
-    // de la mano para que acompañe la animación, con nombre estable e idempotencia.
-    private static void EnsureBazooka(Transform visual)
+    // El arma sigue la mano; si no existe, no se deja un modelo visible en los pies.
+    private static GameObject EnsureBazooka(Transform visual)
     {
-        if (visual == null || FindChildRecursive(visual, BazookaObjectName) != null)
-            return;
+        Transform existing = FindChildRecursive(visual, BazookaObjectName);
+        if (existing != null)
+        {
+            return existing.gameObject;
+        }
 
         GameObject prefab = Resources.Load<GameObject>(BazookaResource);
-        if (prefab == null)
-            return;
-
         Transform hand = FindRightHand(visual);
-        Transform parent = hand != null ? hand : visual;
-        GameObject bazooka = Object.Instantiate(prefab, parent);
+        if (prefab == null || hand == null)
+        {
+            return null;
+        }
+
+        Transform palm = FindChildRecursive(hand, RightPalmBoneName);
+        Vector3 palmPosition = palm != null ? hand.InverseTransformPoint(palm.position) : Vector3.zero;
+        GameObject bazooka = Object.Instantiate(prefab, hand);
         bazooka.name = BazookaObjectName;
-        bazooka.transform.localPosition = hand != null ? BazookaHandOffsetMeters : Vector3.zero;
-        bazooka.transform.localRotation = hand != null ? Quaternion.Euler(BazookaHandEulerAngles) : Quaternion.identity;
         bazooka.transform.localScale = Vector3.one;
+        bazooka.transform.rotation = visual.rotation * Quaternion.Euler(0f, BazookaYawDegrees, 0f);
+        bazooka.transform.localPosition = palmPosition - (bazooka.transform.localRotation * BazookaGripPointMeters);
+        bazooka.SetActive(false);
         RemoveExportedExtras(bazooka);
+        return bazooka;
     }
 
-    // Mano derecha vía avatar humanoide: funciona con cualquier rig compatible
-    // (Mixamo incluido) sin hardcodear nombres de huesos.
     private static Transform FindRightHand(Transform visual)
     {
-        Animator animator = visual.GetComponentInChildren<Animator>();
-        if (animator == null || !animator.isHuman)
-            return null;
+        Animator animator = visual.GetComponentInChildren<Animator>(true);
+        if (animator != null && animator.isHuman)
+        {
+            Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+            if (hand != null && hand.IsChildOf(visual))
+            {
+                return hand;
+            }
+        }
 
-        Transform hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
-        return hand != null && hand.IsChildOf(visual) ? hand : null;
+        return FindChildRecursive(visual, RightHandBoneName);
     }
 
     private static Transform FindChildRecursive(Transform root, string name)
@@ -292,11 +324,23 @@ public static class TestScenePlayerBuilder
     private static void RemoveExportedExtras(GameObject model)
     {
         foreach (Camera camera in model.GetComponentsInChildren<Camera>(true))
-            Object.Destroy(camera.gameObject);
+            DestroyObject(camera.gameObject);
         foreach (Light light in model.GetComponentsInChildren<Light>(true))
-            Object.Destroy(light.gameObject);
+            DestroyObject(light.gameObject);
         foreach (Collider collider in model.GetComponentsInChildren<Collider>(true))
-            Object.Destroy(collider);
+            DestroyObject(collider);
+    }
+
+    private static void DestroyObject(Object target)
+    {
+        if (Application.isPlaying)
+        {
+            Object.Destroy(target);
+        }
+        else
+        {
+            Object.DestroyImmediate(target);
+        }
     }
 
     // Escala el modelo a la altura del CharacterController y apoya los pies en el piso:
