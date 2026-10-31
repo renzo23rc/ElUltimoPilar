@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UltimoPilar.Core.Shared;
 
 // Script de zona de gravedad exagerado - va en el objeto ZonaGravedad
 public class ZonaGravedadEffect : MonoBehaviour
@@ -29,6 +30,7 @@ public class ZonaGravedadEffect : MonoBehaviour
     private Renderer rend;
     private AudioSource gravityMusic;
     private readonly HashSet<PlayerController> playersInside = new HashSet<PlayerController>();
+    private Material ownedMaterial;
 
     void Awake()
     {
@@ -39,6 +41,13 @@ public class ZonaGravedadEffect : MonoBehaviour
         gravityMusic.spatialBlend = 0f;
         gravityMusic.clip = Resources.Load<AudioClip>(GravityMusicResource);
         gravityMusic.volume = GravityMusicVolume * MenuPreferences.MusicVolume;
+        // Clon único del material, registrado para liberarse con la zona.
+        // El pulso por frame reutiliza este clon en vez de renderer.material.
+        if (rend != null)
+        {
+            ownedMaterial = rend.material;
+            OwnedMaterialCleanup.Track(gameObject, ownedMaterial);
+        }
     }
 
     void OnTriggerEnter(Collider other)
@@ -109,11 +118,11 @@ public class ZonaGravedadEffect : MonoBehaviour
             gravityMusic.volume = GravityMusicVolume * MenuPreferences.MusicVolume;
         }
 
-        if (rend != null)
+        if (ownedMaterial != null)
         {
             Color baseColor = VisualColor;
             float alpha = VisualAlphaBase + Mathf.Sin(Time.time * VisualAlphaSpeed) * VisualAlphaAmount;
-            rend.material.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+            ownedMaterial.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
         }
     }
 

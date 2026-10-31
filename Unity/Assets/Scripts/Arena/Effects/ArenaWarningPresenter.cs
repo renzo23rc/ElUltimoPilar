@@ -48,6 +48,7 @@ public sealed class ArenaWarningPresenter
 
     private GameObject warningMarker;
     private GameObject warningRing;
+    private Material ownedFloorMaterial;
     private Color initialFloorColor;
     private bool initialFloorColorCaptured;
 
@@ -199,22 +200,47 @@ public sealed class ArenaWarningPresenter
 
     private Color GetFloorColor()
     {
-        if (floorRenderer == null)
+        Material material = ResolveOwnedFloorMaterial();
+        if (material == null)
         {
             return Color.gray;
         }
 
-        return floorRenderer.material.color;
+        return material.color;
     }
 
     private void SetFloorColor(Color color)
     {
-        if (floorRenderer == null)
+        Material material = ResolveOwnedFloorMaterial();
+        if (material == null)
         {
             return;
         }
 
-        MaterialColorHelper.SetBaseAndEmissionColor(floorRenderer.material, color);
+        MaterialColorHelper.SetBaseAndEmissionColor(material, color);
+    }
+
+    /// <summary>
+    /// Gets the floor material clone, creating it once and tracking it with
+    /// OwnedMaterialCleanup. The warning blink reuses it instead of cloning per frame.
+    /// </summary>
+    private Material ResolveOwnedFloorMaterial()
+    {
+        if (floorRenderer == null)
+        {
+            return null;
+        }
+
+        if (ownedFloorMaterial == null)
+        {
+            ownedFloorMaterial = floorRenderer.material;
+            if (ownedFloorMaterial != null)
+            {
+                OwnedMaterialCleanup.Track(floorRenderer.gameObject, ownedFloorMaterial);
+            }
+        }
+
+        return ownedFloorMaterial;
     }
 
     private void CreatePitWarningMarker()
@@ -330,12 +356,18 @@ public sealed class ArenaWarningPresenter
 
     private void CaptureInitialFloorColor()
     {
-        if (initialFloorColorCaptured || floorRenderer == null)
+        if (initialFloorColorCaptured)
         {
             return;
         }
 
-        initialFloorColor = floorRenderer.material.color;
+        Material material = ResolveOwnedFloorMaterial();
+        if (material == null)
+        {
+            return;
+        }
+
+        initialFloorColor = material.color;
         initialFloorColorCaptured = true;
     }
 
