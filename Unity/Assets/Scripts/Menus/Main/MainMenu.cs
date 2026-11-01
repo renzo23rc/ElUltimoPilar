@@ -1,86 +1,62 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class MainMenu : MonoBehaviour
+/// <summary>Navigates the main menu art. Partida opens map selection and Salir quits.</summary>
+public sealed class MainMenu : MonoBehaviour
 {
-    const string PlayButtonName = "PlayButton";
+    private const int PartidaOption = 0;
+    private const int QuitOption = 1;
+    private const int OptionCount = 2;
+    private const float CursorRowSpacingPixels = 103f;
+    private const string DefaultMapSelectionSceneName = "MapSelection";
+
+    [Header("Sprites")]
+    [SerializeField] private Sprite cursorSprite;
 
     [Header("Escenas")]
-    [SerializeField] private string mapSelectionSceneName = "MapSelection";
+    [SerializeField] private string mapSelectionSceneName = DefaultMapSelectionSceneName;
 
-    [Header("Botones")]
-    [SerializeField] private Button playButton;
+    private InputAction moveUp;
+    private InputAction moveDown;
+    private InputAction confirm;
+    private RectTransform cursorRect;
+    private int selectedIndex;
+    private bool sceneLoadRequested;
 
-    InputAction confirmPlay;
-    bool sceneLoadRequested;
-
-    void Awake()
+    private void Awake()
     {
-        EnsureEventSystem();
-        EnsureRaycasters();
-        WirePlayButton();
-        CreateConfirmAction();
+        Time.timeScale = 1f;
+        ConfigureCamera();
+        BuildScreen();
+        CreateActions();
+        ShowSelection();
         MenuMusicPlayer.EnsureOn(gameObject);
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
-        confirmPlay?.Enable();
+        moveUp?.Enable();
+        moveDown?.Enable();
+        confirm?.Enable();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        confirmPlay?.Disable();
+        moveUp?.Disable();
+        moveDown?.Disable();
+        confirm?.Disable();
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
-        if (confirmPlay == null)
-            return;
-
-        confirmPlay.performed -= HandleConfirmPlay;
-        confirmPlay.Dispose();
-        confirmPlay = null;
+        DisposeAction(ref moveUp, HandleMoveUp);
+        DisposeAction(ref moveDown, HandleMoveDown);
+        DisposeAction(ref confirm, HandleConfirm);
     }
 
-    void WirePlayButton()
-    {
-        if (playButton == null)
-            playButton = FindPlayButton();
-
-        if (playButton == null)
-        {
-            Debug.LogError("MainMenu: no hay un boton llamado PlayButton.");
-            return;
-        }
-
-        LimitClicksToVisiblePixels(playButton);
-
-        if (!IsWiredInInspector(playButton))
-        {
-            playButton.onClick.RemoveListener(GoToMapSelection);
-            playButton.onClick.AddListener(GoToMapSelection);
-        }
-    }
-
-    void CreateConfirmAction()
-    {
-        confirmPlay = new InputAction("MainMenuConfirm", InputActionType.Button);
-        confirmPlay.AddBinding("<Keyboard>/enter");
-        confirmPlay.AddBinding("<Keyboard>/numpadEnter");
-        confirmPlay.AddBinding("<Gamepad>/buttonSouth");
-        confirmPlay.performed += HandleConfirmPlay;
-    }
-
-    void HandleConfirmPlay(InputAction.CallbackContext context)
-    {
-        GoToMapSelection();
-    }
-
+    /// <summary>Loads the map selection scene.</summary>
     public void GoToMapSelection()
     {
         if (sceneLoadRequested)
@@ -88,84 +64,130 @@ public class MainMenu : MonoBehaviour
 
         if (!Application.CanStreamedLevelBeLoaded(mapSelectionSceneName))
         {
-            Debug.LogError("La escena '" + mapSelectionSceneName + "' no esta en File > Build Settings.");
+            Debug.LogError("MainMenu: la escena '" + mapSelectionSceneName + "' no esta en File > Build Settings.");
             return;
         }
 
         sceneLoadRequested = true;
         MenuSfx.PlaySelect();
+        Time.timeScale = 1f;
         SceneManager.LoadScene(mapSelectionSceneName);
     }
 
-    public static Button FindPlayButton()
+    private static void ConfigureCamera()
     {
-        Button[] buttons = Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            if (buttons[i] != null && buttons[i].gameObject.name == PlayButtonName)
-                return buttons[i];
-        }
-
-        return null;
-    }
-
-    static bool IsWiredInInspector(Button button)
-    {
-        int count = button.onClick.GetPersistentEventCount();
-        for (int i = 0; i < count; i++)
-        {
-            if (button.onClick.GetPersistentMethodName(i) == nameof(GoToMapSelection)
-                && button.onClick.GetPersistentTarget(i) != null)
-                return true;
-        }
-
-        return false;
-    }
-
-    public static void EnsureEventSystem()
-    {
-        EventSystem eventSystem = Object.FindAnyObjectByType<EventSystem>();
-        if (eventSystem == null)
-        {
-            var eventSystemObject = new GameObject("EventSystem");
-            eventSystem = eventSystemObject.AddComponent<EventSystem>();
-        }
-
-        if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
-            eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
-
-        StandaloneInputModule legacy = eventSystem.GetComponent<StandaloneInputModule>();
-        if (legacy == null)
+        Camera camera = Camera.main;
+        if (camera == null)
             return;
 
-        if (Application.isPlaying)
-            Destroy(legacy);
-        else
-            DestroyImmediate(legacy);
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = Color.black;
     }
 
-    static void EnsureRaycasters()
+    private void BuildScreen()
     {
-        Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        if (canvas == null)
         {
-            if (canvases[i].GetComponent<GraphicRaycaster>() == null)
-                canvases[i].gameObject.AddComponent<GraphicRaycaster>();
+            Debug.LogError("MainMenu: no hay un Canvas.");
+            return;
         }
+
+        MenuUiFactory.FitCanvas(canvas);
+        for (int i = 0; i < canvas.transform.childCount; i++)
+            PrepareArtChild(canvas.transform.GetChild(i));
+
+        if (cursorSprite == null)
+            Debug.LogError("MainMenu: falta el sprite del cursor.");
+
+        Image cursorImage = MenuUiFactory.CreateArtLayer(canvas.transform, "Cursor", cursorSprite);
+        cursorRect = cursorImage.rectTransform;
     }
 
-    static void LimitClicksToVisiblePixels(Button button)
+    private static void PrepareArtChild(Transform child)
     {
-        if (!button.TryGetComponent(out Image image) || image.sprite == null)
+        RectTransform rect = child as RectTransform;
+        if (rect == null)
             return;
 
-        try
+        MenuUiFactory.FitArtRect(rect);
+        if (child.TryGetComponent(out Image image))
+            image.raycastTarget = false;
+
+        if (child.TryGetComponent(out Button button))
+            button.enabled = false;
+    }
+
+    private void CreateActions()
+    {
+        moveUp = CreateButtonAction("MainMenuMoveUp", HandleMoveUp, "<Keyboard>/upArrow", "<Keyboard>/w", "<Gamepad>/dpad/up");
+        moveDown = CreateButtonAction("MainMenuMoveDown", HandleMoveDown, "<Keyboard>/downArrow", "<Keyboard>/s", "<Gamepad>/dpad/down");
+        confirm = CreateButtonAction("MainMenuConfirm", HandleConfirm, "<Keyboard>/enter", "<Keyboard>/numpadEnter", "<Keyboard>/space", "<Gamepad>/buttonSouth");
+    }
+
+    private static InputAction CreateButtonAction(string actionName, System.Action<InputAction.CallbackContext> handler, params string[] bindings)
+    {
+        var action = new InputAction(actionName, InputActionType.Button);
+        for (int i = 0; i < bindings.Length; i++)
+            action.AddBinding(bindings[i]);
+
+        action.performed += handler;
+        return action;
+    }
+
+    private void HandleMoveUp(InputAction.CallbackContext context)
+    {
+        if (sceneLoadRequested)
+            return;
+
+        MenuSfx.PlaySelect();
+        SetSelection(VictoryScreenController.MoveSelection(selectedIndex, -1, OptionCount));
+    }
+
+    private void HandleMoveDown(InputAction.CallbackContext context)
+    {
+        if (sceneLoadRequested)
+            return;
+
+        MenuSfx.PlaySelect();
+        SetSelection(VictoryScreenController.MoveSelection(selectedIndex, 1, OptionCount));
+    }
+
+    private void HandleConfirm(InputAction.CallbackContext context)
+    {
+        if (sceneLoadRequested)
+            return;
+
+        if (selectedIndex == QuitOption)
         {
-            image.alphaHitTestMinimumThreshold = 0.1f;
+            sceneLoadRequested = true;
+            MenuSfx.PlayBack();
+            MenuSceneLoader.QuitApplication();
+            return;
         }
-        catch (System.InvalidOperationException)
-        {
-            // La textura no es readable: el rectangulo entero del boton sigue recibiendo el clic.
-        }
+
+        GoToMapSelection();
+    }
+
+    private void SetSelection(int index)
+    {
+        selectedIndex = index;
+        ShowSelection();
+    }
+
+    private void ShowSelection()
+    {
+        float offset = selectedIndex == PartidaOption ? 0f : -CursorRowSpacingPixels;
+        MenuUiFactory.PlaceArtCursor(cursorRect, offset);
+    }
+
+    private static void DisposeAction(ref InputAction action, System.Action<InputAction.CallbackContext> handler)
+    {
+        if (action == null)
+            return;
+
+        action.performed -= handler;
+        action.Dispose();
+        action = null;
     }
 }

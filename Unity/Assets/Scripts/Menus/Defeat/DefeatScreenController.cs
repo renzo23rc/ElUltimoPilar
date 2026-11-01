@@ -167,13 +167,7 @@ public sealed class DefeatScreenController : MonoBehaviour
             return;
         }
 
-        CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
-        if (scaler != null)
-        {
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        MenuUiFactory.FitCanvas(canvas);
 
         CreateLayer(canvas.transform, "Fondo", background);
         CreateLayer(canvas.transform, "Opciones", options);
@@ -185,20 +179,7 @@ public sealed class DefeatScreenController : MonoBehaviour
 
     private static Image CreateLayer(Transform parent, string layerName, Sprite sprite)
     {
-        var layer = new GameObject(layerName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        layer.layer = 5;
-        layer.transform.SetParent(parent, false);
-        RectTransform rect = layer.GetComponent<RectTransform>();
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-
-        Image image = layer.GetComponent<Image>();
-        image.sprite = sprite;
-        image.raycastTarget = false;
-        image.preserveAspect = false;
-        return image;
+        return MenuUiFactory.CreateArtLayer(parent, layerName, sprite);
     }
 
     private void CreateActions()
@@ -264,8 +245,7 @@ public sealed class DefeatScreenController : MonoBehaviour
             return;
 
         float offset = selectedIndex == RestartOption ? 0f : -CursorRowSpacingPixels;
-        cursorRect.offsetMin = new Vector2(0f, offset);
-        cursorRect.offsetMax = new Vector2(0f, offset);
+        MenuUiFactory.PlaceArtCursor(cursorRect, offset);
     }
 
     private string LevelToLoad()

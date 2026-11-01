@@ -100,10 +100,7 @@ public sealed class MapSelectionController : MonoBehaviour
         canvasObject.layer = 5;
         Canvas canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        MenuUiFactory.FitCanvas(canvas);
 
         var column = new GameObject("Opciones", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
         column.layer = 5;

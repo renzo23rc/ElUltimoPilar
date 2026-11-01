@@ -6,8 +6,14 @@ using UnityEngine.InputSystem.UI;
 /// <summary>Creates the shared runtime menu UI primitives.</summary>
 public static class MenuUiFactory
 {
+    private const float ReferenceWidthPixels = 1920f;
+    private const float ReferenceHeightPixels = 1080f;
+
     private const string BuiltinFontName = "LegacyRuntime.ttf";
     private const int MenuSortingOrder = 30;
+    private const int ArtLayer = 5;
+    private static readonly Vector2 ArtReferenceResolution = new Vector2(ReferenceWidthPixels, ReferenceHeightPixels);
+    private static readonly Vector2 ArtCenter = new Vector2(0.5f, 0.5f);
     private static readonly Color PanelColor = new Color(0.035f, 0.055f, 0.09f, 0.96f);
     private static readonly Color ButtonColor = new Color(0.12f, 0.24f, 0.34f, 1f);
     private static readonly Color SelectedColor = new Color(0.2f, 0.52f, 0.68f, 1f);
@@ -20,11 +26,64 @@ public static class MenuUiFactory
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.overrideSorting = true;
         canvas.sortingOrder = MenuSortingOrder;
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        FitCanvas(canvas);
         return canvas;
+    }
+
+    /// <summary>Scales a 1920x1080 menu so the whole frame stays inside the screen.</summary>
+    public static void FitCanvas(Canvas canvas)
+    {
+        if (canvas == null)
+            return;
+
+        CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+        if (scaler == null)
+            return;
+
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = ArtReferenceResolution;
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+    }
+
+    /// <summary>Places a full-frame menu plate in the center of the fitted canvas.</summary>
+    public static void FitArtRect(RectTransform rect)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = ArtCenter;
+        rect.anchorMax = ArtCenter;
+        rect.pivot = ArtCenter;
+        rect.sizeDelta = new Vector2(ReferenceWidthPixels, ReferenceHeightPixels);
+        rect.anchoredPosition = Vector2.zero;
+        rect.localScale = Vector3.one;
+    }
+
+    /// <summary>Creates one 1920x1080 menu plate. A missing sprite stays invisible.</summary>
+    public static Image CreateArtLayer(Transform parent, string layerName, Sprite sprite)
+    {
+        var layer = new GameObject(layerName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        layer.layer = ArtLayer;
+        layer.transform.SetParent(parent, false);
+        RectTransform rect = layer.GetComponent<RectTransform>();
+        FitArtRect(rect);
+
+        Image image = layer.GetComponent<Image>();
+        image.sprite = sprite;
+        image.enabled = sprite != null;
+        image.raycastTarget = false;
+        image.preserveAspect = false;
+        image.color = Color.white;
+        return image;
+    }
+
+    /// <summary>Moves a full-frame cursor plate. Positive values go up, in reference pixels.</summary>
+    public static void PlaceArtCursor(RectTransform cursor, float verticalOffsetPixels)
+    {
+        if (cursor == null)
+            return;
+
+        cursor.anchoredPosition = new Vector2(0f, verticalOffsetPixels);
     }
 
     /// <summary>Ensures there is one active EventSystem using the Input System UI module.</summary>
