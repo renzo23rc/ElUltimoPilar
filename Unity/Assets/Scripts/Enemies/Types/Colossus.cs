@@ -8,7 +8,7 @@ using UnityEngine;
 
 public class Colossus : Enemy
 {
-    private const float MovementSpeedMetersPerSecond = 0.9f;
+    private const float MovementSpeedMetersPerSecond = 0.6f;
     private const float MaximumHealth = 180f;
     private const float PilarDamage = 9f;
     private const float PlayerDamage = 7f;
@@ -17,7 +17,7 @@ public class Colossus : Enemy
     [Header("Coloso Específico")]
     [Range(0f, 0.9f)] public float resistenciaDisparos = 0.55f; // Reduce 55% del daño (antes 80% -> inmortal)
     public float dañoEmpuje = 30f;
-    public float radioAtaque = 4f;
+    public float radioAtaque = 3f;
     public GameObject prefabOndaImpacto;
 
     [HideInInspector] public bool enZonaPeligrosa = false; // Usado por PozoKill/ZonaGravedad para debug

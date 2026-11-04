@@ -21,6 +21,7 @@ public class EnemyHealthBar : MonoBehaviour
     private const float MinimumHeightOffsetMeters = 1.1f;
     private const float MinimumHeightHeadroomMeters = 0.9f;
     private const float DefaultHeightOffsetMeters = 1.6f;
+    private const float MinimumParentScale = 0.01f;
     private const float MinimumBillboardDistanceSqr = 0.001f;
     private static readonly Color BackgroundColor = new Color(0.08f, 0.08f, 0.08f, 0.9f);
     private static readonly Color FillColor = new Color(0.15f, 1f, 0.15f, 1f);
@@ -149,8 +150,11 @@ public class EnemyHealthBar : MonoBehaviour
 
     private void ConfigureCanvas(Canvas canvas)
     {
-        canvasTransform.localPosition = new Vector3(0f, CalculateHeightOffset(), 0f);
-        canvasTransform.localScale = Vector3.one * CanvasScale;
+        // La barra es hija del enemigo: se compensa su escala para que el tamaño y la altura
+        // (en metros de mundo) no dependan de la escala del root del prefab.
+        float parentScale = Mathf.Max(transform.lossyScale.y, MinimumParentScale);
+        canvasTransform.localPosition = new Vector3(0f, CalculateHeightOffset() / parentScale, 0f);
+        canvasTransform.localScale = Vector3.one * (CanvasScale / parentScale);
         canvas.sortingOrder = CanvasSortingOrder;
         canvas.gameObject.layer = UiLayer;
         if (canvas.TryGetComponent(out RectTransform canvasRect))
@@ -169,7 +173,7 @@ public class EnemyHealthBar : MonoBehaviour
         float halfScaleHeight = enemy.transform.localScale.y * 0.5f;
         Collider enemyCollider = enemy.GetComponent<Collider>();
         float offset = enemyCollider != null && enemyCollider.bounds.extents.y > MinimumColliderExtentMeters
-            ? enemyCollider.bounds.extents.y + ColliderHeadroomMeters
+            ? enemyCollider.bounds.max.y - enemy.transform.position.y + ColliderHeadroomMeters
             : halfScaleHeight + ScaleHeadroomMeters;
         return offset < MinimumHeightOffsetMeters ? halfScaleHeight + MinimumHeightHeadroomMeters : offset;
     }
