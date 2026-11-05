@@ -90,7 +90,7 @@ Transform:
   m_GameObject: {fileID: 4197677813888190758}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.115, y: 0.014, z: -0.141}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -172,6 +172,7 @@ GameObject:
   - component: {fileID: 4426283400959347504}
   - component: {fileID: 5047285363159615379}
   - component: {fileID: 1772307202594431594}
+  - component: {fileID: 7045070499048290001}
   m_Layer: 0
   m_Name: JugadorP2
   m_TagString: Untagged
@@ -305,7 +306,7 @@ MonoBehaviour:
   bobEnabled: 1
   amplitudeMeters: 0.015
   frequencyHertz: 10
-  eyeOffsetMeters: {x: 0, y: 0, z: 0.2}
+  eyeOffsetMeters: {x: 0.19, y: 0, z: 0.12}
   lookDownClearanceMeters: 0.25
 --- !u!114 &7265405744503972579
 MonoBehaviour:
@@ -409,6 +410,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89230c009f8364f5e833f200881cea7f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimatorDriver
+  animator: {fileID: 5634179400944216615}
+--- !u!114 &7045070499048290001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6964314402083273265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90a6197d82baa44c6a90e5f1e4136d90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInPlaceLocomotion
   animator: {fileID: 5634179400944216615}
 --- !u!114 &1772307202594431594
 MonoBehaviour:
