@@ -60,6 +60,9 @@ public class Runner : Enemy
         velocidadMovimiento = hatchlingSpeedMetersPerSecond;
     }
 
+    // Siempre camina o corre: nunca queda en Idle.
+    protected override bool UsesIdlePose => false;
+
     protected override void Comportamiento()
     {
         if (pilarObjetivo == null)
@@ -73,11 +76,14 @@ public class Runner : Enemy
         if (distancia > rangoAtaque)
         {
             // Sprint cuando está lejos; la ralentización aplica a ambas velocidades.
-            float velocidadBase = distancia > distanciaSprint ? velocidadSprint : velocidadMovimiento;
+            bool sprinting = distancia > distanciaSprint;
+            float velocidadBase = sprinting ? velocidadSprint : velocidadMovimiento;
+            AnimationDriver.SetRun(sprinting);
             MoverHacia(direccion.normalized, velocidadBase * SlowFactor);
         }
         else
         {
+            AnimationDriver.SetRun(false);
             AtacarPilar();
         }
     }

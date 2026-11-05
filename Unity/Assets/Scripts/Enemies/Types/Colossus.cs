@@ -35,6 +35,9 @@ public class Colossus : Enemy
         rangoAtaque = radioAtaque;
     }
 
+    // Casi siempre camina: no pasa a Idle mientras golpea.
+    protected override bool UsesIdlePose => false;
+
     protected override void Comportamiento()
     {
         if (pilarObjetivo == null)
@@ -61,6 +64,8 @@ public class Colossus : Enemy
         {
             return;
         }
+
+        AnimationDriver.TriggerPunch();
 
         // Daño en área al Pilar y jugadores cercanos, una vez por objetivo.
         foreach (Pilar pilar in OverlapQuery.FindUniqueInSphere<Pilar>(transform.position, radioAtaque))

@@ -52,6 +52,9 @@ public class Explosive : Enemy
         EnsureOwnedMaterial();
     }
 
+    // Camina hasta detonar: el grito no pasa por Idle.
+    protected override bool UsesIdlePose => false;
+
     protected override void Comportamiento()
     {
         if (detonando || pilarObjetivo == null)
@@ -88,6 +91,7 @@ public class Explosive : Enemy
         }
 
         detonando = true;
+        AnimationDriver.TriggerScream();
         EnemyVoiceSfx.Play(this, true);
 
         // El color de advertencia vive en el material propio; se corta el flash para que se vea.
@@ -152,7 +156,7 @@ public class Explosive : Enemy
         // Al explotar no dropea energía (no pasa por Morir), para no duplicar el drop.
         estaMuerto = true;
         NotificarEliminacion();
-        Destroy(gameObject);
+        PlayDeathAndDestroy();
     }
 
     // Mientras detona ignora el daño: la explosión ya está en marcha.

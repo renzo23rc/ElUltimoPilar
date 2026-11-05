@@ -23,6 +23,8 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
     private const float DropHeightMeters = 0.5f;
     private const float DamageFlashDurationSeconds = 0.05f;
     private const float DestroyDelaySeconds = 0.1f;
+    // Cruce Any State -> Die del controlador: el clip recién se ve completo después de este tiempo.
+    private const float DeathTransitionSeconds = 0.25f;
     private const float MinimumAnimationReferenceSpeed = 0.5f;
     private const string EnergyPickupPoolKey = "EnergyPickup";
     private const string PlayerTag = "Player";
@@ -68,12 +70,20 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
     private float knockbackRemainingSeconds;
     private Renderer flashRenderer;
     private Coroutine flashCoroutine;
+    private EnemyAnimationDriver animationDriver = new EnemyAnimationDriver(null);
+    private bool movedThisFrame;
 
     /// <summary>Gets the enemies that are currently enabled in the scene.</summary>
     public static IReadOnlyList<Enemy> Active => ActiveEnemies;
 
     /// <summary>Gets whether the enemy has died.</summary>
     public bool EstaMuerto => estaMuerto;
+
+    /// <summary>Gets the driver that fires the Animator parameters of the visual model.</summary>
+    protected EnemyAnimationDriver AnimationDriver => animationDriver;
+
+    /// <summary>Gets whether the Idle parameter follows the movement; walkers that never stand still return false.</summary>
+    protected virtual bool UsesIdlePose => true;
 
     /// <summary>Gets the active speed multiplier applied by slowdowns.</summary>
     protected float SlowFactor => slowdowns.GetFactor(Time.time);
@@ -118,11 +128,34 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
             gameObject.AddComponent<EnemyGrowl>();
         }
 
+        ResolveAnimationDriver();
         EnsureLocomotionAnimator();
+    }
+
+    private void ResolveAnimationDriver()
+    {
+        Animator animator = modeloVisual.GetComponentInChildren<Animator>(true);
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>(true);
+        }
+
+        animationDriver = new EnemyAnimationDriver(animator);
     }
 
     private void EnsureLocomotionAnimator()
     {
+        // Un modelo con Animator ya tiene clips: la animación procedural lo deformaría.
+        if (animationDriver.HasAnimator)
+        {
+            if (TryGetComponent(out ProceduralLocomotionAnimator existing))
+            {
+                existing.enabled = false;
+            }
+
+            return;
+        }
+
         if (GetComponent<ProceduralLocomotionAnimator>() != null)
         {
             return;
@@ -176,10 +209,19 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
         if (DecoyBeacon.TryGetAttractingDecoy(transform.position, out Vector3 decoyPosition))
         {
             MoverHaciaSeñuelo(decoyPosition);
+            SyncLocomotionAnimation();
             return;
         }
 
         Comportamiento();
+        SyncLocomotionAnimation();
+    }
+
+    // Idle es true parado y false caminando; los que siempre caminan lo dejan en false.
+    private void SyncLocomotionAnimation()
+    {
+        animationDriver.SetIdle(UsesIdlePose && !movedThisFrame);
+        movedThisFrame = false;
     }
 
     /// <summary>Gets whether gameplay should advance; without a manager the enemy runs standalone.</summary>
@@ -306,6 +348,7 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
             return;
         }
 
+        animationDriver.TriggerAttack();
         torreta.RecibirDaño(dañoAlPilar);
         timerAtaque = cooldownAtaque;
     }
@@ -319,6 +362,7 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
     /// <summary>Moves at an explicit speed and rotates toward the movement direction.</summary>
     protected void MoverHacia(Vector3 direccion, float velocidad)
     {
+        movedThisFrame = true;
         Vector3 desplazamiento = direccion * velocidad * Time.deltaTime;
         if (rb != null)
         {
@@ -347,6 +391,7 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
             return;
         }
 
+        animationDriver.TriggerAttack();
         if (pilarObjetivo != null)
         {
             pilarObjetivo.RecibirDaño(dañoAlPilar);
@@ -424,7 +469,43 @@ public class Enemy : MonoBehaviour, IDamageable, ISlowable
         DropearVariante();
         NotificarEliminacion();
 
-        Destroy(gameObject, DestroyDelaySeconds);
+        PlayDeathAndDestroy();
+    }
+
+    /// <summary>
+    /// Plays the death clip, frees the body from physics and destroys the enemy once the clip ends.
+    /// Callers must already have set the dead state.
+    /// </summary>
+    protected void PlayDeathAndDestroy()
+    {
+        animationDriver.TriggerDie();
+        ActiveEnemies.Remove(this);
+        ReleaseBodyForDeath();
+        float deathSeconds = animationDriver.HasAnimator
+            ? animationDriver.GetDeathDurationSeconds(DestroyDelaySeconds) + DeathTransitionSeconds
+            : DestroyDelaySeconds;
+        Destroy(gameObject, deathSeconds);
+    }
+
+    // El cuerpo muerto no debe bloquear, recibir proyectiles ni caer por la gravedad mientras se anima.
+    private void ReleaseBodyForDeath()
+    {
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+        }
+
+        foreach (Collider bodyCollider in GetComponentsInChildren<Collider>())
+        {
+            bodyCollider.enabled = false;
+        }
+
+        // La barra de vida no tiene sentido sobre un cuerpo que ya está muriendo.
+        EnemyHealthBar healthBar = GetComponentInChildren<EnemyHealthBar>(true);
+        if (healthBar != null)
+        {
+            healthBar.gameObject.SetActive(false);
+        }
     }
 
     /// <summary>Tells the wave spawner that this enemy no longer counts as alive.</summary>

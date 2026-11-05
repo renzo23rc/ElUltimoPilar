@@ -128,6 +128,7 @@ public class Artillery : Enemy
 
     void Disparar(Transform objetivo)
     {
+        AnimationDriver.TriggerAttack();
         if (prefabProyectil == null)
         {
             // Daño directo si no hay prefab

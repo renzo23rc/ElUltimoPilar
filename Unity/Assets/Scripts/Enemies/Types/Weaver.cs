@@ -84,6 +84,7 @@ public class Weaver : Enemy
 
     void LanzarCampo()
     {
+        AnimationDriver.TriggerScream();
         if (prefabCampo == null)
         {
             // Fallback: crear campo en posición del jugador o Pilar
