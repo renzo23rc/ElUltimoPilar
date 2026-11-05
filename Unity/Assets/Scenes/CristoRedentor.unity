@@ -335,8 +335,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e49f5bcee6f44691afc6c2e9fb2d54f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Pilar
-  vidaMaxima: 100
-  vidaActual: 100
+  vidaMaxima: 400
+  vidaActual: 400
   umbralFase2: 75
   umbralFase3: 50
   umbralFase4: 25

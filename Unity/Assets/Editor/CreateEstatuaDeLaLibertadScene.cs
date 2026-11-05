@@ -29,7 +29,7 @@ public static class CreateEstatuaDeLaLibertadScene
     private const float TurretRadiusPaddingMeters = 1.25f;
     private const float PitRadiusMeters = 5f;
     private const float TurretClearanceOutsidePitMeters = 1.5f;
-    private const float PilarMaximumHealth = 100f;
+    private const float PilarMaximumHealth = 400f;
     private const float Phase2HealthThreshold = 75f;
     private const float Phase3HealthThreshold = 50f;
     private const float Phase4HealthThreshold = 25f;

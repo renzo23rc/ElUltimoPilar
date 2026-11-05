@@ -15,7 +15,7 @@ public class Pilar : MonoBehaviour, IDamageable
 {
     private const float MinimumHealth = 0f;
     private const float PercentageScale = 100f;
-    private const float MaximumHealth = 100f;
+    private const float MaximumHealth = 400f;
     private const int InitialPhase = 1;
     private const int EmergencyPhase = 4;
     // Balance de las torretas de emergencia (próximo paso: mover a un ScriptableObject TurretConfig).
@@ -30,9 +30,7 @@ public class Pilar : MonoBehaviour, IDamageable
     private const float AimHeightAboveBaseMeters = 2f;
 
     [Header("Vida")]
-    [Range(0, 100)]
     public float vidaMaxima = MaximumHealth;
-    [Range(0, 100)]
     public float vidaActual = MaximumHealth;
 
     [Header("Umbrales de Transformación")]
@@ -97,7 +95,7 @@ public class Pilar : MonoBehaviour, IDamageable
     // Por frame: aplica los pasos de fase pendientes según la vida y suaviza el color.
     private void Update()
     {
-        IReadOnlyList<int> steps = EnsurePhaseCoordinator().StepToward(vidaActual);
+        IReadOnlyList<int> steps = EnsurePhaseCoordinator().StepToward(PorcentajeVida);
         foreach (int phase in steps)
         {
             ChangePhase(phase);
@@ -112,7 +110,7 @@ public class Pilar : MonoBehaviour, IDamageable
     // Aplica un paso de fase, avisa a la Arena y activa las torretas una sola vez al llegar a fase 4.
     private void ChangePhase(int newPhase)
     {
-        Debug.Log($"[Pilar] Fase cambiada: {faseActual} -> {newPhase} (Vida: {vidaActual}%)");
+        Debug.Log($"[Pilar] Fase cambiada: {faseActual} -> {newPhase} (Vida: {PorcentajeVida:F0}%)");
         faseActual = newPhase;
         OnFaseCambiada?.Invoke(faseActual);
 
