@@ -75,10 +75,10 @@ public class Runner : Enemy
 
         if (distancia > rangoAtaque)
         {
-            // Sprint cuando está lejos; la ralentización aplica a ambas velocidades.
-            bool sprinting = distancia > distanciaSprint;
+            // El Corredor de oleada corre todo el trayecto. La cría del Nido conserva su velocidad corta.
+            bool sprinting = !hasHatchlingStats || distancia > distanciaSprint;
             float velocidadBase = sprinting ? velocidadSprint : velocidadMovimiento;
-            AnimationDriver.SetRun(sprinting);
+            AnimationDriver.SetRun(true);
             MoverHacia(direccion.normalized, velocidadBase * SlowFactor);
         }
         else
